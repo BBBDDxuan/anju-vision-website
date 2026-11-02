@@ -1,0 +1,65 @@
+.live-camera-panel{margin:22px 0 28px;border:1px solid #d7e5db;border-radius:16px;background:#fff;overflow:hidden;box-shadow:0 5px 24px #214c3810}
+.live-camera-heading{display:flex;justify-content:space-between;gap:18px;align-items:center;padding:20px 24px;border-bottom:1px solid #e6ece7}
+.live-camera-eyebrow{font-size:10px;letter-spacing:1.8px;color:#598168}
+.live-camera-heading h2{margin:6px 0;font-size:22px;color:#234b38}
+.live-camera-heading p{margin:0;font-size:12px;color:#6e8074}
+.live-camera-controls{display:flex;align-items:center;gap:14px;font-size:12px;color:#36694c}
+.live-camera-controls button{border:0;border-radius:8px;background:#285f43;color:white;font-size:13px;padding:11px 18px;cursor:pointer;white-space:nowrap}
+.live-camera-controls button:disabled{opacity:.5;cursor:wait}
+.live-camera-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(230px,280px);align-items:start}
+.live-camera-main{min-width:0}
+.live-camera-screen{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;background:#14221b;display:flex;align-items:center;justify-content:center}
+.live-camera-screen img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:contain}
+.live-camera-placeholder{display:flex;flex-direction:column;text-align:center;gap:12px;padding:16px;color:#dee9df}
+.live-camera-placeholder strong{font-size:15px}
+.live-camera-placeholder span{font-size:12px;line-height:1.6;color:#a7bcae}
+.live-camera-detail{padding:20px;min-width:0}
+.live-camera-panel h3{font-size:13px;margin:0 0 14px;color:#2c4b37}
+.live-camera-panel dl{margin:0}
+.live-camera-panel dt{font-size:11px;color:#7b8f81}
+.live-camera-panel dd{margin:5px 0 0;color:#254e39;overflow-wrap:anywhere}
+.live-camera-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 12px}
+.live-camera-metrics dd{font-size:18px;font-weight:600}
+.live-camera-summary{padding-top:18px;display:grid;gap:12px}
+.live-camera-summary>div{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.live-camera-summary dd{font-size:12px;text-align:right;margin:0}
+.live-camera-panel .muted,.live-camera-privacy{font-size:11px;line-height:1.7;color:#6e8074}
+.live-camera-panel .error{font-size:12px;line-height:1.6;overflow-wrap:anywhere}
+.live-camera-panel>.error{margin:12px 24px}
+.live-camera-session{padding:18px 24px}
+.live-camera-session .muted{margin:0}
+.live-camera-events{padding:0;margin:0;list-style:none;max-height:220px;overflow:auto}
+.live-camera-events li{padding:10px 0;display:flex;gap:12px;justify-content:space-between;color:#9c542e;font-size:12px;border-bottom:1px solid #e6ece7}
+.live-camera-events li:last-child{border-bottom:0}
+.live-camera-events time{white-space:nowrap;font-size:11px}
+.live-camera-event-content{min-width:0;overflow-wrap:anywhere}
+.live-camera-event-review{display:block;margin-top:5px;line-height:1.6}
+.live-camera-event-content p{margin:5px 0 0;font-size:11px;line-height:1.6;color:#6e8074}
+.live-camera-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 24px;padding:0 24px;border-top:1px solid #e6ece7;align-items:start}
+.live-camera-options details{min-width:0}
+.live-camera-options summary{padding:15px 0;cursor:pointer;font-size:12px;color:#36694c}
+.live-camera-option-content{padding-bottom:16px;font-size:12px;line-height:1.7;color:#6e8074;overflow-wrap:anywhere}
+.live-camera-option-content dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:0 0 18px}
+.live-camera-option-content dd{font-size:12px}
+.live-camera-option-content p{margin:0 0 14px}
+.live-camera-option-content ul{padding-left:18px;margin:0}
+.live-camera-conditions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;align-items:start}
+.live-camera-conditions>div{min-width:0}
+.live-camera-conditions p{margin-bottom:0}
+@media(max-width:600px){.live-camera-conditions{grid-template-columns:1fr;gap:18px}}
+.live-camera-privacy{margin:0;padding:0 24px 16px}
+@media(max-width:850px){
+  .live-camera-grid{grid-template-columns:1fr}
+  .live-camera-heading{align-items:flex-start;padding:18px;flex-wrap:wrap}
+  .live-camera-controls{width:100%;justify-content:space-between}
+  .live-camera-detail{padding:18px;border-top:1px solid #e6ece7}
+  .live-camera-metrics{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .live-camera-summary{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+  .live-camera-summary>div{display:block}
+  .live-camera-summary dd{text-align:left;margin-top:5px}
+  .live-camera-session{padding:18px}
+  .live-camera-options{grid-template-columns:1fr;padding:0 18px}
+  .live-camera-options details+details{border-top:1px solid #e6ece7}
+  .live-camera-privacy{padding:0 18px 16px}
+}
+@media(max-width:480px){.live-camera-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.live-camera-summary{grid-template-columns:1fr}.live-camera-summary>div{display:flex}.live-camera-summary dd{margin:0;text-align:right}}

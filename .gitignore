@@ -1,0 +1,14 @@
+node_modules/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.playwright-cli/
+coverage/
+
+# dist/ is intentionally tracked for integration with the Python backend.
