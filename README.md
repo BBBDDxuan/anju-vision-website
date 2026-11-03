@@ -115,6 +115,35 @@ if (-not (Test-Path 'elder-safety/.env')) {
 
 ## 开发和测试
 
+### 一键启动前后端（5173）
+
+双击仓库根目录 **start-dev.bat**，脚本会启动后端和 Vite，等待网页、接口代理和
+摄像头同源状态检查通过后打开 **http://127.0.0.1:5173/**。保持启动窗口打开，
+按 Ctrl+C 停止本次脚本启动的服务。已运行的后端会复用，退出时保留；
+5173 被占用时会提示先停止旧前端，避免打开错误的页面版本。
+
+脚本首次缺少前端依赖时会运行 `npm ci`，需要已安装 Node.js；后端环境可先用
+`setup.bat` 安装。日志写入 `runtime/dev-start/`，不进入 Git。
+
+若仓库尚无 `.env`，且位于已有配置的完整项目内，脚本会向上查找并复用该项目的
+后端源码、`.env`、数据库和摄像头环境，启动时显示实际路径，不复制密钥。
+例如当前嵌套目录可复用 `G:\比赛\AI黑客松` 后端，网页使用本仓库最新 `frontend/`。
+若希望使用本仓库自带后端，先按首次运行说明配置，或显式指定：
+
+```powershell
+# 使用本仓库后端；须先配置本仓库的 .env、运行环境及摄像头
+.\start-dev.ps1 -BackendRoot .
+# 指定已有后端和 Python 环境
+.\start-dev.ps1 -BackendRoot 'G:\比赛\AI黑客松' -Python 'G:\比赛\AI黑客松\elder-safety\.venv\Scripts\python.exe'
+# 使用其他端口，并自动匹配 API 代理
+.\start-dev.ps1 -BackendPort 8010 -FrontendPort 5174
+```
+
+摄像头开发代理保留浏览器的 `Host` 和 `Origin`，避免 5173 → 8000 代理导致
+“请从本机同源网页操作摄像头”。后端仍限制本机和同源访问；脚本只检查摄像头状态，
+不会自动开启设备、开始录像或调用付费模型。设备和模型可用性须另行验证。
+`-SmokeTest -NoBrowser` 可执行启动自检后自动退出。
+
 修改前端才需要 Node.js LTS：
 
 ```powershell
