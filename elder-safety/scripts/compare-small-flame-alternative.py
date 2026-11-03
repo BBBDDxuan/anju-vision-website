@@ -1,5 +1,6 @@
 """Offline diagnostic on user supplied screenshots; no camera/network/push."""
 from pathlib import Path
+import argparse
 import json
 import sys
 import time
@@ -22,10 +23,14 @@ def save(path, image):
     path.write_bytes(data.tobytes())
 
 def main():
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--near",type=Path,required=True,help="Near-fire screenshot")
+    parser.add_argument("--far",type=Path,required=True,help="Far-fire screenshot")
+    args=parser.parse_args()
     out=ROOT/"runtime/small-flame-20261029"
     out.mkdir(parents=True,exist_ok=True)
-    sources=[("near",Path(r"C:\Users\ADMINI~1\AppData\Local\Temp\codex-clipboard-a2d08fa8-9890-4a6b-8203-7fcb9655e89e.png"),(2,177,1292,900)),
-             ("far",Path(r"C:\Users\ADMINI~1\AppData\Local\Temp\codex-clipboard-e19016cd-34b8-4975-ab00-06cb5976716b.png"),(0,0,1285,684))]
+    sources=[("near",args.near,(2,177,1292,900)),
+             ("far",args.far,(0,0,1285,684))]
     model=YOLO(str(ROOT/"weights/fire-smoke-yolov8n.pt"),task="detect")
     torch.set_num_threads(4)
     report={"scope":"two supplied screenshots, not independent accuracy evaluation", "inputs":[]}

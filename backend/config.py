@@ -108,6 +108,15 @@ class Settings:
     def from_env(cls):
         load_dotenv(ROOT / ".env", override=False)
         flag = lambda n: os.getenv(n, "false").lower() == "true"
+        def project_path(value):
+            path = Path(value)
+            return path.resolve() if path.is_absolute() else (ROOT / path).resolve()
+        def media_tool(name, fallback):
+            configured = os.getenv(name)
+            if configured:
+                command = shutil.which(configured)
+                return command or str(project_path(configured))
+            return shutil.which(fallback) or str(ROOT / f"elder-safety/tools/ffmpeg/{fallback}.exe")
         return cls(
             allowed_hosts=tuple(x.strip() for x in os.getenv('APP_ALLOWED_HOSTS', ','.join(cls.allowed_hosts)).split(',') if x.strip()),
             allowed_origins=tuple(x.strip().rstrip('/') for x in os.getenv('APP_ALLOWED_ORIGINS', ','.join(cls.allowed_origins)).split(',') if x.strip()),
@@ -118,14 +127,14 @@ class Settings:
             cloud_videos_per_visitor=int(os.getenv('CLOUD_VIDEOS_PER_VISITOR', '3')),
             cloud_storage_mb=int(os.getenv('CLOUD_STORAGE_MB', '1024')),
             provider=os.getenv("VLM_PROVIDER", "qwen"),
-            data_dir=Path(os.getenv("DATA_DIR", str(ROOT / "data"))).resolve(),
+            data_dir=project_path(os.getenv("DATA_DIR", "data")),
             api_key=os.getenv("VLM_API_KEY") or os.getenv("DASHSCOPE_API_KEY", ""),
             base_url=os.getenv("VLM_BASE_URL", cls.base_url).rstrip("/"),
             model=os.getenv("VLM_MODEL", cls.model),
             review_model=os.getenv("VLM_REVIEW_MODEL", cls.review_model),
             hybrid_safety_enabled=os.getenv("HYBRID_SAFETY_ENABLED", "true").lower() == "true",
-            safety_model_config=Path(os.getenv("SAFETY_MODEL_CONFIG", str(cls.safety_model_config))).resolve(),
-            safety_python=Path(os.getenv("SAFETY_PYTHON", str(cls.safety_python))).resolve(),
+            safety_model_config=project_path(os.getenv("SAFETY_MODEL_CONFIG", "runtime/team-camera.json")),
+            safety_python=project_path(os.getenv("SAFETY_PYTHON", "elder-safety/.venv-gpu/Scripts/python.exe")),
             review_input_price=float(os.getenv('VLM_REVIEW_INPUT_RMB_PER_MILLION', '0')),
             review_output_price=float(os.getenv('VLM_REVIEW_OUTPUT_RMB_PER_MILLION', '0')),
             review_cost_confirmed=flag('VLM_REVIEW_COST_CONFIRMED'),
@@ -167,6 +176,6 @@ class Settings:
             max_retries=int(os.getenv("VLM_MAX_RETRIES", "1")),
             billing_mode=os.getenv("VLM_BILLING_MODE", "priced"),
             timeout=float(os.getenv("REQUEST_TIMEOUT_SECONDS", "90")),
-            ffmpeg=os.getenv("FFMPEG_PATH", shutil.which("ffmpeg") or (str(ROOT / "elder-safety/tools/ffmpeg/ffmpeg.exe") if (ROOT / "elder-safety/tools/ffmpeg/ffmpeg.exe").is_file() else "ffmpeg")),
-            ffprobe=os.getenv("FFPROBE_PATH", shutil.which("ffprobe") or (str(ROOT / "elder-safety/tools/ffmpeg/ffprobe.exe") if (ROOT / "elder-safety/tools/ffmpeg/ffprobe.exe").is_file() else "ffprobe")),
+            ffmpeg=media_tool("FFMPEG_PATH", "ffmpeg"),
+            ffprobe=media_tool("FFPROBE_PATH", "ffprobe"),
         )

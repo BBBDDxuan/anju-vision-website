@@ -42,7 +42,7 @@ def test_fast_descent_evidence_expires_instead_of_arming_later_slow_bend():
 
 
 def test_live_config_tolerates_400ms_jitter_but_not_disconnect():
-    config=Config.load(str(Path(__file__).parents[1]/'config.camera-gpu.json'))
+    config=Config.load(str(Path(__file__).parents[1]/'config.team.json'))
     engine=DetectionEngine(config)
     def sample(t,pose,session=1):
         return Sample(np.zeros((2,2,3),np.uint8),t,datetime.now(timezone.utc),

@@ -138,7 +138,7 @@ def test_config_validation_accepts_boolean_and_rejects_numeric_bool_thresholds(v
 
 
 def test_camera_config_enables_gate_and_engine_uses_it():
-    c=Config.load(str(Path(__file__).parents[1]/'config.camera-gpu.json'))
+    c=Config.load(str(Path(__file__).parents[1]/'config.team.json'))
     assert c.help.require_facing_camera is True
     engine=DetectionEngine(c)
     def sample(t,person):

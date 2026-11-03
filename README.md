@@ -1,7 +1,6 @@
 # 安居视界 · 团队可复现运行包
 
-本仓库现包含网页前端、网页后端、本地安全检测、模型权重、FFmpeg/FFprobe、团队运行配置和自检工具。按所有者要求，不上传视频或视频分片。
-本次整理保留现有前端源码与构建产物，仅补齐后端和运行依赖。
+本仓库包含网页前端、网页后端、实时摄像头、本地安全检测、模型权重、FFmpeg/FFprobe、团队运行配置和自检工具。按所有者要求，不上传视频、视频分片、录像或真实凭据。
 
 > **凭据仅在本机保存，不提交 Git。** 两份 `.env.example` 保留全部运行参数及可移植路径，
 > 安装脚本会在缺少 `.env` 时生成本地配置。API Key、摄像头账号及通知令牌请通过团队安全渠道另行提供。
@@ -10,8 +9,7 @@
 ## 一、队友首次运行（Windows x64）
 
 1. 克隆完整仓库。模型、工具及配置模板随 Git 提交；视频由队友自行导入，真实凭据通过团队安全渠道提供。
-2. 安装 **Python 3.12 或更新版本**用于网页后端。想尽量匹配本机已验证环境，可另装
-   **Python 3.11**用于检测进程；已验证版本详见 `runtime-versions.json`。
+2. 安装 **64 位 Python 3.12 或更新版本**。网页和检测环境相互独立，但可以用同一个基础解释器创建；已验证版本详见 `runtime-versions.json`。
 3. 在仓库根目录打开 PowerShell：
 
 ```powershell
@@ -23,7 +21,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\setup-team.ps1 -Device cud
 
 打开终端显示的 `http://127.0.0.1:8000/`。前端已编译，无需安装 Node.js 就能使用网页。
 首次安装仍需联网获取 Python 依赖；缓存、模型库状态和临时文件都保存在当前仓库的 `runtime/`。
-`.venv` 不能直接从另一台电脑复制：安装脚本会在本机重新创建，不依赖原电脑的 G:/D: 目录。
+`.venv` 和 `.venv-gpu` 不能从另一台电脑复制。安装脚本会在本机重新创建环境；仓库运行配置使用相对路径，不依赖原电脑的盘符或项目绝对路径。
 
 **识别复现提示：** CPU 模式通过安装、模型加载和完整扫描检查，但在 `11月3日 (1).mp4` 开发正例中未产生跌倒候选，不能认为它与原 CUDA 环境等价。
 原 CUDA 环境在三段开发视频均复现到跌倒候选。需要复现识别结果时优先选择 NVIDIA/CUDA，并运行本地验证脚本；详细验收与限制见 `docs/TEAM_DELIVERY_20261103.md`。
@@ -40,11 +38,51 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\setup-team.ps1 -Device cud
 ```
 
 脚本为检测环境安装记录的 PyTorch 2.13.0 / torchvision 0.28.0，CUDA 模式使用 cu126。安装命令固定 `+cu126` / `+cpu` 构建后缀，避免把 CPU 包误认成已安装 CUDA 包。
+当前组合已在 Python 3.12、PyTorch 2.13.0+cu126、Ultralytics 8.4.118 和 RTX 4060 上通过模型加载及 GPU 自检。
 自检会让姿态和明火两个模型真正执行一次推理，并核对模型实际设备。安装后切换设备需要重启网页后端；已生成的历史分析结果不会自动重算。
 安装失败时保留完整错误，先核对 Python 架构、版本、网络和显卡驱动；不要直接替换模型权重或改业务阈值。
 只运行网页、不安装本地检测时可加 `-BackendOnly`，但该模式不能验证安全检测。
 
-## 二、先复现本地检测（不消耗 Qwen token）
+## 二、接入实时摄像头
+
+1. 复制模板（`setup-team.ps1` 首次运行也会自动创建）：
+
+```powershell
+Copy-Item .\elder-safety\.env.example .\elder-safety\.env
+notepad .\elder-safety\.env
+```
+
+2. 在 `elder-safety/.env` 填写摄像头提供的 RTSP 地址：
+
+```dotenv
+RTSP_URL='rtsp://用户名:密码@摄像头IP:554/stream2'
+```
+
+不同品牌的 RTSP 路径可能不同，应以摄像头说明书或管理页面为准。主码流通常是 `stream1`，画质更高但解码和推理开销更大；支持子码流时优先用 `stream2` 进行实时分析。本项目实测的 TP-Link IPC45AW 子码流为 H.264、640×360、15 FPS。
+
+3. 运行 `start.bat`，打开 `http://127.0.0.1:8000/`，再点击网页中的“开启摄像头”。摄像头和电脑必须处于可互相访问的局域网；Windows 移动热点下应使用摄像头当前获得的 IP，而不是写死其他电脑上的地址。
+
+实时状态中的 `device` 应显示 `cuda:0` 或 `cpu`。GPU 占用也可在另一 PowerShell 中查看：
+
+```powershell
+nvidia-smi -l 1
+```
+
+### 本地录像
+
+录像与实时预览同启停，默认保存到项目根目录的 `recordings/`，格式为 MKV，每 5 分钟分段。系统默认最多保留 3 天、总量不超过 10 GiB，并至少保留 5 GiB 磁盘空间。录像目录、数据库和视频文件均被 Git 忽略。
+
+录像路径在 `runtime/team-camera.json` 中保存为相对路径 `../recordings`；运行时才解析为当前电脑上的真实绝对路径。查看状态与文件：
+
+```powershell
+Invoke-RestMethod 'http://127.0.0.1:8000/api/camera/status' |
+    Select-Object -ExpandProperty recording_status
+Get-ChildItem .\recordings -Filter '*.mkv'
+```
+
+未配置手机通知时，网页显示“报警传送：未启用”是正常状态，不影响本地检测、录像或 Qwen 候选复核。
+
+## 三、先复现本地检测（不消耗 Qwen token）
 
 ```powershell
 .\elder-safety\.venv-gpu\Scripts\python.exe scripts\verify_reproduction.py --assets-only
@@ -66,12 +104,12 @@ CPU/不同设备的数值与具体触发时间可能不同，脚本会据实际�
 
 视频和视频分片均不提交，安装与网页启动不依赖这些开发视频。队友可直接在网页导入自己的视频。
 
-## 三、运行配置与移到其他目录
+## 四、运行配置与移到其他目录
 
 - 根 `.env`：团队视觉服务、预算及网页配置；本机填写真实配置，不提交 API Key。
 - `elder-safety/.env`：摄像头和可选手机通知服务；**相机地址只对能访问相机所在局域网的电脑有效**。
 - `elder-safety/ai-service/config.team.json`：已调好的检测阈值与可移植相对路径。
-- `runtime/team-camera.json`：安装时生成的本机绝对路径配置，属于运行产物，不提交到 Git。
+- `runtime/team-camera.json`：安装时生成的可移植相对路径配置；路径相对该 JSON 文件解析，属于运行产物，不提交到 Git。
 - `repro-assets.json`：模型、工具的大小及 SHA256。
 
 移动目录后重新执行：
@@ -82,11 +120,27 @@ CPU/不同设备的数值与具体触发时间可能不同，脚本会据实际�
 ```
 
 摄像头 IP、网络或密码变更时修改 `elder-safety/.env`，不要修改前端代码。
-网页点击“开启视频分析”会使用团队的真实 API 配额；本地自检和复现脚本不产生这些请求。
+配置中的模型、FFmpeg 和录像目录均相对配置文件本身解析；加载后才在内存中转换为绝对路径进行安全校验。不要把虚拟环境从旧电脑复制过来。
+网页分析只有在启用网络复核且产生候选事件后才可能使用真实 API 配额；本地自检和复现脚本不产生这些请求。
 
-## 四、前端开发
+## 五、启动日志与前端开发
 
-Node.js 仅在需要修改前端时安装。保留的前端实现、页面和 dist 未因本次整理而更改。
+正式启动使用：
+
+```powershell
+.\start.bat
+# 或
+powershell -NoProfile -ExecutionPolicy Bypass -File .\start.ps1
+```
+
+启动日志直接显示在当前 PowerShell。若要同时保存日志：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\start.ps1 *>&1 |
+    Tee-Object -FilePath .\runtime\start.log
+```
+
+Node.js 仅在需要修改前端时安装。仓库已提交构建后的 `frontend/dist/`，正式运行不要求安装 Node.js。
 
 ```powershell
 .\start-dev.bat
@@ -96,7 +150,7 @@ Node.js 仅在需要修改前端时安装。保留的前端实现、页面和 di
 
 开发页默认 `http://127.0.0.1:5173/`。依赖锁在 `frontend/package-lock.json`。
 
-## 五、包含哪些模型和工具
+## 六、包含哪些模型和工具
 
 | 文件 | 作用 |
 |---|---|
@@ -110,7 +164,7 @@ Node.js 仅在需要修改前端时安装。保留的前端实现、页面和 di
 这两份 FFmpeg 工具来自不同年代的构建，本次不偷偷替换；媒体和扫描功能需按自检结果确认。
 来源、许可文本及分发说明见 `THIRD_PARTY_NOTICES.md`。
 
-## 六、可选手机通知后端
+## 七、可选手机通知后端
 
 `elder-safety/backend/` 和 `elder-safety/scripts/` 也已附带。网页不是独立手机 App 源码包。
 若要在本机额外启动通知中继，可在已安装的网页环境安装其依赖：
@@ -123,8 +177,18 @@ $env:PYTHONPATH = "$PWD\elder-safety\backend"
 
 真实 Firebase 推送仍需要对应 Firebase 项目和服务凭据；本包不会伪造这些配置，也没有替队友验证手机通知。
 
-## 七、提交规则
+## 八、提交前检查
 
 本仓库提交两份 `.env.example`、三个模型、两份媒体工具；真实 `.env` 保留在本机并被 Git 忽略。
-仍忽略虚拟环境、下载缓存、数据库、录像、推理运行记录及所有视频/分片。
+忽略所有 `.venv*` 虚拟环境、下载缓存、数据库、录像、推理运行记录及所有视频/分片。
 `setup-team.ps1` 创建这些可重建环境，避免把原电脑绝对路径与旧数据库误当成队友的运行前提。
+
+推送前至少执行：
+
+```powershell
+git status --short
+git diff --check
+.\.venv\Scripts\python.exe .\scripts\doctor_team.py
+```
+
+确认输出中没有 `.env`、虚拟环境、录像、数据库、视频或摄像头凭据后再提交。`doctor_team.py` 不连接摄像头、不调用云模型。

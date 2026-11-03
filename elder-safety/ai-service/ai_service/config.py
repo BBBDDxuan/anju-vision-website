@@ -105,10 +105,23 @@ class Config:
     def load(cls, path: str | None) -> "Config":
         obj = cls()
         if path:
-            data = json.loads(Path(path).read_text(encoding="utf-8-sig"))
+            config_path = Path(path).resolve()
+            data = json.loads(config_path.read_text(encoding="utf-8-sig"))
             if not isinstance(data, dict):
                 raise ValueError("config must be a JSON object")
             update(obj, data)
+            # Persist portable paths in JSON, but keep all runtime safety checks
+            # operating on canonical absolute paths. Relative values are scoped
+            # to the configuration file that contains them.
+            for owner, names in ((obj.models, ("pose_weights", "flame_weights")),
+                                 (obj.recording, ("directory", "ffmpeg_path"))):
+                for name in names:
+                    value = getattr(owner, name)
+                    if value is not None:
+                        local = Path(value)
+                        if not local.is_absolute():
+                            local = config_path.parent / local
+                        setattr(owner, name, str(local.resolve()))
         obj.validate()
         return obj
 

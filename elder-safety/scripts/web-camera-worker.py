@@ -126,15 +126,22 @@ def main():
         recent_fire = deque(maxlen=20)
         visible_flames, flame_t, fire_ms = [], None, None
         from ai_service.preview_alerts import PreviewAlerts
-        try:
-            alerts = PreviewAlerts(config, ROOT / "runtime/web-reviewed-alerts-v1",
-                values.get("SAFETY_DEVICE_ID") or "",
-                values.get("SAFETY_BACKEND_URL") or "http://127.0.0.1:8010",
-                values.get("SAFETY_DEVICE_TOKEN") or "")
-            info["alerts"] = alerts.status()
-        except Exception:
-            # Keep local preview usable; never echo URL, token or exception text.
-            info["alerts"] = {"enabled": False, "error": "alarm_relay_unavailable"}
+        device_id = values.get("SAFETY_DEVICE_ID") or ""
+        device_token = values.get("SAFETY_DEVICE_TOKEN") or ""
+        if not device_id.strip() or not device_token.strip():
+            # Phone delivery is optional. An intentionally unconfigured relay is
+            # disabled, not a camera/runtime failure.
+            info["alerts"] = {"enabled": False, "state": "disabled"}
+        else:
+            try:
+                alerts = PreviewAlerts(config, ROOT / "runtime/web-reviewed-alerts-v1",
+                    device_id,
+                    values.get("SAFETY_BACKEND_URL") or "http://127.0.0.1:8010",
+                    device_token)
+                info["alerts"] = alerts.status()
+            except Exception:
+                # Keep local preview usable; never echo URL, token or exception text.
+                info["alerts"] = {"enabled": False, "error": "alarm_relay_unavailable"}
         events = deque(maxlen=20)
         info.pop("stage", None)
         session = 0

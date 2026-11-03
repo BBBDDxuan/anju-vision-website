@@ -42,9 +42,11 @@ class RecordingStore:
         self.root = Path(directory)
         if not self.root.is_absolute() or not plain_path(self.root):
             raise ValueError("unsafe_recording_directory")
-        # A dedicated folder, never a whole drive or an arbitrary existing library.
-        if len(self.root.parts) < 3 or (os.name == "nt" and self.root.drive.upper() != "G:"):
-            raise ValueError("recording_requires_dedicated_g_drive_folder")
+        # A dedicated folder, never a drive root or a broad top-level directory.
+        # Ownership markers and the non-empty-directory check below provide the
+        # deletion boundary; the drive letter itself must remain portable.
+        if len(self.root.parts) < 3:
+            raise ValueError("recording_requires_dedicated_folder")
         self.root.mkdir(parents=True, exist_ok=True)
         self.root = self.root.resolve(strict=True)
         marker = self.root/".elder-safety-recordings.json"

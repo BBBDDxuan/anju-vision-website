@@ -3,5 +3,6 @@
 *.exe binary
 *.mp4 binary
 *.part?? binary
+*.tsx whitespace=cr-at-eol
 /.env -diff
 /elder-safety/.env -diff

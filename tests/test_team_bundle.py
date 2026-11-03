@@ -22,20 +22,21 @@ def minimal_bundle(tmp_path, monkeypatch):
     (tmp_path / 'repro-assets.json').write_text(json.dumps(manifest))
     cfg = tmp_path / 'elder-safety/ai-service/config.team.json'
     cfg.parent.mkdir(parents=True)
-    cfg.write_text(json.dumps({'models': {'pose_weights': 'elder-safety/weights/synthetic.pt',
-        'flame_weights': 'elder-safety/weights/synthetic.pt', 'device': '0'},
-        'recording': {'directory': 'recordings', 'ffmpeg_path': 'elder-safety/tools/ffmpeg/ffmpeg.exe'}}))
+    cfg.write_text(json.dumps({'models': {'pose_weights': '../weights/synthetic.pt',
+        'flame_weights': '../weights/synthetic.pt', 'device': '0'},
+        'recording': {'directory': '../../recordings', 'ffmpeg_path': '../tools/ffmpeg/ffmpeg.exe'}}))
     return asset
 
 
-def test_prepare_needs_no_videos_and_resolves_all_paths_in_checkout(tmp_path, monkeypatch):
+def test_prepare_needs_no_videos_and_keeps_portable_paths_in_checkout(tmp_path, monkeypatch):
     minimal_bundle(tmp_path, monkeypatch)
     path = prepare.prepare('cpu')
     cfg = json.loads(path.read_text(encoding='utf8'))
     assert cfg['models']['device'] == 'cpu'
     for value in [cfg['models']['pose_weights'], cfg['models']['flame_weights'],
                   cfg['recording']['directory'], cfg['recording']['ffmpeg_path']]:
-        assert Path(value).is_absolute() and Path(value).is_relative_to(tmp_path)
+        assert not Path(value).is_absolute()
+        assert (path.parent / value).resolve().is_relative_to(tmp_path)
     assert not (tmp_path / 'examples').exists()
     assert prepare.prepare('cpu') == path
 
@@ -57,6 +58,21 @@ def test_prepare_regenerates_machine_local_config_without_overwriting_template(t
     prepare.prepare('cpu')
     assert json.loads(config.read_text(encoding='utf8'))['models']['device'] == 'cpu'
     assert template.read_bytes() == before
+
+
+def test_detector_config_resolves_relative_paths_from_its_own_directory(tmp_path):
+    import sys
+    sys.path.insert(0, str(ROOT / 'elder-safety/ai-service'))
+    from ai_service.config import Config
+    config_dir = tmp_path / 'portable/runtime'
+    config_dir.mkdir(parents=True)
+    path = config_dir / 'camera.json'
+    path.write_text(json.dumps({'models': {'pose_weights': '../weights/pose.pt'},
+        'recording': {'directory': '../recordings', 'ffmpeg_path': '../tools/ffmpeg.exe'}}))
+    config = Config.load(str(path))
+    assert Path(config.models.pose_weights) == tmp_path / 'portable/weights/pose.pt'
+    assert Path(config.recording.directory) == tmp_path / 'portable/recordings'
+    assert Path(config.recording.ffmpeg_path) == tmp_path / 'portable/tools/ffmpeg.exe'
 
 
 def test_delivery_templates_keep_secrets_empty_and_network_disabled():

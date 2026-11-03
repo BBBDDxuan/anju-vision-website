@@ -196,7 +196,7 @@ export function LiveCameraPanel({ ready = true, configurationError = '', onRetry
         <dl className="live-camera-summary">
           <div><dt>候选复核</dt><dd>{typeof status?.review_enabled !== 'boolean' ? '待获取' : status.review_enabled ? '已启用' : '未启用'}</dd></div>
           <div><dt>本地录像</dt><dd role="status">{pollError ? '状态待更新' : recordingStatus ? recordingStateName[recordingStatus.state] || `未知状态（${recordingStatus.state}）` : '待获取'}</dd></div>
-          <div><dt>报警传送</dt><dd>{pollError ? '状态待更新' : loading ? '读取中' : status?.alerts?.error ? '传送异常' : status?.alerts?.enabled ? `待传送 ${status.alerts.pending ?? 0} 条${status.alerts.worker_alive ? '' : ' · 传送线程未运行'}` : '未就绪'}</dd></div>
+          <div><dt>报警传送</dt><dd>{pollError ? '状态待更新' : loading ? '读取中' : status?.alerts?.error ? '传送异常' : status?.alerts?.enabled ? `待传送 ${status.alerts.pending ?? 0} 条${status.alerts.worker_alive ? '' : ' · 传送线程未运行'}` : '未启用'}</dd></div>
         </dl>
         {status?.review_error && <p className="error" role="alert">复核异常：{status.review_error}</p>}
         {recordingStatus?.error && <p className="error" role="alert">录像错误：{recordingStatus.error}</p>}

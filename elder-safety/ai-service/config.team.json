@@ -1,7 +1,7 @@
 {
   "models": {
-    "pose_weights": "elder-safety/weights/yolo11n-pose.pt",
-    "flame_weights": "elder-safety/weights/luminous-fire-yolov8n.pt",
+    "pose_weights": "../weights/yolo11n-pose.pt",
+    "flame_weights": "../weights/luminous-fire-yolov8n.pt",
     "flame_classes": [
       "fire"
     ],
@@ -83,8 +83,8 @@
   },
   "recording": {
     "enabled": true,
-    "directory": "recordings",
-    "ffmpeg_path": "elder-safety/tools/ffmpeg/ffmpeg.exe",
+    "directory": "../../recordings",
+    "ffmpeg_path": "../tools/ffmpeg/ffmpeg.exe",
     "segment_seconds": 300,
     "retention_days": 3.0,
     "max_gib": 10.0,

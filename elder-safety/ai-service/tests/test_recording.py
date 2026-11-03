@@ -1,4 +1,4 @@
-"""Ownership-scoped retention and recorder lifecycle; isolated G-drive fixtures."""
+"""Ownership-scoped retention and recorder lifecycle in a dedicated folder."""
 from dataclasses import replace
 import json
 import os
@@ -184,7 +184,8 @@ def test_invalid_recording_configuration_rejected(options):
 
 def test_old_config_does_not_enable_recording_and_camera_config_does():
     assert Config().recording.enabled is False
-    config=Config.load(str(Path(__file__).parents[1]/'config.camera-gpu.json'))
+    root=Path(__file__).resolve().parents[3]
+    config=Config.load(str(Path(__file__).parents[1]/'config.team.json'))
     assert config.recording.enabled is True
-    assert Path(config.recording.directory).drive.upper()=='G:'
+    assert Path(config.recording.directory)==root/'recordings'
     assert config.recording.segment_seconds==300 and config.recording.max_gib==10

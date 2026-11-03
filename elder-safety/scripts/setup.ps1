@@ -1,6 +1,13 @@
-param([string]$Python = 'D:\Anaconda\python.exe')
+param([string]$Python = '')
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
+if (-not $Python) {
+    $command = Get-Command python.exe -ErrorAction SilentlyContinue
+    if ($command) { $Python = $command.Source }
+}
+if (-not $Python -or -not (Test-Path -LiteralPath $Python)) {
+    throw 'Python not found. Activate the intended environment or pass -Python with its interpreter path.'
+}
 Push-Location $projectRoot
 try {
     $venvPython = Join-Path $projectRoot '.venv\Scripts\python.exe'
