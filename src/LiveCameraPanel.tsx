@@ -29,63 +29,140 @@ export function LiveCameraPanel({ ready = true, configurationError = '', onRetry
   const [pollError,setPollError] = useState('');
   const [frameError,setFrameError] = useState('');
   const objectUrl = useRef('');
-  const displayedFrame = useRef(-1);
+  const latestStatus = useRef<CameraStatus | null>(null);
+  const previewVersion = useRef(0);
+  const commandPending = useRef(false);
   useEffect(() => {
     if (!ready) return;
     let active = true;
-    let fetching = false;
-    const controller = new AbortController();
+    let statusFetching = false;
+    let frameFetching = false;
+    let frameTimer = 0;
+    const requests = new Set<AbortController>();
     function clearFrame() {
-      displayedFrame.current = -1;
       setImage('');
       if (objectUrl.current) URL.revokeObjectURL(objectUrl.current);
       objectUrl.current = '';
     }
-    async function refresh() {
-      if (fetching) return;
-      fetching = true;
+    async function request<T>(path: string, read: (response: Response) => Promise<T>, message: string) {
+      const controller = new AbortController();
+      requests.add(controller);
+      const timeout = window.setTimeout(() => controller.abort(),5000);
       try {
-        const response = await fetch('/api/camera/status',{cache:'no-store',signal:controller.signal});
-        if (!response.ok) throw new Error(`摄像头状态读取失败（HTTP ${response.status}），请确认本机服务可用。`);
-        const next: CameraStatus = await response.json();
-        if (!active) return;
+        const response = await fetch(path,{cache:'no-store',signal:controller.signal});
+        if (!response.ok) throw new Error(`${message}（HTTP ${response.status}），正在重试。`);
+        return await read(response);
+      } catch (e) {
+        if (controller.signal.aborted) throw new Error(`${message}超时，正在重试。`);
+        throw e;
+      } finally {
+        window.clearTimeout(timeout);
+        requests.delete(controller);
+      }
+    }
+    async function refreshStatus() {
+      if (statusFetching || !active) return;
+      statusFetching = true;
+      const version = previewVersion.current;
+      try {
+        const next = await request<CameraStatus>('/api/camera/status',r => r.json(),'摄像头状态读取失败');
+        if (!active || commandPending.current || version !== previewVersion.current) return;
+        // Status polling is also the worker heartbeat; never wait for a JPEG here.
+        if (latestStatus.current?.state !== next.state) previewVersion.current++;
+        latestStatus.current = next;
         setStatus(next);
         setPollError('');
-        if (next.state === 'running' && next.frames !== displayedFrame.current) {
-          try {
-            const frame = await fetch('/api/camera/frame.jpg',{cache:'no-store',signal:controller.signal});
-            if (!frame.ok) throw new Error(`预览画面暂不可用（HTTP ${frame.status}），正在重试。`);
-            const blob = await frame.blob();
-            if (!active) return;
-            const url = URL.createObjectURL(blob);
-            const old = objectUrl.current;
-            objectUrl.current = url; setImage(url); displayedFrame.current = next.frames;
-            setFrameError('');
-            if (old) URL.revokeObjectURL(old);
-          } catch (e) {
-            if (active && !controller.signal.aborted) { clearFrame(); setFrameError((e as Error).message); }
-          }
-        } else if (next.state !== 'running') {
+        if (next.state !== 'running') {
           clearFrame();
           setFrameError('');
         }
-      } catch (e) { if (active && !controller.signal.aborted) { setPollError((e as Error).message); clearFrame(); } }
-      finally { fetching = false; }
+      } catch (e) {
+        if (active && version === previewVersion.current) {
+          previewVersion.current++;
+          latestStatus.current = null;
+          setPollError((e as Error).message);
+          clearFrame();
+        }
+      } finally { statusFetching = false; }
     }
-    void refresh();
-    const timer = window.setInterval(() => { void refresh(); },66);
-    return () => { displayedFrame.current=-1; active=false; controller.abort(); window.clearInterval(timer); if (objectUrl.current) URL.revokeObjectURL(objectUrl.current); };
+    async function refreshFrame() {
+      if (frameFetching || !active) return;
+      frameFetching = true;
+      const started = performance.now();
+      const version = previewVersion.current;
+      let candidateUrl = '';
+      try {
+        if (!commandPending.current && latestStatus.current?.state === 'running') {
+          const blob = await request('/api/camera/frame.jpg',r => r.blob(),'预览画面暂不可用');
+          if (!active || version !== previewVersion.current) return;
+          candidateUrl = URL.createObjectURL(blob);
+          // Decode before replacing the visible frame, so a partial/invalid JPEG
+          // cannot replace a valid frame or expose a revoked object URL.
+          const decoded = new Image();
+          decoded.src = candidateUrl;
+          let decodeTimer = 0;
+          try {
+            await Promise.race([decoded.decode(),new Promise<never>((_,reject) => {
+              decodeTimer = window.setTimeout(() => reject(new Error('预览解码超时，正在重试。')),3000);
+            })]);
+          } finally { window.clearTimeout(decodeTimer); }
+          if (!active || version !== previewVersion.current) return;
+          const old = objectUrl.current;
+          objectUrl.current = candidateUrl;
+          setImage(candidateUrl);
+          candidateUrl = '';
+          setFrameError('');
+          if (old) URL.revokeObjectURL(old);
+        }
+      } catch (e) {
+        if (active && version === previewVersion.current) { clearFrame(); setFrameError((e as Error).message); }
+      } finally {
+        if (candidateUrl) URL.revokeObjectURL(candidateUrl);
+        frameFetching = false;
+        // Match the worker's 20 FPS preview budget without overlapping requests.
+        if (active) frameTimer = window.setTimeout(() => { void refreshFrame(); },Math.max(0,50-(performance.now()-started)));
+      }
+    }
+    function resume() { void refreshStatus(); }
+    void refreshStatus();
+    void refreshFrame();
+    const statusTimer = window.setInterval(() => { void refreshStatus(); },1000);
+    window.addEventListener('focus',resume);
+    document.addEventListener('visibilitychange',resume);
+    return () => {
+      active=false;
+      previewVersion.current++;
+      latestStatus.current=null;
+      for (const controller of requests) controller.abort();
+      window.clearInterval(statusTimer);
+      window.clearTimeout(frameTimer);
+      window.removeEventListener('focus',resume);
+      document.removeEventListener('visibilitychange',resume);
+      if (objectUrl.current) URL.revokeObjectURL(objectUrl.current);
+      objectUrl.current='';
+    };
   },[ready]);
   async function command(action: 'start' | 'stop') {
+    if (commandPending.current) return;
+    commandPending.current=true;
+    previewVersion.current++;
     setBusy(true); setError('');
     try {
       const response = await fetch(`/api/camera/${action}`,{method:'POST'});
       const data = await response.json();
       if (!response.ok) throw new Error(data.error?.message || '摄像头操作失败');
+      previewVersion.current++;
+      latestStatus.current=data;
       setStatus(data);
-      if (action === 'stop') setImage('');
+      setPollError('');
+      if (action === 'stop') {
+        setImage('');
+        setFrameError('');
+        if (objectUrl.current) URL.revokeObjectURL(objectUrl.current);
+        objectUrl.current='';
+      }
     } catch (e) {setError((e as Error).message);}
-    finally {setBusy(false);}
+    finally {commandPending.current=false; setBusy(false);}
   }
   const loading = !ready || (!status && !pollError);
   const loadingLabel = configurationError ? '运行环境读取失败' : !ready ? '正在确认本机运行环境' : '正在读取摄像头状态';
