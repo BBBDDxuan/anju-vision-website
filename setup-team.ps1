@@ -1,7 +1,7 @@
 param(
     [string]$Python = '',
     [string]$DetectorPython = '',
-    [ValidateSet('cpu', 'cuda')][string]$Device = 'cpu',
+    [ValidateSet('cpu', 'cuda')][string]$Device = 'cuda',
     [switch]$BackendOnly,
     [switch]$SkipInstall
 )
@@ -46,13 +46,17 @@ try {
         }
         if (-not $SkipInstall) {
             $index = if ($Device -eq 'cuda') { 'https://download.pytorch.org/whl/cu126' } else { 'https://download.pytorch.org/whl/cpu' }
-            & $detector -m pip install 'torch==2.13.0' 'torchvision==0.28.0' --index-url $index
+            # Pin the build suffix too: a CPU wheel must not satisfy a CUDA install.
+            $build = if ($Device -eq 'cuda') { 'cu126' } else { 'cpu' }
+            & $detector -m pip install "torch==2.13.0+$build" "torchvision==0.28.0+$build" --index-url $index
             if ($LASTEXITCODE -ne 0) { throw 'Pinned PyTorch installation failed; do not silently substitute a different version.' }
             & $detector -m pip install -r requirements-detector.txt
             if ($LASTEXITCODE -ne 0) { throw 'Detector dependency installation failed.' }
             & $detector -m pip install --no-deps -e elder-safety/ai-service
             if ($LASTEXITCODE -ne 0) { throw 'Detector package installation failed.' }
         }
+        & $detector -c 'import sys, torch; cuda = sys.argv[1] == "cuda"; assert not cuda or (torch.version.cuda is not None and torch.cuda.is_available()), "CUDA unavailable: check NVIDIA driver and CUDA PyTorch, or explicitly select -Device cpu"; print("Detector runtime:", torch.__version__, "CUDA:", torch.cuda.is_available())' $Device
+        if ($LASTEXITCODE -ne 0) { throw 'Requested detector device is unavailable; configuration was not switched.' }
         & $detector scripts/prepare_team.py --device $(if ($Device -eq 'cuda') { '0' } else { 'cpu' })
         if ($LASTEXITCODE -ne 0) { throw 'Model/tool verification or configuration generation failed.' }
     } else {

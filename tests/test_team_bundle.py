@@ -93,3 +93,28 @@ def test_detector_setup_declares_legacy_checkpoint_dependency_and_loads_models()
     diagnostic = (ROOT / 'scripts/doctor_team.py').read_text(encoding='utf8')
     assert 'LocalModels(c.models)' in diagnostic
     assert "'flame_loaded':models.flame is not None" in diagnostic
+
+
+@pytest.mark.parametrize('available, expected', [(True, '0'), (False, 'cpu')])
+def test_prepare_auto_uses_detector_cuda_availability(tmp_path, monkeypatch, available, expected):
+    import sys
+    from types import SimpleNamespace
+    minimal_bundle(tmp_path, monkeypatch)
+    monkeypatch.setitem(sys.modules, 'torch', SimpleNamespace(cuda=SimpleNamespace(is_available=lambda: available)))
+    output = prepare.prepare('auto')
+    assert json.loads(output.read_text(encoding='utf8'))['models']['device'] == expected
+
+
+def test_setup_defaults_to_cuda_and_pins_build_when_switching_from_cpu():
+    setup = (ROOT / 'setup-team.ps1').read_text(encoding='utf8')
+    assert "[string]$Device = 'cuda'" in setup
+    assert "[string]$Device = 'cuda'" in (ROOT / 'setup.ps1').read_text(encoding='utf8')
+    assert "{ 'cu126' } else { 'cpu' }" in setup
+    assert 'torch==2.13.0+$build' in setup
+    assert 'torchvision==0.28.0+$build' in setup
+    assert 'Requested detector device is unavailable; configuration was not switched.' in setup
+    diagnostic = (ROOT / 'scripts/doctor_team.py').read_text(encoding='utf8')
+    assert 'models.infer(np.zeros((480,640,3),dtype=np.uint8))' in diagnostic
+    assert 'next(model.model.parameters()).device.type == expected' in diagnostic
+    startup = (ROOT / 'start.ps1').read_text(encoding='utf8')
+    assert '& $configPython scripts/prepare_team.py --device auto' in startup

@@ -22,7 +22,10 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Missing dependencies: run pip install -r requirements.txt.' }
     if (Test-Path -LiteralPath (Join-Path $projectRoot 'scripts\prepare_team.py')) {
         if (-not (Test-Path -LiteralPath (Join-Path $projectRoot 'runtime\team-camera.json'))) {
-            & $Python scripts/prepare_team.py --device cpu --skip-hashes
+            $detector = (& $Python -c 'from backend.config import Settings; print(Settings.from_env().safety_python)')
+            if ($LASTEXITCODE -ne 0) { throw 'Unable to read the detector interpreter setting.' }
+            $configPython = if (Test-Path -LiteralPath $detector) { $detector } else { $Python }
+            & $configPython scripts/prepare_team.py --device auto --skip-hashes
             if ($LASTEXITCODE -ne 0) { throw 'Team configuration preparation failed.' }
         }
     }

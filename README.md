@@ -15,8 +15,8 @@
 3. 在仓库根目录打开 PowerShell：
 
 ```powershell
-# 默认 CPU，适合没有 NVIDIA 显卡或不确定 CUDA 环境的电脑。
-powershell -NoProfile -ExecutionPolicy Bypass -File .\setup-team.ps1 -Device cpu
+# 默认 NVIDIA GPU / CUDA；安装脚本验证显卡可用，不会静默退回 CPU。
+powershell -NoProfile -ExecutionPolicy Bypass -File .\setup-team.ps1 -Device cuda
 # 安装和自检成功后启动网页。
 .\start.bat
 ```
@@ -28,15 +28,19 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\setup-team.ps1 -Device cpu
 **识别复现提示：** CPU 模式通过安装、模型加载和完整扫描检查，但在 `11月3日 (1).mp4` 开发正例中未产生跌倒候选，不能认为它与原 CUDA 环境等价。
 原 CUDA 环境在三段开发视频均复现到跌倒候选。需要复现识别结果时优先选择 NVIDIA/CUDA，并运行本地验证脚本；详细验收与限制见 `docs/TEAM_DELIVERY_20261103.md`。
 
-已有 NVIDIA/CUDA 环境时：
+没有 NVIDIA 显卡时必须显式选择 CPU；已有 CPU 安装也可用 CUDA 命令切换：
 
 ```powershell
+# 无 NVIDIA 显卡（识别结果可能与 GPU 不同）：
+powershell -NoProfile -ExecutionPolicy Bypass -File .\setup-team.ps1 -Device cpu
+# 把已有 CPU 安装切换到 GPU：
 powershell -NoProfile -ExecutionPolicy Bypass -File .\setup-team.ps1 -Device cuda
 # 如果 Python 不在默认位置，明确指定两个基础解释器：
 .\setup-team.ps1 -Python 'C:\Python313\python.exe' -DetectorPython 'C:\Python311\python.exe' -Device cuda
 ```
 
-脚本为检测环境安装记录的 PyTorch 2.13.0 / torchvision 0.28.0，CUDA 模式使用 cu126。
+脚本为检测环境安装记录的 PyTorch 2.13.0 / torchvision 0.28.0，CUDA 模式使用 cu126。安装命令固定 `+cu126` / `+cpu` 构建后缀，避免把 CPU 包误认成已安装 CUDA 包。
+自检会让姿态和明火两个模型真正执行一次推理，并核对模型实际设备。安装后切换设备需要重启网页后端；已生成的历史分析结果不会自动重算。
 安装失败时保留完整错误，先核对 Python 架构、版本、网络和显卡驱动；不要直接替换模型权重或改业务阈值。
 只运行网页、不安装本地检测时可加 `-BackendOnly`，但该模式不能验证安全检测。
 
