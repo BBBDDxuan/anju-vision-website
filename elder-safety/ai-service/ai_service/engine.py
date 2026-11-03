@@ -5,7 +5,7 @@ from .temporal import FallDetector, FireDetector
 from .help_gesture import HelpGestureDetector
 from .fall_candidates import ReviewFallDetector
 from .tracking import Tracker
-from .types import Sample
+from .types import Sample, iou
 
 
 class DetectionEngine:
@@ -37,7 +37,7 @@ class DetectionEngine:
         assigned = self.tracker.update([p.bbox for p in sample.poses], sample.t)
         self.fall.retain(set(assigned.values()))
         if self.review_fall:
-            self.review_fall.retain(set(assigned.values()))
+            self.review_fall.retain(set(assigned.values()), recoverable=set(self.tracker.tracks))
         self.help.retain(set(assigned.values()))
         signals = []
         for index, track_id in assigned.items():
@@ -49,7 +49,10 @@ class DetectionEngine:
                 else:
                     state = self.fall.states.get(track_id)
                     result = self.review_fall.update(track_id, sample.poses[index], sample.t,
-                                                     bool(state and state.armed_at is not None))
+                                                     bool(state and state.armed_at is not None),
+                                                     recovery_allowed=not any(
+                                                         other != index and iou(sample.poses[index].bbox, p.bbox) >= 0.3
+                                                         for other, p in enumerate(sample.poses)))
             if result:
                 signals.append(result)
             help_result = self.help.update(track_id, sample.poses[index], sample.t)

@@ -90,7 +90,7 @@ def test_stream_upload_rejects_insufficient_space_and_cleans_partial(settings, s
 def test_bounded_seek_uses_real_pts_with_nonzero_origin(settings, sample_video, tmp_path):
     target = tmp_path/'offset-pts.mp4'
     result = subprocess.run([settings.ffmpeg, '-v', 'error', '-y', '-i', str(sample_video), '-an', '-vf',
-                             'setpts=PTS+5/TB', '-fps_mode', 'passthrough', '-vcodec', 'libx264', '-bf', '0', str(target)], capture_output=True, timeout=30)
+                             'setpts=PTS+5/TB', '-vsync', '0', '-vcodec', 'libx264', '-bf', '0', str(target)], capture_output=True, timeout=30)
     assert result.returncode == 0, result.stderr
     meta = inspect_video(target, settings)
     assert meta['start_seconds'] == 5

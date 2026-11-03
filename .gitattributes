@@ -1,0 +1,7 @@
+*.pt binary
+*.pth binary
+*.exe binary
+*.mp4 binary
+*.part?? binary
+/.env -diff
+/elder-safety/.env -diff

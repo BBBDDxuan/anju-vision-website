@@ -68,11 +68,7 @@ def sample_video(tmp_path_factory):
 def settings(tmp_path):
     # Legacy scripted object fixtures assume 8s/6s windows. Enhanced sampling
     # has dedicated tests, rather than changing what these mock actions mean.
-    # These legacy scripted object/budget fixtures do not run the local detector.
-    # Disable that independent pipeline explicitly, including for MockTransport
-    # tests that set is_mock=False solely to exercise the API accounting ledger.
-    return Settings(data_dir=tmp_path / "data", enhanced_safety_sampling=False,
-                    hybrid_safety_enabled=False)
+    return Settings(data_dir=tmp_path / "data", enhanced_safety_sampling=False)
 
 
 @pytest.fixture

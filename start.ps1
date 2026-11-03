@@ -20,6 +20,12 @@ Push-Location -LiteralPath $projectRoot
 try {
     & $Python -c 'import fastapi, uvicorn, cv2, httpx, jsonschema, dotenv'
     if ($LASTEXITCODE -ne 0) { throw 'Missing dependencies: run pip install -r requirements.txt.' }
+    if (Test-Path -LiteralPath (Join-Path $projectRoot 'scripts\prepare_team.py')) {
+        if (-not (Test-Path -LiteralPath (Join-Path $projectRoot 'runtime\team-camera.json'))) {
+            & $Python scripts/prepare_team.py --device cpu --skip-hashes
+            if ($LASTEXITCODE -ne 0) { throw 'Team configuration preparation failed.' }
+        }
+    }
     if (Test-Path -LiteralPath (Join-Path $projectRoot 'demo-recording\manifest.json')) {
         & $Python scripts/import_demo.py
         if ($LASTEXITCODE -ne 0) { throw 'Bundled real recording integrity check failed.' }

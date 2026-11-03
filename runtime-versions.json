@@ -1,0 +1,13 @@
+{
+  "recorded_at": "2026-11-03",
+  "backend_python": "3.13.9",
+  "detector_python": "3.11.15",
+  "torch": "2.13.0+cu126",
+  "torchvision": "0.28.0+cu126",
+  "ultralytics": "8.4.118",
+  "detector_numpy": "2.4.4",
+  "opencv": "5.0.0.93",
+  "hardware_tested": "NVIDIA GeForce RTX 4060 Laptop GPU",
+  "setup_default": "CPU; use -Device cuda for the recorded CUDA 12.6 runtime",
+  "environment_installation_note": "Virtual environments are machine-local and created by setup; no hard-coded original disk paths."
+}

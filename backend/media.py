@@ -73,7 +73,7 @@ def prepare_playback(source: Path, target: Path, settings: Settings, metadata=No
             args = [settings.ffmpeg, "-v", "error", "-y", "-i", str(source), "-map", "0:v:0", "-an", "-vcodec", "copy", "-movflags", "+faststart", str(target)]
         else:
             args = [settings.ffmpeg, "-v", "error", "-y", "-i", str(source), "-an", "-vf",
-                            "scale=trunc(iw/2)*2:trunc(ih/2)*2,setpts=PTS-STARTPTS", "-fps_mode", "passthrough",
+                            "scale=trunc(iw/2)*2:trunc(ih/2)*2,setpts=PTS-STARTPTS", "-vsync", "0",
                             "-vcodec", "libx264", "-bf", "0", "-preset", "veryfast", "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(target)]
         p = subprocess.run(args, capture_output=True, timeout=settings.media_timeout)
         if p.returncode or not target.is_file():
@@ -206,7 +206,7 @@ def extract_segment_frames(video, directory, settings, start_ms, end_ms, fps, ma
     # include a positive stream origin so offset recordings are not cut too early.
     input_duration = end_ms / 1000 - seek + 1 + max(0, origin)
     args = [settings.ffmpeg, '-loglevel', 'info', '-copyts', '-ss', f'{seek:.6f}', '-t', f'{input_duration:.6f}', '-i', source, '-an', '-vf',
-            select + f",scale='min({max_width},iw)':-1,showinfo", '-fps_mode', 'passthrough', '-t', f'{upper:.6f}',
+            select + f",scale='min({max_width},iw)':-1,showinfo", '-vsync', '0', '-t', f'{upper:.6f}',
             '-frames:v', str(limit), '-q:v', '3', str(staging / '%04d.jpg')]
     try:
         process = subprocess.run(args, capture_output=True, timeout=min(settings.media_timeout, 180))

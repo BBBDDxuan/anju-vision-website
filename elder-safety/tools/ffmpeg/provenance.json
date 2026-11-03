@@ -1,0 +1,22 @@
+{
+  "source_distribution": "Gyan.dev FFmpeg essentials builds; existing working local binaries",
+  "ffmpeg_version": "7.1-essentials_build-www.gyan.dev",
+  "ffprobe_version": "2023-02-13-git-2296078397-essentials_build-www.gyan.dev",
+  "upstream": "https://www.gyan.dev/ffmpeg/builds/",
+  "upstream_source_archives": "https://www.gyan.dev/ffmpeg/builds/#source",
+  "ffmpeg_upstream_source": "https://github.com/FFmpeg/FFmpeg/tree/n7.1",
+  "license_text": "../../../licenses/GPL-3.0.txt",
+  "note": "Copied working binaries, not rebuilt or substituted. Version mismatch recorded explicitly.",
+  "files": [
+    {
+      "path": "elder-safety/tools/ffmpeg/ffmpeg.exe",
+      "bytes": 87638016,
+      "sha256": "2ce797a0f88d7f067180338fb227f7b1928ea727bd9a4d7a1d022f7c52af71a3"
+    },
+    {
+      "path": "elder-safety/tools/ffmpeg/ffprobe.exe",
+      "bytes": 80995328,
+      "sha256": "f28c4751e7367205267025aaf0fcfc921e34d9b7edaa46bd9c8abaf367fc9051"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+# Exact detector package versions recorded on the working computer (Python 3.11.15).
+# PyTorch / torchvision are installed separately by setup-team.ps1 for CPU or CUDA 12.6.
+ultralytics==8.4.118
+numpy==2.4.4
+opencv-python==5.0.0.93
+httpx==0.28.1
+python-dotenv==1.2.4

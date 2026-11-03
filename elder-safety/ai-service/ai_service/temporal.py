@@ -67,7 +67,7 @@ class FallDetector:
         s.history.append((t, float(hip[1]), angle))
         while s.history and t-s.history[0][0] > c.observation_seconds:
             s.history.popleft()
-        upright = angle <= c.upright_angle_degrees and ratio < c.min_bbox_ratio
+        upright = dy > 0 and angle <= c.upright_angle_degrees and ratio < c.min_bbox_ratio
         if upright:
             # Even a brief upright frame breaks a continuous prone hold.
             s.candidate_at = None

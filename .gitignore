@@ -47,3 +47,12 @@ secrets*
 config.camera-gpu.json
 
 # frontend/dist/ is intentionally tracked for serving by the Python backend.
+
+# Runtime assets only. Real .env files remain local and must never be committed.
+!/elder-safety/weights/*.pt
+!/elder-safety/tools/
+!/elder-safety/tools/ffmpeg/
+!/elder-safety/tools/ffmpeg/*
+# Owner request: no camera videos or video chunks in Git.
+/examples/repro-video/
+*.part[0-9][0-9]

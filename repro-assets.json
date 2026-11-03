@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "assets": [
+    {
+      "path": "elder-safety/weights/yolo11n-pose.pt",
+      "bytes": 6255593,
+      "sha256": "869e83fcdffdc7371fa4e34cd8e51c838cc729571d1635e5141e3075e9319dc0"
+    },
+    {
+      "path": "elder-safety/weights/luminous-fire-yolov8n.pt",
+      "bytes": 6262051,
+      "sha256": "ac0a10257b2bc1f20c9d957f8adeeb61dd6140322fc19d0b4a116cb491776d16"
+    },
+    {
+      "path": "elder-safety/weights/fire-smoke-yolov8n.pt",
+      "bytes": 6229802,
+      "sha256": "b91633799ceb052c814b4f8b77a37efc9a40f002d528df97d74463585fa4f28f"
+    },
+    {
+      "path": "elder-safety/tools/ffmpeg/ffmpeg.exe",
+      "bytes": 87638016,
+      "sha256": "2ce797a0f88d7f067180338fb227f7b1928ea727bd9a4d7a1d022f7c52af71a3"
+    },
+    {
+      "path": "elder-safety/tools/ffmpeg/ffprobe.exe",
+      "bytes": 80995328,
+      "sha256": "f28c4751e7367205267025aaf0fcfc921e34d9b7edaa46bd9c8abaf367fc9051"
+    }
+  ]
+}

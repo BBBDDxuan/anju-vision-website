@@ -1,191 +1,123 @@
-# 安居视界 · 居家视频监测系统
+# 安居视界 · 团队可复现运行包
 
-本仓库包含当前网页系统的前端、Python 后端、本地检测代码、启动脚本与前端构建产物。
-支持产品介绍、RTSP 实时摄像头预览、录像导入、安全分析、物品追踪和视频证据回溯。
+本仓库现包含网页前端、网页后端、本地安全检测、模型权重、FFmpeg/FFprobe、团队运行配置和自检工具。按所有者要求，不上传视频或视频分片。
+本次整理保留现有前端源码与构建产物，仅补齐后端和运行依赖。
 
-原仓库根目录中的前端已迁移至 **frontend/**，既有 Git 历史保留。
-仓库不包含私人录像、历史分析数据库、真实密钥、本地虚拟环境、FFmpeg 二进制和模型权重。
-独立手机 App 与其通知后端不在本仓库中；网页中的可选报警转发需要另行部署该服务。
+> **凭据仅在本机保存，不提交 Git。** 两份 `.env.example` 保留全部运行参数及可移植路径，
+> 安装脚本会在缺少 `.env` 时生成本地配置。API Key、摄像头账号及通知令牌请通过团队安全渠道另行提供。
+> 新生成配置默认关闭云请求；填好密钥后将根 `.env` 的 `VLM_ENABLE_NETWORK` 改为 `true` 才能进行真实云复核。
 
-## Windows 首次运行
+## 一、队友首次运行（Windows x64）
 
-1. 安装 **Python 3.12**（本次验证版本），下载或克隆本仓库。
-2. 双击根目录 **setup.bat**，创建 .venv、安装后端依赖，并在不存在时复制 .env.example 为 .env。
-3. 双击根目录 **start.bat**，保持终端运行，打开 **http://127.0.0.1:8000/**。
-
-前端 dist 已提交，查看页面和启动服务不需要 Node.js 或重新编译。
-首次依赖安装需要联网；安装脚本不会覆盖已有 .env，不会下载模型或调用视觉 API。
-关闭服务使用 Ctrl+C。监听地址为本机 127.0.0.1，不会自动发布到互联网。
-
-也可以在仓库根目录使用 PowerShell：
+1. 克隆完整仓库。模型、工具及配置模板随 Git 提交；视频由队友自行导入，真实凭据通过团队安全渠道提供。
+2. 安装 **Python 3.12 或更新版本**用于网页后端。想尽量匹配本机已验证环境，可另装
+   **Python 3.11**用于检测进程；已验证版本详见 `runtime-versions.json`。
+3. 在仓库根目录打开 PowerShell：
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\setup.ps1
-powershell -NoProfile -ExecutionPolicy Bypass -File .\start.ps1
+# 默认 CPU，适合没有 NVIDIA 显卡或不确定 CUDA 环境的电脑。
+powershell -NoProfile -ExecutionPolicy Bypass -File .\setup-team.ps1 -Device cpu
+# 安装和自检成功后启动网页。
+.\start.bat
 ```
 
-若有多个 Python 环境，可指定解释器：
+打开终端显示的 `http://127.0.0.1:8000/`。前端已编译，无需安装 Node.js 就能使用网页。
+首次安装仍需联网获取 Python 依赖；缓存、模型库状态和临时文件都保存在当前仓库的 `runtime/`。
+`.venv` 不能直接从另一台电脑复制：安装脚本会在本机重新创建，不依赖原电脑的 G:/D: 目录。
+
+已有 NVIDIA/CUDA 环境时：
 
 ```powershell
-.\setup.ps1 -Python 'C:\Python312\python.exe'
-.\start.ps1 -Python '.\.venv\Scripts\python.exe' -Port 8000
+powershell -NoProfile -ExecutionPolicy Bypass -File .\setup-team.ps1 -Device cuda
+# 如果 Python 不在默认位置，明确指定两个基础解释器：
+.\setup-team.ps1 -Python 'C:\Python313\python.exe' -DetectorPython 'C:\Python311\python.exe' -Device cuda
 ```
 
-自定义端口用于本机启动；前端开发服务器的 API 代理仍默认指向 8000，需对应修改。
+脚本为检测环境安装记录的 PyTorch 2.13.0 / torchvision 0.28.0，CUDA 模式使用 cu126。
+安装失败时保留完整错误，先核对 Python 架构、版本、网络和显卡驱动；不要直接替换模型权重或改业务阈值。
+只运行网页、不安装本地检测时可加 `-BackendOnly`，但该模式不能验证安全检测。
 
-## 启用录像和模型分析
-
-安装包含 **ffmpeg.exe 和 ffprobe.exe** 的 FFmpeg 5+ 发行版，例如通过
-[FFmpeg 下载页](https://ffmpeg.org/download.html) 选择 Windows 构建。
-本次媒体验证使用 FFmpeg 9.0.2，已使用新版保留原帧时间戳的参数。
-将二者加入 PATH，或在根目录 .env 中填写绝对路径：
-
-```dotenv
-FFMPEG_PATH=C:/tools/ffmpeg/bin/ffmpeg.exe
-FFPROBE_PATH=C:/tools/ffmpeg/bin/ffprobe.exe
-```
-
-根目录 .env 中填写自己的模型服务配置。默认密钥为空、网络调用关闭；页面可以打开，
-但实际分析会提示未配置，不能将其理解为已经执行识别。
-
-```dotenv
-VLM_PROVIDER=qwen
-VLM_API_KEY=在本地填写自己的密钥
-VLM_BASE_URL=https://maas.qianwenaiapi.com/compatible-mode/v1
-VLM_MODEL=qwen3.8-max
-VLM_REVIEW_MODEL=qwen3.8-max
-VLM_ENABLE_NETWORK=true
-VLM_BILLING_MODE=request_limited
-```
-
-上述服务地址和模型名须以自己账号实际可用的配置为准。模型请求可能产生费用，
-并会将采样图像发送至所配置的服务；每日和每批调用预算见 .env.example。
-修改配置后重启后端。录像与结果默认保存于本机 data/，不进入 Git。
-
-- **物品追踪**：需要 FFmpeg 和可用的视觉模型服务。
-- **安全分析**：还需要下一节的本地检测环境和模型，候选由本地检测生成，再由配置的视觉服务复核。
-- **实时摄像头**：需要支持 RTSP 的网络摄像头及下一节的环境；当前不是浏览器直接调用 USB 摄像头的实现。
-
-## 配置本地检测和实时摄像头
-
-检测进程使用独立 Python 环境，避免与网页后端的 NumPy/OpenCV 依赖冲突。
-以下命令在仓库根目录执行：
+## 二、先复现本地检测（不消耗 Qwen token）
 
 ```powershell
-py -3.12 -m venv elder-safety/.venv-gpu
-.\elder-safety\.venv-gpu\Scripts\python.exe -m pip install -e './elder-safety/ai-service[pose]'
+.\elder-safety\.venv-gpu\Scripts\python.exe scripts\verify_reproduction.py --assets-only
+# 持有以下三个开发视频时，指定自己的本地文件夹进行回归：
+.\elder-safety\.venv-gpu\Scripts\python.exe scripts\verify_reproduction.py --source-dir "你的本地视频目录" --device auto
 ```
 
-安装 Ultralytics 会安装其检测依赖。使用 GPU 时，还需按硬件和驱动从
-[PyTorch 官网](https://pytorch.org/get-started/locally/) 安装兼容的 CUDA 版本；
-仅安装 Python 包不能保证 GPU 已可用。配置 device=cpu 可使用 CPU，速度取决于机器。
+仓库不含视频。资源自检无需录像；如果你已有这三个开发视频，可指定本地文件夹检查候选与多帧证据：
 
-从 [模型来源清单](elder-safety/weights/manifest.json) 下载这两个明确版本的权重，
-建议放到 elder-safety/weights/：
+| 视频 | 用途 | 本次 GPU 开发回归期望 |
+|---|---|---|
+| `11月3日 (1).mp4` | 前扑后骨架间歇丢失 | 约 24.9 秒恢复一个待复核候选 |
+| `11月3日 (2).mp4` | 已能识别的对照 | 约 25.5 秒，一个候选 |
+| `10月30日.mp4` | 跌倒、求助及蹲下/抱头等混合动作 | 一个跌倒候选，并保留原有求助候选 |
 
-- yolo11n-pose.pt：Ultralytics YOLO11n Pose。
-- luminous-fire-yolov8n.pt：清单中固定提交版本的明火模型。
+结果和模型输出保存在 `runtime/reproduce-*/verification.json` 及对应扫描目录。
+CPU/不同设备的数值与具体触发时间可能不同，脚本会据实际输出检查，不能把开发样例当独立准确率。
+该脚本不调用云模型、不连接摄像头、不推送手机通知。网页的最终危险报警仍走“小模型候选 → Qwen 复核”。
 
-清单包含下载链接和已记录的 SHA256，权重不上传到本仓库。
-查看所选火焰模型的确切类别名称后生成本地配置，以下以该模型的 fire 类为例：
+视频和视频分片均不提交，安装与网页启动不依赖这些开发视频。队友可直接在网页导入自己的视频。
+
+## 三、运行配置与移到其他目录
+
+- 根 `.env`：团队视觉服务、预算及网页配置；本机填写真实配置，不提交 API Key。
+- `elder-safety/.env`：摄像头和可选手机通知服务；**相机地址只对能访问相机所在局域网的电脑有效**。
+- `elder-safety/ai-service/config.team.json`：已调好的检测阈值与可移植相对路径。
+- `runtime/team-camera.json`：安装时生成的本机绝对路径配置，属于运行产物，不提交到 Git。
+- `repro-assets.json`：模型、工具的大小及 SHA256。
+
+移动目录后重新执行：
 
 ```powershell
-.\.venv\Scripts\python.exe scripts/configure_safety.py --pose elder-safety/weights/yolo11n-pose.pt --flame elder-safety/weights/luminous-fire-yolov8n.pt --flame-class fire --device cpu
+.\elder-safety\.venv-gpu\Scripts\python.exe scripts\prepare_team.py --device auto
+.\.venv\Scripts\python.exe scripts\doctor_team.py
 ```
 
-脚本校验权重哈希，写入本机绝对路径，并创建被 Git 忽略的
-elder-safety/ai-service/config.camera-gpu.json；已有配置会保留，不会被覆盖。
-GPU 配置可使用 --device 0，必须先确认该环境能使用 CUDA。
-默认关闭摄像头录像；需要录像时还须配置 recording 选项和 FFmpeg。
+摄像头 IP、网络或密码变更时修改 `elder-safety/.env`，不要修改前端代码。
+网页点击“开启视频分析”会使用团队的真实 API 配额；本地自检和复现脚本不产生这些请求。
 
-要连接实时摄像头，另复制配置并填写自己的设备地址：
+## 四、前端开发
 
-```powershell
-# 仅在该配置尚不存在时执行，保留已有摄像头设置
-if (-not (Test-Path 'elder-safety/.env')) {
-    Copy-Item elder-safety/.env.example elder-safety/.env
-}
-```
-
-在 elder-safety/.env 设置包含设备用户名、密码和正确路径的 RTSP_URL。
-路径以摄像头厂家与设备实际配置为准，不在仓库中保存真实地址或密码。
-根目录 .env 配置云模型；elder-safety/.env 配置摄像头，两者用途不同。
-完成后重启网页服务，在“实时摄像头”点击“开启摄像头”。
-可选手机报警转发服务未配置时，本机预览仍可运行，不代表手机通知已打通。
-
-## 开发和测试
-
-### 一键启动前后端（5173）
-
-双击仓库根目录 **start-dev.bat**，脚本会启动后端和 Vite，等待网页、接口代理和
-摄像头同源状态检查通过后打开 **http://127.0.0.1:5173/**。保持启动窗口打开，
-按 Ctrl+C 停止本次脚本启动的服务。已运行的后端会复用，退出时保留；
-5173 被占用时会提示先停止旧前端，避免打开错误的页面版本。
-
-脚本首次缺少前端依赖时会运行 `npm ci`，需要已安装 Node.js；后端环境可先用
-`setup.bat` 安装。日志写入 `runtime/dev-start/`，不进入 Git。
-
-若仓库尚无 `.env`，且位于已有配置的完整项目内，脚本会向上查找并复用该项目的
-后端源码、`.env`、数据库和摄像头环境，启动时显示实际路径，不复制密钥。
-例如当前嵌套目录可复用 `G:\比赛\AI黑客松` 后端，网页使用本仓库最新 `frontend/`。
-若希望使用本仓库自带后端，先按首次运行说明配置，或显式指定：
+Node.js 仅在需要修改前端时安装。保留的前端实现、页面和 dist 未因本次整理而更改。
 
 ```powershell
-# 使用本仓库后端；须先配置本仓库的 .env、运行环境及摄像头
+.\start-dev.bat
+# 或显式指定使用本仓库的后端，避免复用外层旧项目：
 .\start-dev.ps1 -BackendRoot .
-# 指定已有后端和 Python 环境
-.\start-dev.ps1 -BackendRoot 'G:\比赛\AI黑客松' -Python 'G:\比赛\AI黑客松\elder-safety\.venv\Scripts\python.exe'
-# 使用其他端口，并自动匹配 API 代理
-.\start-dev.ps1 -BackendPort 8010 -FrontendPort 5174
 ```
 
-摄像头开发代理保留浏览器的 `Host` 和 `Origin`，避免 5173 → 8000 代理导致
-“请从本机同源网页操作摄像头”。后端仍限制本机和同源访问；脚本只检查摄像头状态，
-不会自动开启设备、开始录像或调用付费模型。设备和模型可用性须另行验证。
-`-SmokeTest -NoBrowser` 可执行启动自检后自动退出。
+开发页默认 `http://127.0.0.1:5173/`。依赖锁在 `frontend/package-lock.json`。
 
-修改前端才需要 Node.js LTS：
+## 五、包含哪些模型和工具
+
+| 文件 | 作用 |
+|---|---|
+| `elder-safety/weights/yolo11n-pose.pt` | 姿态检测，供跌倒及求助规则使用 |
+| `elder-safety/weights/luminous-fire-yolov8n.pt` | 当前明火检测 |
+| `elder-safety/weights/fire-smoke-yolov8n.pt` | 保留的备选权重，默认不启用 |
+| `elder-safety/tools/ffmpeg/ffmpeg.exe` | 视频转码、取帧、录像 |
+| `elder-safety/tools/ffmpeg/ffprobe.exe` | 视频元数据 |
+
+工具二进制沿用原电脑实际使用的文件，版本和 SHA256 见 `provenance.json` 与 `repro-assets.json`。
+这两份 FFmpeg 工具来自不同年代的构建，本次不偷偷替换；媒体和扫描功能需按自检结果确认。
+来源、许可文本及分发说明见 `THIRD_PARTY_NOTICES.md`。
+
+## 六、可选手机通知后端
+
+`elder-safety/backend/` 和 `elder-safety/scripts/` 也已附带。网页不是独立手机 App 源码包。
+若要在本机额外启动通知中继，可在已安装的网页环境安装其依赖：
 
 ```powershell
-cd frontend
-npm ci
-npm run dev
-# 开发地址通常为 http://127.0.0.1:5173/，API 代理到 8000
-npm run build
-node --test tests/*.test.mjs
+.\.venv\Scripts\python.exe -m pip install -r elder-safety/backend/requirements.txt
+$env:PYTHONPATH = "$PWD\elder-safety\backend"
+.\.venv\Scripts\python.exe -m uvicorn safety_backend.main:create_app --factory --host 127.0.0.1 --port 8010 --no-access-log
 ```
 
-后端测试在仓库根目录执行：
+真实 Firebase 推送仍需要对应 Firebase 项目和服务凭据；本包不会伪造这些配置，也没有替队友验证手机通知。
 
-```powershell
-.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
-.\.venv\Scripts\python.exe -m pytest -q
-```
+## 七、提交规则
 
-媒体测试需要 ffmpeg 和 ffprobe 在 PATH 上。测试使用临时合成视频和模拟服务，
-不连接真实摄像头、不调用付费模型。真实设备和识别效果需要在自己的环境另行验证。
-
-## 目录
-
-```text
-backend/                     网页 API、数据库、任务、摄像头桥接和模型适配
-frontend/src/                React 页面及交互
-frontend/public/             前端原始静态资源
-frontend/dist/               已编译网页，由后端提供
-frontend/tests/              前端测试
-elder-safety/ai-service/      本地姿态、求助、明火与连续过程检测代码
-elder-safety/scripts/         摄像头工作进程及录像扫描脚本
-elder-safety/weights/manifest.json  模型来源和版本哈希
-prompts/                     模型提示词及历史版本
-schemas/                     事件和证据数据结构
-examples/                    明确标识的合成样例
-scripts/configure_safety.py   生成本地检测配置
-setup.bat / setup.ps1         首次安装后端依赖
-start.bat / start.ps1         启动完整网页服务
-.env.example                 配置模板，无真实密钥
-requirements*.txt            后端依赖及原交付环境记录
-```
-
-已有完整系统只想更新页面时，整体替换 frontend/dist/ 即可。
-此前的前端专用仓库布局可在旧提交中查阅；新克隆按本说明启动。
-第三方来源和许可说明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+本仓库提交两份 `.env.example`、三个模型、两份媒体工具；真实 `.env` 保留在本机并被 Git 忽略。
+仍忽略虚拟环境、下载缓存、数据库、录像、推理运行记录及所有视频/分片。
+`setup-team.ps1` 创建这些可重建环境，避免把原电脑绝对路径与旧数据库误当成队友的运行前提。

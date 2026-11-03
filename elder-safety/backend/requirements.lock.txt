@@ -1,0 +1,12 @@
+# Observed working Python 3.13 backend environment, 2026-10-28.
+# Direct backend/test dependencies and key ASGI dependency; not a full transitive lock.
+fastapi==0.162.0
+starlette==1.10.0
+uvicorn==0.54.0
+pydantic==2.12.4
+httpx==0.28.1
+SQLAlchemy==2.0.43
+python-multipart==0.0.32
+python-dotenv==1.1.0
+Pillow==12.0.0
+pytest==8.4.2

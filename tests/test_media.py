@@ -23,7 +23,7 @@ def test_duration_limit(settings, sample_video):
 
 def test_vfr_pts_are_not_replaced_by_frame_number(settings, sample_video, tmp_path):
     target = tmp_path / "variable-timing.mp4"
-    p = subprocess.run([settings.ffmpeg, "-v", "error", "-y", "-i", str(sample_video), "-an", "-vf", "setpts=if(lt(N\\,60)\\,N/(10*TB)\\,(6+(N-60)/5)/TB)", "-fps_mode", "passthrough", "-vcodec", "libx264", "-bf", "0", str(target)], capture_output=True, timeout=30)
+    p = subprocess.run([settings.ffmpeg, "-v", "error", "-y", "-i", str(sample_video), "-an", "-vf", "setpts=if(lt(N\\,60)\\,N/(10*TB)\\,(6+(N-60)/5)/TB)", "-vsync", "0", "-vcodec", "libx264", "-bf", "0", str(target)], capture_output=True, timeout=30)
     assert p.returncode == 0, p.stderr
     meta = inspect_video(target, settings)
     frames = extract_frames({"original_path": str(target), **meta}, tmp_path / "vfr-frames", settings)

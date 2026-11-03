@@ -1,0 +1,8 @@
+{
+  "path": "elder-safety/weights/fire-smoke-yolov8n.pt",
+  "bytes": 6229802,
+  "sha256": "b91633799ceb052c814b4f8b77a37efc9a40f002d528df97d74463585fa4f28f",
+  "source": "https://huggingface.co/rabahdev/fire-smoke-yolov8n",
+  "active": false,
+  "purpose": "Archived alternative; not used by the default detector"
+}

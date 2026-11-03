@@ -2,7 +2,8 @@
 
 A 2-D pose cannot confirm a fall toward the optical axis or beyond the frame.
 These signals are enabled only by the Qwen candidate collector, never by the
-standalone alarm engine. Missing/invalid poses discard history, not bridge IDs.
+standalone alarm engine. Missing/invalid poses discard transition history. A
+separate, bounded inverted-posture buffer never transfers evidence across IDs.
 """
 from collections import deque
 from dataclasses import dataclass, field
@@ -32,6 +33,8 @@ class _State:
     prone_since: float | None = None
     prone_frames: int = 0
     prone_reported: bool = False
+    inverted_observations: deque = field(default_factory=lambda: deque(maxlen=32))
+    inverted_tail: int = 0
 
 
 class ReviewFallDetector:
@@ -44,8 +47,17 @@ class ReviewFallDetector:
         self.states.clear()
         self.recent_alerts.clear()
 
-    def retain(self, present: set[str]):
-        self.states = {key: state for key, state in self.states.items() if key in present}
+    def retain(self, present: set[str], *, recoverable: set[str] | None = None):
+        # Only the posture-only buffer can survive a missed detection while the
+        # tracker still owns that ID. Never retain standing/descent/hold evidence.
+        alive = present if recoverable is None else present | recoverable
+        self.states = {key: state for key, state in self.states.items() if key in present or (key in alive and state.inverted_observations)}
+        for key, state in self.states.items():
+            if key not in present:
+                state.history.clear()
+                state.prone_since = None
+                state.prone_frames = 0
+                state.inverted_tail = 0
 
     def accept_strict(self, track_id: str, t: float, bbox=None) -> bool:
         state = self.states.setdefault(track_id, _State())
@@ -57,7 +69,8 @@ class ReviewFallDetector:
             self.recent_alerts.append((t, bbox))
         return True
 
-    def update(self, track_id: str, pose: Pose, t: float, armed: bool) -> Signal | None:
+    def update(self, track_id: str, pose: Pose, t: float, armed: bool,
+               *, recovery_allowed: bool = True) -> Signal | None:
         c = self.config
         while self.recent_alerts and t - self.recent_alerts[0][0] >= c.cooldown_seconds:
             self.recent_alerts.popleft()
@@ -72,6 +85,16 @@ class ReviewFallDetector:
                 state.history.clear()
                 state.prone_since = None
                 state.prone_frames = 0
+                state.inverted_tail = 0
+                # Unreliable points contribute no geometry. Retain only earlier
+                # complete poses within the same unambiguous tracked region.
+                if (not recovery_allowed or kp.shape != (17, 3)
+                        or not finite_box(pose.bbox) or not math.isfinite(pose.confidence)
+                        or not np.isfinite(kp).all()
+                        or ((kp[:, 2] < 0) | (kp[:, 2] > 1)).any()
+                        or (state.inverted_observations
+                            and iou(pose.bbox, state.inverted_observations[-1][1]) < 0.3)):
+                    state.inverted_observations.clear()
             return None
         shoulder, hip = kp[[5, 6], :2].mean(axis=0), kp[[11, 12], :2].mean(axis=0)
         dx, dy = hip - shoulder
@@ -81,6 +104,8 @@ class ReviewFallDetector:
                 state.history.clear()
                 state.prone_since = None
                 state.prone_frames = 0
+                state.inverted_observations.clear()
+                state.inverted_tail = 0
             return None
         angle = math.degrees(math.atan2(abs(dx), abs(dy)))
         height = pose.bbox[3] - pose.bbox[1]
@@ -217,6 +242,44 @@ class ReviewFallDetector:
                     'whole_body_vertical_horizontal_ratio': round(vertical / span, 3) if not inverted else None,
                     'confidence_kind': 'minimum_pose_and_required_keypoint_score_not_calibrated_event_probability',
                     'limitation': 'Sustained lying posture only; no fall transition or floor contact proven. Voluntary lying, bed or sofa use, handstands or an inverted camera require multi-frame visual review; uncertain is not a confirmed alarm.',
+                })
+                state.last_alert = t
+        # Intermittent inverted skeletons are not a continuous prone hold.
+        # Recover a review proposal only from five reliable whole-body poses,
+        # including a fresh three-frame tail, on this very same tracker ID.
+        observations = state.inverted_observations
+        if not inverted or not recovery_allowed or pose.confidence < 0.35:
+            observations.clear()
+            state.inverted_tail = 0
+        else:
+            window = min(2.5, c.observation_seconds)
+            while observations and t - observations[0][0] > window + 1e-8:
+                observations.popleft()
+            if observations and (t <= observations[-1][0]
+                    or t - observations[-1][0] > min(1.0, window) + 1e-8
+                    or iou(pose.bbox, observations[-1][1]) < 0.3):
+                observations.clear()
+                state.inverted_tail = 0
+            confidence = min(float(pose.confidence), float(kp[core + [15, 16], 2].min()))
+            observations.append((t, pose.bbox, confidence))
+            state.inverted_tail += 1
+            elapsed = t - observations[0][0]
+            if (result is None and not state.prone_reported and len(observations) >= 5
+                    and state.inverted_tail >= 3 and elapsed + 1e-8 >= max(0.8, c.hold_seconds)
+                    and t - state.last_alert >= c.cooldown_seconds):
+                gaps = [b[0] - a[0] for a, b in zip(observations, list(observations)[1:])]
+                result = Signal('suspected_fall', track_id, min(o[2] for o in observations), {
+                    'algorithm': 'interrupted_inverted_pose_review_v1', 'review_required': True,
+                    'candidate_reason': 'repeated_inverted_body_after_pose_loss',
+                    'posture_projection': 'head_below_hips_and_feet',
+                    'fall_transition_observed': False,
+                    'observation_span_seconds': round(elapsed, 6),
+                    'reliable_frames': len(observations),
+                    'consecutive_reliable_frames': state.inverted_tail,
+                    'largest_observation_gap_seconds': round(max(gaps), 6),
+                    'torso_angle_deg': round(angle, 3), 'bbox_ratio': round(ratio, 3),
+                    'confidence_kind': 'minimum_pose_and_required_keypoint_score_not_calibrated_event_probability',
+                    'limitation': 'Intermittent complete inverted poses on one spatially unambiguous track only; missing intervals are not observed lying time. No descent, floor contact or continuous prone hold proven. Requires multi-frame visual review.',
                 })
                 state.last_alert = t
         if result is not None:
