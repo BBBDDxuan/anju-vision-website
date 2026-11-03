@@ -50,29 +50,29 @@ export function LandingPage({ page, onPageChange, onEnter, onCamera, demos = [],
   return <main className="landing-page intro-paged" id="main-content" tabIndex={-1}>
     <div ref={panel} className="intro-page-content" tabIndex={-1} aria-labelledby="intro-page-heading" data-intro-page={page}>
       {page === 'overview' && <section className="intro-overview">
-        <div className="intro-overview-copy"><span className="intro-subject"><Icon name="shield" size={16}/>独居关怀与家庭安全</span><h1 id="intro-page-heading">多一份关注，<br/>让居家风险有迹可查。</h1><p className="intro-description">从家人的日常活动，到需要留意的异常。<br className="intro-desktop-break"/>关注摔倒、举手求助与可见明火，让每一条线索都能回到画面。</p><ul className="intro-assurances"><li><Icon name="shield" size={16}/>重要事件优先呈现</li><li><Icon name="video" size={16}/>原片与关键帧可回看</li></ul></div>
+        <div className="intro-overview-copy"><span className="intro-subject"><Icon name="shield" size={16}/>独居关怀与家庭安全</span><h1 id="intro-page-heading">多一份关注，<br/>让居家风险有迹可查。</h1><p className="intro-description">从日常活动，到异常风险。<br className="intro-desktop-break"/>关注摔倒、举手求助与可见明火，让每一条线索都能回到画面。</p><ul className="intro-assurances"><li><Icon name="shield" size={16}/>重要事件优先呈现</li><li><Icon name="video" size={16}/>原片与关键帧可回看</li></ul></div>
         <HomeScene/>
       </section>}
       {page === 'capabilities' && <section className="intro-detail-page">
         <header className="intro-section-title"><span className="intro-subject">核心能力</span><h1 id="intro-page-heading">关注家人安全，也找回物品踪迹。</h1><p>识别人物异常、留意可见明火、查找物品，并通过视频证据核对线索。</p></header>
         <div className="intro-capability-grid">{[
-          { icon: 'home', label: '人物异常', title: '独居老人关怀', text: '关注疑似摔倒与举手求助，保留发生过程和关键时间。', points: ['人物动作与连续过程', '候选事件的复核状态', '可定位的原片时间'] },
-          { icon: 'shield', label: '家庭危险', title: '可见明火识别', text: '先发现可见明火候选，再结合证据画面复核与回看。', points: ['明火候选线索', '复核说明与模型依据', '证据不足或异常反馈'] },
-          { icon: 'search', label: '物品追踪', title: '查找物品踪迹', text: '想知道物品最后在哪里出现？从录像中查找物品出现的位置与时间。', points: ['物品出现的位置与时间', '已有记录的物品问答', '关联原片与关键帧'] },
+          { icon: 'home', label: '人物异常', title: '独居老人关怀', text: '关注摔倒与举手求助，保留发生过程和关键时间。', points: ['人物动作与连续过程', '候选事件的复核状态', '可定位的原片时间'] },
+          { icon: 'shield', label: '家庭危险', title: '可见明火识别', text: '发现明火风险，结合证据画面复核与回看。', points: ['明火候选线索', '复核说明与模型依据', '证据保留与异常反馈'] },
+          { icon: 'search', label: '物品追踪', title: '查找物品踪迹', text: '从录像中查找物品出现的位置与时间。', points: ['物品出现的位置与时间', '已有记录的物品追踪', '关联原片与关键帧'] },
         ].map(item => <article className="intro-capability" key={item.title}><div className="intro-capability-top"><span className="intro-feature-icon"><Icon name={item.icon} size={25}/></span><span>{item.label}</span></div><h2>{item.title}</h2><p>{item.text}</p><ul>{item.points.map(point => <li key={point}><span aria-hidden="true"/> {point}</li>)}</ul></article>)}</div>
         <section className="intro-evidence" aria-labelledby="intro-evidence-heading">
           <div className="intro-evidence-heading"><div><h2 id="intro-evidence-heading">视频证据回溯</h2><p>人物异常、家庭危险与物品踪迹，都能回到原片核对。</p></div></div>
           <ul>{[
-            ['clock', '事件时间线'], ['video', '原片回放'], ['search', '证据关键帧'], ['chat', '已有记录的证据问答'],
+            ['clock', '事件时间线'], ['video', '原片回放'], ['search', '证据关键帧'], ['chat', 'AI问答'],
           ].map(([icon, text]) => <li key={text}><Icon name={icon} size={18}/><span>{text}</span></li>)}</ul>
         </section>
       </section>}
       {page === 'how-it-works' && <section className="intro-detail-page intro-workflow-page">
-        <header className="intro-section-title"><span className="intro-subject">使用流程</span><h1 id="intro-page-heading">从一段录像，到有据可查的提醒。</h1><p>导入、分析、回看。按自己的节奏查看每一条线索。</p></header>
+        <header className="intro-section-title"><span className="intro-subject">使用流程</span><h1 id="intro-page-heading">从一段录像，到有据可查的提醒。</h1><p>导入、分析、回看。轻松查看每一条线索。</p></header>
         <ol className="intro-workflow">{[
-          { icon: 'upload', title: '导入居家录像', text: '选择或拖入单机位 MP4；也可以从录像库打开已有视频。', action: '选择录像', detail: '导入后先回放原片，再由你触发分析。' },
-          { icon: 'shield', title: '选择分析任务', text: '选择“安全分析”或“物品追踪”，查看扫描与复核进度。', action: '查看进度', detail: '同一录像一次运行一个任务，支持暂停与继续。' },
-          { icon: 'clock', title: '回看并确认线索', text: '从事件时间线定位原片、查看关键帧，或提问了解已有记录。', action: '回看证据', detail: '结合复核状态和证据理解事件，按需标记已知悉。' },
+          { icon: 'upload', title: '导入居家录像', text: '选择或拖入 MP4；也可以从录像库打开已有视频。', action: '自由掌控', detail: '导入后先回放原片，再由你触发分析。' },
+          { icon: 'shield', title: '选择分析任务', text: '选择“安全分析”或“物品追踪”，查看扫描与复核进度。', action: '查看进度', detail: '同一录像一次运行一个任务，随时可暂停继续。' },
+          { icon: 'clock', title: '回看并确认线索', text: '从事件时间线定位原片、查看关键帧，或提问了解已有记录。', action: '回看证据', detail: '结合复核状态和证据理解事件，按需标记关键帧。' },
         ].map((item, i) => <li key={item.title}><div className="intro-step-heading"><span className="intro-step-number">{i + 1}</span><Icon name={item.icon} size={25}/></div><h2>{item.title}</h2><p>{item.text}</p><div className="intro-step-detail"><span>{item.action}</span><p>{item.detail}</p></div></li>)}</ol>
         {demoLinks}
       </section>}

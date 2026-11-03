@@ -66,12 +66,12 @@ export function Shell({ children, videos, selected, onSelect, ready, loading, se
         </div>
         <div className="camera-nav-group">
           <a className={`workspace-link ${view === 'camera' ? 'is-active' : ''}`} href={workspaceHref('camera')} aria-current={view === 'camera' ? 'page' : undefined} onClick={event => navigateLink(event, 'camera')}><Icon name="video" />实时摄像头</a>
-          {view === 'camera' && <details className="sidebar-subsection camera-subsection"><summary>实时关注家的日常</summary><div className="sidebar-subcontent"><p>{localCamera ? '查看摄像头画面、录像状态与本次会话事件。需要回看已有录像时，选择“导入视频”。' : '实时摄像头需要在本机环境中使用。当前可选择“导入视频”分析录像。'}</p></div></details>}
+          {view === 'camera' && <details className="sidebar-subsection camera-subsection"><summary>实时关注家中日常</summary><div className="sidebar-subcontent"><p>{localCamera ? '查看摄像头画面、录像状态与本次会话事件。需要回看已有录像时，请选择“导入视频”。' : '实时摄像头需要在本机环境中使用。当前可选择“导入视频”分析录像。'}</p></div></details>}
         </div>
         <div className="video-nav-group">
           <a className={`workspace-link ${view === 'videos' ? 'is-active' : ''}`} href={workspaceHref('videos')} aria-current={view === 'videos' ? 'page' : undefined} onClick={event => navigateLink(event, 'videos')}><Icon name="upload" />导入视频</a>
           {view === 'videos' && <details className="sidebar-subsection library-subsection"><summary>录像库<span className="library-count">{videos.length}</span></summary><div className="sidebar-subcontent">
-        <label className="library-search"><Icon name="search" size={16} /><input aria-label="搜索录像" name="library-search" autoComplete="off" value={search} onChange={e => setSearch(e.target.value)} placeholder="查找录像名称…" /></label>
+        <label className="library-search"><Icon name="search" size={16} /><input aria-label="搜索录像" name="library-search" autoComplete="off" value={search} onChange={e => setSearch(e.target.value)} placeholder="查找录像…" /></label>
         <div className="library-list">{items.length ? items.map(v => <div className="library-row" key={v.id}>
           <button className={`library-item ${selected === v.id ? 'selected' : ''}`} aria-current={selected === v.id ? 'true' : undefined} onClick={() => { onSelect(v.id); setOpen(false); }}><span className="library-icon"><Icon name="video" size={18} /></span><span><strong title={v.name}>{v.name}</strong><small>{durationLabel(v.duration_ms)}<i />{v.active_run ? '有分析记录' : '待分析'}</small></span></button>
           <button className="library-delete" title="删除录像" aria-label={`删除录像 ${v.name}`} disabled={busyVideoId === v.id || v.read_only_demo} onClick={() => onDelete(v)}><Icon name="trash" size={15}/></button>
@@ -79,7 +79,7 @@ export function Shell({ children, videos, selected, onSelect, ready, loading, se
           </div></details>}
         </div>
       </nav>
-      <div className="sidebar-bottom"><div className="future-note"><Icon name="shield" size={18} /><div><strong>记录保存在服务端</strong><p>分析时仅发送采样画面至已配置的视觉服务。</p></div></div><button className="help-button" onClick={() => { setOpen(false); requestAnimationFrame(() => help.current?.showModal()); }}><Icon name="help" size={17} />使用说明<Icon name="arrow" size={16} /></button></div>
+      <div className="sidebar-bottom"><div className="future-note"><Icon name="shield" size={18} /><div><strong>记录保存在服务端</strong><p>分析时仅发送采样画面。</p></div></div><button className="help-button" onClick={() => { setOpen(false); requestAnimationFrame(() => help.current?.showModal()); }}><Icon name="help" size={17} />使用说明<Icon name="arrow" size={16} /></button></div>
     </aside>
     <div className="app-body" inert={open}>
       <header className="topbar"><div className="topbar-left"><button className="icon-button mobile-library" aria-label={view === 'videos' ? '打开录像库' : '打开导航'} aria-expanded={open} aria-controls="library-navigation" onClick={() => setOpen(true)}><Icon name="menu" /></button><span className="breadcrumb">我的空间 <span>/</span> <strong>{view === 'videos' ? '导入视频' : view === 'camera' ? '实时摄像头' : '产品介绍'}</strong></span></div>

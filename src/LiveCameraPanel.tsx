@@ -171,7 +171,7 @@ export function LiveCameraPanel({ ready = true, configurationError = '', onRetry
   const stateLabel = configurationError ? '运行环境读取失败' : pollError ? '状态更新中断' : loading ? loadingLabel : stateName[state] || '未知状态';
   const current = ready && !configurationError && !pollError && status?.state === 'running';
   const previewTitle = configurationError ? '运行环境读取失败' : pollError ? '暂时无法更新摄像头状态' : loading ? loadingLabel : frameError ? '暂时无法获取预览画面' : state === 'stopped' ? '等待开启本地摄像头' : state === 'running' ? '正在获取最新画面…' : stateName[state] || '摄像头状态待确认';
-  const previewHint = configurationError || pollError ? '请检查本机服务；连接恢复后会自动更新。' : loading ? '正在读取摄像头状态…' : frameError ? '正在重试获取画面，检测状态见右侧。' : state === 'stopped' ? '点击“开启摄像头”，查看实时画面。' : state === 'error' ? '请检查摄像头配置后重新开启。' : state === 'stale' || state === 'reconnecting' ? '恢复连接后，最新画面会出现在这里。' : '请稍候，画面会在连接就绪后显示。';
+  const previewHint = configurationError || pollError ? '请检查本机服务；连接恢复后会自动更新状态。' : loading ? '正在读取摄像头状态…' : frameError ? '正在重试获取画面，检测状态见右侧。' : state === 'stopped' ? '点击“开启摄像头”，查看实时画面。' : state === 'error' ? '请检查摄像头配置后重新开启。' : state === 'stale' || state === 'reconnecting' ? '恢复连接后，最新画面会出现在这里。' : '请稍候，画面会在连接就绪后显示。';
   const recordingStatus = status?.recording_status;
   return <section id="camera" className="live-camera-panel" aria-label="实时摄像头" aria-busy={loading && !configurationError}>
     <div className="live-camera-heading">
@@ -211,7 +211,7 @@ export function LiveCameraPanel({ ready = true, configurationError = '', onRetry
         {status?.review_error && <p className="error" role="alert">复核异常：{status.review_error}</p>}
         {recordingStatus?.error && <p className="error" role="alert">录像错误：{recordingStatus.error}</p>}
         {status?.alerts?.error && <p className="error" role="alert">报警传送错误：{status.alerts.error}</p>}
-        <p className="muted">人物全身入镜，保持腿部和地面可见。</p>
+        <p className="muted">请确保人物全身入镜，保持腿部和地面可见。</p>
       </div>
     </div></div>
     <div className="live-camera-options">
