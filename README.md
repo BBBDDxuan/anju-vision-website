@@ -25,6 +25,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\setup-team.ps1 -Device cpu
 首次安装仍需联网获取 Python 依赖；缓存、模型库状态和临时文件都保存在当前仓库的 `runtime/`。
 `.venv` 不能直接从另一台电脑复制：安装脚本会在本机重新创建，不依赖原电脑的 G:/D: 目录。
 
+**识别复现提示：** CPU 模式通过安装、模型加载和完整扫描检查，但在 `11月3日 (1).mp4` 开发正例中未产生跌倒候选，不能认为它与原 CUDA 环境等价。
+原 CUDA 环境在三段开发视频均复现到跌倒候选。需要复现识别结果时优先选择 NVIDIA/CUDA，并运行本地验证脚本；详细验收与限制见 `docs/TEAM_DELIVERY_20261103.md`。
+
 已有 NVIDIA/CUDA 环境时：
 
 ```powershell

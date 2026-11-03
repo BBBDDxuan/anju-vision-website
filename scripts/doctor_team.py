@@ -38,11 +38,12 @@ def main():
 from pathlib import Path
 sys.path.insert(0,str(Path.cwd()/'elder-safety/ai-service'))
 from ai_service.config import Config
-from ai_service.models import local_weight
+from ai_service.models import local_weight, LocalModels
 c=Config.load(str(Path.cwd()/'runtime/team-camera.json'))
 for k in ('pose_weights','flame_weights'): local_weight(getattr(c.models,k),k)
+models = LocalModels(c.models)
 assert c.models.device=='cpu' or torch.cuda.is_available(),'CUDA unavailable; rerun setup-team.ps1 -Device cpu'
-print(json.dumps({'python':sys.version.split()[0],'torch':torch.__version__,'cuda_available':torch.cuda.is_available(),'ultralytics':m.version('ultralytics'),'device':c.models.device}))'''
+print(json.dumps({'python':sys.version.split()[0],'torch':torch.__version__,'cuda_available':torch.cuda.is_available(),'ultralytics':m.version('ultralytics'),'device':c.models.device,'pose_loaded':models.pose is not None,'flame_loaded':models.flame is not None}))'''
             run = subprocess.run([str(settings.safety_python), '-c', code], cwd=ROOT,
                     env=detector_environment(settings.safety_python), capture_output=True, timeout=60)
             checks['detector_import_and_weights'] = run.returncode == 0

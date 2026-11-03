@@ -86,3 +86,10 @@ def test_delivery_excludes_real_configs_and_all_development_videos():
                          cwd=ROOT, capture_output=True, text=True, encoding='utf8')
     assert run.returncode == 0
     assert set(run.stdout.splitlines()) == set(paths)
+
+
+def test_detector_setup_declares_legacy_checkpoint_dependency_and_loads_models():
+    assert 'dill==0.4.1' in (ROOT / 'requirements-detector.txt').read_text(encoding='utf8')
+    diagnostic = (ROOT / 'scripts/doctor_team.py').read_text(encoding='utf8')
+    assert 'LocalModels(c.models)' in diagnostic
+    assert "'flame_loaded':models.flame is not None" in diagnostic

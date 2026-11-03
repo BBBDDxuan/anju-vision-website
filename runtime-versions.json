@@ -9,5 +9,6 @@
   "opencv": "5.0.0.93",
   "hardware_tested": "NVIDIA GeForce RTX 4060 Laptop GPU",
   "setup_default": "CPU; use -Device cuda for the recorded CUDA 12.6 runtime",
-  "environment_installation_note": "Virtual environments are machine-local and created by setup; no hard-coded original disk paths."
+  "environment_installation_note": "Virtual environments are machine-local and created by setup; no hard-coded original disk paths.",
+  "dill": "0.4.1"
 }
