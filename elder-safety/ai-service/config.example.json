@@ -1,0 +1,65 @@
+{
+  "models": {
+    "pose_weights": null,
+    "flame_weights": null,
+    "flame_classes": [],
+    "pose_license": {},
+    "flame_license": {},
+    "device": "cpu",
+    "cpu_threads": 4
+  },
+  "fall": {
+    "keypoint_confidence": 0.55,
+    "angle_degrees": 60.0,
+    "upright_angle_degrees": 30.0,
+    "min_drop_speed": 0.6,
+    "min_hip_drop": 0.18,
+    "min_bbox_ratio": 1.15,
+    "min_upright_seconds": 0.5,
+    "observation_seconds": 1.5,
+    "hold_seconds": 0.8,
+    "max_gap_seconds": 0.3,
+    "cooldown_seconds": 15.0
+  },
+  "fire": {
+    "confidence": 0.6,
+    "region_iou": 0.3,
+    "hold_seconds": 1.0,
+    "min_frames": 5,
+    "max_gap_seconds": 0.3,
+    "cooldown_seconds": 15.0
+  },
+  "tracking": {
+    "min_iou": 0.1,
+    "max_center_distance": 0.8,
+    "max_gap_seconds": 0.3
+  },
+  "evidence": {
+    "pre_seconds": 2.0,
+    "post_seconds": 2.0,
+    "fps": 10.0,
+    "max_width": 640,
+    "max_height": 480,
+    "max_jpg_bytes": 1500000,
+    "max_mp4_bytes": 8000000,
+    "max_active_clips": 4
+  },
+  "heartbeat_seconds": 15.0,
+  "request_timeout_seconds": 5.0,
+  "open_timeout_seconds": 5.0,
+  "read_timeout_seconds": 3.0,
+  "reconnect_initial_seconds": 0.5,
+  "reconnect_max_seconds": 15.0,
+  "retry_initial_seconds": 1.0,
+  "retry_max_seconds": 60.0,
+  "max_spool_bytes": 512000000,
+  "help": {
+    "confidence": 0.6,
+    "keypoint_confidence": 0.55,
+    "raise_margin_ratio": 0.05,
+    "hold_seconds": 1.0,
+    "min_frames": 5,
+    "max_gap_seconds": 0.3,
+    "cooldown_seconds": 15.0
+  }
+}

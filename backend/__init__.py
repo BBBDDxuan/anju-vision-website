@@ -1,0 +1,1 @@
+"""Shiji Home local application."""

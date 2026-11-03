@@ -1,0 +1,29 @@
+{
+  "checked_at": "2026-10-28T10:26:06.635931+00:00",
+  "models": [
+    {
+      "file": "yolo11n-pose.pt",
+      "name": "Ultralytics YOLO11n Pose",
+      "license": "AGPL-3.0",
+      "source": "https://docs.ultralytics.com/models/yolo11/",
+      "url": "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11n-pose.pt",
+      "bytes": 6255593,
+      "path": "./yolo11n-pose.pt",
+      "downloaded_sha256": "869e83fcdffdc7371fa4e34cd8e51c838cc729571d1635e5141e3075e9319dc0",
+      "integrity": "expected size; locally recorded SHA256"
+    },
+    {
+      "file": "luminous-fire-yolov8n.pt",
+      "name": "luminous0219/fire-and-smoke-detection-yolov8",
+      "license": "AGPL-3.0",
+      "source": "https://github.com/luminous0219/fire-and-smoke-detection-yolov8",
+      "url": "https://raw.githubusercontent.com/luminous0219/fire-and-smoke-detection-yolov8/c30923f568d915a53fcf85989be9fe5d4e030518/weights/best.pt",
+      "bytes": 6262051,
+      "sha256": "ac0a10257b2bc1f20c9d957f8adeeb61dd6140322fc19d0b4a116cb491776d16",
+      "path": "./luminous-fire-yolov8n.pt",
+      "downloaded_sha256": "ac0a10257b2bc1f20c9d957f8adeeb61dd6140322fc19d0b4a116cb491776d16",
+      "integrity": "pinned SHA256"
+    }
+  ],
+  "usage_review": "Local prototype only. Preserve AGPL notices; review obligations before distribution. No spark class."
+}

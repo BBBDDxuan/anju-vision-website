@@ -1,0 +1,28 @@
+{
+  "schema_version": "0.1",
+  "fixture_kind": "manual_design_example",
+  "video_id": "DESIGN_ONLY_NO_REAL_VIDEO",
+  "video_duration_ms": 40000,
+  "entities": [
+    {"id": "key_candidate", "label": "钥匙", "aliases": ["钥匙串"], "appearance": "示例金属钥匙", "identity_status": "distinct_candidate"},
+    {"id": "bag_candidate", "label": "黑色背包", "aliases": ["背包"], "appearance": "示例黑包", "identity_status": "distinct_candidate"}
+  ],
+  "frames": [
+    {"id": "placeholder_before", "pts_ms": 12000, "kind": "manual_placeholder"},
+    {"id": "placeholder_after", "pts_ms": 14000, "kind": "manual_placeholder"}
+  ],
+  "evidence": [
+    {"id": "placeholder_evidence", "video_id": "DESIGN_ONLY_NO_REAL_VIDEO", "start_ms": 12000, "end_ms": 14000, "frame_ids": ["placeholder_before", "placeholder_after"]}
+  ],
+  "events": [
+    {
+      "id": "manual_event_not_a_model_result",
+      "video_id": "DESIGN_ONLY_NO_REAL_VIDEO",
+      "start_ms": 12000, "end_ms": 14000,
+      "subject_id": "key_candidate", "target_id": "bag_candidate", "action": "put_in",
+      "epistemic_type": "observed", "review_status": "design_only",
+      "evidence_ids": ["placeholder_evidence"], "source_event_ids": [], "rule_id": null,
+      "model_score": null, "uncertainty_reasons": ["HAND_WRITTEN_STRUCTURE_EXAMPLE_NO_VIDEO_OR_AI_INFERENCE"]
+    }
+  ]
+}

@@ -1,4 +1,11 @@
 node_modules/
+.venv/
+.venv-gpu/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+build/
 *.tsbuildinfo
 .env
 .env.*
@@ -10,5 +17,33 @@ Thumbs.db
 .vscode/
 .playwright-cli/
 coverage/
+data/
+runtime/
+recordings/
+video/
+evidence/
+deliverables/
+submission/
+review/
+tools/
+*.mp4
+*.avi
+*.mov
+*.webm
+*.sqlite*
+*.db
+*.db-*
+*.pt
+*.pth
+*.onnx
+*.safetensors
+*.zip
+*.7z
+*.key
+*.pem
+*.pfx
+credentials*
+secrets*
+config.camera-gpu.json
 
-# dist/ is intentionally tracked for integration with the Python backend.
+# frontend/dist/ is intentionally tracked for serving by the Python backend.

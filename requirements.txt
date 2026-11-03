@@ -1,0 +1,9 @@
+fastapi==0.143.3
+uvicorn==0.54.0
+pydantic==2.14.1
+httpx==0.28.1
+python-multipart==0.0.32
+python-dotenv==1.2.4
+jsonschema==4.26.0
+opencv-python-headless==5.0.0.93
+numpy==2.5.4

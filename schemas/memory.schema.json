@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:shiji-home:memory:v0.1",
+  "title": "Candidate visual-memory contract; cross-record semantics need separate validation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "fixture_kind", "video_id", "video_duration_ms", "entities", "frames", "evidence", "events"],
+  "properties": {
+    "schema_version": {"const": "0.1"},
+    "fixture_kind": {"enum": ["manual_design_example", "model_analysis"]},
+    "video_id": {"type": "string", "minLength": 1},
+    "video_duration_ms": {"type": "integer", "minimum": 1},
+    "model_run": {
+      "type": "object", "additionalProperties": false,
+      "required": ["provider", "model", "prompt_version", "input_video_sha256"],
+      "properties": {
+        "provider": {"type": "string", "minLength": 1},
+        "model": {"type": "string", "minLength": 1},
+        "prompt_version": {"type": "string", "minLength": 1},
+        "input_video_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      }
+    },
+    "entities": {"type": "array", "items": {"$ref": "#/$defs/entity"}},
+    "frames": {"type": "array", "items": {"$ref": "#/$defs/frame"}},
+    "evidence": {"type": "array", "items": {"$ref": "#/$defs/evidence"}},
+    "events": {"type": "array", "items": {"$ref": "#/$defs/event"}}
+  },
+  "allOf": [
+    {"if": {"properties": {"fixture_kind": {"const": "model_analysis"}}}, "then": {"required": ["model_run"]}}
+  ],
+  "$defs": {
+    "ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "entity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "label", "aliases", "appearance", "identity_status"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "label": {"type": "string", "minLength": 1},
+        "aliases": {"$ref": "#/$defs/ids"},
+        "appearance": {"type": "string"},
+        "identity_status": {"enum": ["distinct_candidate", "ambiguous"]},
+        "entity_type": {"enum": ["object", "person", "location"]}
+      }
+    },
+    "frame": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "pts_ms", "kind"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "pts_ms": {"type": "integer", "minimum": 0},
+        "kind": {"enum": ["original_frame", "manual_placeholder"]}
+      }
+    },
+    "evidence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "video_id", "start_ms", "end_ms", "frame_ids"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "video_id": {"type": "string", "minLength": 1},
+        "start_ms": {"type": "integer", "minimum": 0},
+        "end_ms": {"type": "integer", "minimum": 0},
+        "frame_ids": {"allOf": [{"$ref": "#/$defs/ids"}], "minItems": 1}
+      }
+    },
+    "event": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "video_id", "start_ms", "end_ms", "subject_id", "target_id", "action", "epistemic_type", "review_status", "evidence_ids", "source_event_ids", "rule_id", "model_score", "uncertainty_reasons"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "video_id": {"type": "string", "minLength": 1},
+        "start_ms": {"type": "integer", "minimum": 0},
+        "end_ms": {"type": "integer", "minimum": 0},
+        "subject_id": {"type": "string", "minLength": 1},
+        "target_id": {"type": ["string", "null"]},
+        "action": {"enum": ["seen_at", "place_on", "pick_up", "put_in", "take_out", "move", "open", "close", "explicit_exit", "occluded", "unknown", "walk", "sit_down", "stand_up", "lie_down", "lying_on_floor", "fall", "climb", "help_gesture", "no_person_visible", "smoke", "flame", "sparks"]},
+        "epistemic_type": {"enum": ["observed", "inferred", "unknown"]},
+        "review_status": {"enum": ["model_unreviewed", "human_reviewed", "design_only"]},
+        "evidence_ids": {"$ref": "#/$defs/ids"},
+        "source_event_ids": {"$ref": "#/$defs/ids"},
+        "rule_id": {"type": ["string", "null"]},
+        "model_score": {"type": ["number", "null"], "minimum": 0, "maximum": 1, "description": "Uncalibrated model-reported score; not a probability of correctness."},
+        "uncertainty_reasons": {"$ref": "#/$defs/ids"}
+      },
+      "allOf": [
+        {"if": {"properties": {"epistemic_type": {"const": "observed"}}}, "then": {"properties": {"evidence_ids": {"minItems": 1}, "source_event_ids": {"maxItems": 0}, "rule_id": {"type": "null"}}}},
+        {"if": {"properties": {"epistemic_type": {"const": "inferred"}}}, "then": {
+          "properties": {"rule_id": {"type": "string", "minLength": 1}, "uncertainty_reasons": {"minItems": 1}},
+          "if": {"properties": {"rule_id": {"enum": ["visual_context_v1", "unverified_visual_candidate_v1"]}}},
+          "then": {"properties": {"evidence_ids": {"minItems": 1}}},
+          "else": {"properties": {"source_event_ids": {"minItems": 1}}}
+        }},
+        {"if": {"properties": {"epistemic_type": {"const": "unknown"}}}, "then": {"properties": {"uncertainty_reasons": {"minItems": 1}}}}
+      ]
+    }
+  }
+}
