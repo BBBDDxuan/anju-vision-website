@@ -3,18 +3,6 @@ import './live-camera.css';
 
 type ReviewStatus = 'pending' | 'confirmed' | 'rejected' | 'uncertain' | 'unavailable';
 type LiveEvent = { candidate_id?: string; event_type: string; occurred_at: string; confidence: number; event_id?: string | null; review_status?: ReviewStatus; review_reason?: string; review_model?: string };
-const reviewStateName: Record<ReviewStatus, string> = {
-  pending: '待复核',
-  confirmed: '已复核确认',
-  rejected: '复核排除',
-  uncertain: '证据不足',
-  unavailable: '复核不可用',
-};
-function reviewLabel(reviewStatus: LiveEvent['review_status']) {
-  return reviewStatus && Object.hasOwn(reviewStateName, reviewStatus)
-    ? reviewStateName[reviewStatus]
-    : '未复核';
-}
 type CameraStatus = { safety_pipeline?: string; review_model?: string; review_enabled?: boolean; review_error?: string; cloud_calls?: boolean; sparks_enabled?: boolean; recording: boolean; recording_status?: { enabled: boolean; state: string; directory?: string; segment_seconds?: number; retention_days?: number; max_gib?: number; min_free_gib?: number; files?: number; bytes?: number; deleted_files?: number; error?: string }; help_facing_camera_required?: boolean; help_face_candidates?: number | null; fall_diagnostics?: { track_id: string; state: string }[]; alerts?: { enabled: boolean; pending?: number; worker_alive?: boolean; error?: string }; state: string; frames: number; persons?: number; fire_candidates?: number; width?: number; height?: number; preview_width?: number; preview_height?: number; flame_tiling_enabled?: boolean; fps?: number; fire_fps?: number; fire_inference_ms?: number; fire_state?: string; inference_ms?: number; device?: string; frame_age_seconds?: number | null; events: LiveEvent[] };
 const stateName: Record<string,string> = { stopped:'未开启', starting:'模型加载中', connecting:'连接摄像头', running:'本地实时识别中', reconnecting:'断线重连中', stale:'画面已过期', error:'连接异常' };
 const recordingStateName: Record<string,string> = { disabled:'未启用', starting:'正在启动录像', recording:'正在录像', reconnecting:'断线重连中', paused_low_space:'磁盘空间不足，录像已暂停', error:'录像异常', stopped:'录像已停止' };
@@ -173,6 +161,8 @@ export function LiveCameraPanel({ ready = true, configurationError = '', onRetry
   const previewTitle = configurationError ? '运行环境读取失败' : pollError ? '暂时无法更新摄像头状态' : loading ? loadingLabel : frameError ? '暂时无法获取预览画面' : state === 'stopped' ? '等待开启本地摄像头' : state === 'running' ? '正在获取最新画面…' : stateName[state] || '摄像头状态待确认';
   const previewHint = configurationError || pollError ? '请检查本机服务；连接恢复后会自动更新状态。' : loading ? '正在读取摄像头状态…' : frameError ? '正在重试获取画面，检测状态见右侧。' : state === 'stopped' ? '点击“开启摄像头”，查看实时画面。' : state === 'error' ? '请检查摄像头配置后重新开启。' : state === 'stale' || state === 'reconnecting' ? '恢复连接后，最新画面会出现在这里。' : '请稍候，画面会在连接就绪后显示。';
   const recordingStatus = status?.recording_status;
+  const confirmedEvents = (status?.events || []).filter(event =>
+    event.review_status === 'confirmed' && typeof event.review_model === 'string' && event.review_model.trim().length > 0 && Object.hasOwn(eventName, event.event_type));
   return <section id="camera" className="live-camera-panel" aria-label="实时摄像头" aria-busy={loading && !configurationError}>
     <div className="live-camera-heading">
       <div><h2>实时摄像头</h2><p>摔倒 · 举手求助 · 可见明火</p></div>
@@ -185,10 +175,10 @@ export function LiveCameraPanel({ ready = true, configurationError = '', onRetry
     <div className="live-camera-viewport"><div className="live-camera-grid">
       <div className="live-camera-main">
         <div className="live-camera-screen"><span className="live-camera-screen-label">本机摄像头 · 16:9</span>{image && current && !frameError ? <img src={image} alt="摄像头实时画面，含本地人体框与姿态关键点" width={status?.preview_width || 1280} height={status?.preview_height || 720}/> : <div className="live-camera-placeholder"><svg className="camera-placeholder-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden="true"><rect x="3" y="5" width="13" height="14" rx="3"/><path d="m16 10 5-3v10l-5-3"/></svg><strong>{previewTitle}</strong><span>{previewHint}</span></div>}</div>
-        <div className="live-camera-session"><h3>本次会话事件</h3>{!status?.events?.length ? <p className="muted">暂无候选事件</p> : <ul className="live-camera-events" aria-label="本次会话事件列表" tabIndex={0}>{status.events.map((event,i) => <li key={event.candidate_id || event.event_id || `${event.occurred_at}-${i}`}>
+        <div className="live-camera-session"><h3>本次会话事件</h3>{!confirmedEvents.length ? <p className="muted">暂无 Qwen 复核确认的危险事件</p> : <ul className="live-camera-events" aria-label="本次会话事件列表" tabIndex={0}>{confirmedEvents.map((event,i) => <li key={event.candidate_id || event.event_id || `${event.occurred_at}-${i}`}>
           <div className="live-camera-event-content">
             <strong>{eventName[event.event_type] || event.event_type}</strong>
-            <span className="live-camera-event-review" data-review={event.review_status}>{reviewLabel(event.review_status)}</span>
+            <span className="live-camera-event-review" data-review={event.review_status}>Qwen 已复核确认</span>
             {event.review_reason && <p>复核说明：{event.review_reason}</p>}
             {event.review_model && <p>复核模型：{event.review_model}</p>}
           </div>

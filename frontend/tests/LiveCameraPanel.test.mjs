@@ -43,46 +43,51 @@ function eventMarkup(event) {
   const html = render({ ...baseStatus, events: [event] });
   return html.match(/<ul class="live-camera-events"[^>]*>([\s\S]*?)<\/ul>/)?.[1] ?? assert.fail('Event list missing');
 }
-function reviewMarkup(event) {
-  return eventMarkup(event).match(/<span class="live-camera-event-review"[^>]*>([^<]*)<\/span>/)?.[1] ?? assert.fail('Review label missing');
-}
-
-for (const [status, label] of [
-  ['pending', '待复核'],
-  ['confirmed', '已复核确认'],
-  ['rejected', '复核排除'],
-  ['uncertain', '证据不足'],
-  ['unavailable', '复核不可用'],
-]) {
-  test(`Event review status: ${status}`, () => {
-    const event = { ...candidate, review_status: status, event_id: status === 'confirmed' ? 'event-1' : null };
-    assert.equal(reviewMarkup(event), label);
-    assert.equal(eventMarkup(event).includes('已复核确认'), status === 'confirmed');
-    assert.match(eventMarkup(event), /疑似跌倒/);
-    assert.match(eventMarkup(event), /dateTime="2026-10-31T08:00:00Z"/);
-  });
-}
-
-test('Legacy events remain unreviewed even with a configured model and event ID', () => {
-  const legacyEvent = { event_type: 'fire_detected', occurred_at: candidate.occurred_at, confidence: 0.99, event_id: 'legacy-event' };
-  assert.match(reviewMarkup(legacyEvent), /^未复核/);
-  assert.doesNotMatch(eventMarkup(legacyEvent), /已复核确认/);
-  assert.match(eventMarkup(legacyEvent), /疑似明火/);
+test('Only confirmed danger events with a per-event review model are listed', () => {
+  const events = ['suspected_fall', 'help_requested', 'fire_detected'].map((event_type, i) => ({
+    ...candidate, candidate_id: `confirmed-${i}`, event_type, review_status: 'confirmed', review_model: 'qwen-review-test',
+  }));
+  const html = render({ ...baseStatus, events });
+  assert.equal((html.match(/data-review="confirmed"/g) || []).length, 3);
+  for (const text of ['疑似跌倒', '疑似求助', '疑似明火', 'Qwen 已复核确认', 'dateTime="2026-10-31T08:00:00Z"']) {
+    assert.ok(html.includes(text), text);
+  }
 });
 
-test('Unknown, empty and inherited-object statuses fail closed to unreviewed', () => {
-  for (const status of ['future_status', '', null, '__proto__', 'toString', 'constructor']) {
-    assert.match(reviewMarkup({ ...candidate, review_status: status }), /^未复核/);
-    assert.doesNotMatch(eventMarkup({ ...candidate, review_status: status }), /已复核确认/);
+test('Pending, excluded, uncertain, unavailable and unknown events are hidden from a mixed session', () => {
+  const events = ['pending', 'rejected', 'uncertain', 'unavailable', 'future_status', '', null, '__proto__', 'toString', 'constructor'].map((review_status, i) => ({
+    ...candidate, candidate_id: `hidden-${i}`, review_status, review_model: 'qwen-review-test', review_reason: `hidden-reason-${i}`,
+  }));
+  events.push({ ...candidate, review_status: 'confirmed', review_model: 'qwen-review-test', review_reason: 'visible-confirmation' });
+  const html = render({ ...baseStatus, events });
+  assert.equal((html.match(/data-review="confirmed"/g) || []).length, 1);
+  assert.match(html, /visible-confirmation/);
+  assert.doesNotMatch(html, /hidden-reason|复核排除|待复核|证据不足|data-review="rejected"/);
+});
+
+test('Legacy events remain hidden even with a configured global model and event ID', () => {
+  const legacyEvent = { event_type: 'fire_detected', occurred_at: candidate.occurred_at, confidence: 0.99, event_id: 'legacy-event' };
+  const html = render({ ...baseStatus, events: [legacyEvent] });
+  assert.match(html, /暂无 Qwen 复核确认的危险事件/);
+  assert.doesNotMatch(html, /class="live-camera-events"|已复核确认|疑似明火/);
+});
+
+test('Confirmed status without an actual review model and unsupported event types remain hidden', () => {
+  for (const event of [
+    ...[undefined, '', '   ', null].map(review_model => ({ ...candidate, review_status: 'confirmed', review_model })),
+    ...['unknown_type', '__proto__', 'constructor'].map(event_type => ({ ...candidate, event_type, review_status: 'confirmed', review_model: 'qwen-review-test' })),
+  ]) {
+    const html = render({ ...baseStatus, events: [event] });
+    assert.match(html, /暂无 Qwen 复核确认的危险事件/);
+    assert.doesNotMatch(html, /class="live-camera-events"|已复核确认/);
   }
 });
 
 test('Per-event review reason and model are shown as escaped text, without a global-model fallback', () => {
-  const html = eventMarkup({ ...candidate, review_status: 'uncertain', review_reason: '<script>insufficient evidence</script>', review_model: 'event-review-model' });
-  assert.match(html, /复核说明：&lt;script&gt;insufficient evidence&lt;\/script&gt;/);
+  const html = eventMarkup({ ...candidate, review_status: 'confirmed', review_reason: '<script>confirmed danger</script>', review_model: 'event-review-model' });
+  assert.match(html, /复核说明：&lt;script&gt;confirmed danger&lt;\/script&gt;/);
   assert.match(html, /复核模型：event-review-model/);
   assert.doesNotMatch(html, /<script>|qwen-review-test/);
-  assert.doesNotMatch(eventMarkup(candidate), /复核说明：|复核模型：/);
 });
 
 test('Pipeline, availability, supported tasks and review errors are explicit', () => {
@@ -109,7 +114,7 @@ test('Disabled or missing review configuration never implies confirmation or loc
   }
   for (const html of [disabled, legacy]) {
     assert.doesNotMatch(html, /无云上传|不上传画面|不调用云|已复核确认/);
-    assert.match(html, /暂无候选事件/);
+    assert.match(html, /暂无 Qwen 复核确认的危险事件/);
   }
   for (const sparks_enabled of [undefined, true]) {
     assert.match(render({ ...baseStatus, sparks_enabled }), /摔倒 · 举手求助 · 可见明火/);

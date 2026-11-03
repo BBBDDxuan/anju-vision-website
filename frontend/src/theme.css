@@ -127,7 +127,7 @@ svg { flex-shrink: 0; }
 .live-camera-state[data-state="connecting"], .live-camera-state[data-state="starting"], .live-camera-state[data-state="loading"] { background: #eff4f8; color: #426b8a; }
 .live-camera-state[data-state="reconnecting"], .live-camera-state[data-state="stale"] { background: #fbf1df; color: #895c17; }
 .live-camera-state[data-state="error"], .live-camera-state[data-state="unavailable"] { background: #fbece8; color: #a13f34; }
-.live-camera-grid { grid-template-columns: minmax(0,1fr) 250px; }
+.live-camera-grid { grid-template-columns: minmax(0,1fr) 220px; }
 .live-camera-screen { background: #17352e; }
 .live-camera-screen-label { position: absolute; top: 16px; left: 18px; z-index: 1; font-size: 11px; color: #e1eee5; padding: 5px 8px; background: #102b24c9; border: 1px solid #c3dfd020; border-radius: 4px; pointer-events: none; }
 .live-camera-placeholder { padding: 46px 20px 20px; gap: 12px; align-items: center; }
@@ -444,28 +444,28 @@ footer { color: #607769; font-size: 12px; line-height: 1.9; gap: 12px; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
 .camera-intro-description { margin: 10px 0 0; color: #536c60; font-size: 14px; line-height: 1.9; }
-/* Fit the primary camera workspace to a desktop viewport. Long event lists
-   and status diagnostics scroll in their own regions; images stay uncropped. */
+/* Give the preview the available desktop width with a compact status column.
+   Short windows may scroll; the 16:9 picture stays uncropped. */
 @media (min-width: 1025px) and (min-height: 650px) {
-  .camera-shell .app-body { height: 100dvh; display: flex; flex-direction: column; }
+  .camera-shell .app-body { min-height: 100dvh; display: flex; flex-direction: column; }
   .camera-shell .topbar { flex: 0 0 72px; }
   .camera-workspace { flex: 1; min-height: 0; width: 100%; max-width: none; display: flex; flex-direction: column; padding: 18px 24px 14px; }
   .camera-workspace .camera-intro { flex: 0 0 auto; align-items: center; gap: 24px; margin: 0 0 14px; }
   .camera-intro .workspace-context { margin-bottom: 3px; line-height: 1.5; }
   .camera-intro h1 { margin: 0; font-size: 28px; line-height: 1.4; }
   .camera-intro-description { margin: 0; max-width: 36em; font-size: 13px; }
-  .camera-workspace > .live-camera-panel { display: flex; flex-direction: column; flex: 1; min-height: 0; max-height: calc((100vw - 584px) * 9 / 16 + 149px); margin: 0; }
+  .camera-workspace > .live-camera-panel { display: flex; flex-direction: column; flex: none; min-height: 0; margin: 0; }
   .camera-workspace .live-camera-heading { flex: 0 0 auto; min-height: 72px; padding: 12px 20px; }
   .camera-workspace .live-camera-panel > .error { flex: 0 0 auto; }
   .camera-workspace .live-camera-heading h2 { font-size: 18px; margin-bottom: 4px; }
-  .camera-workspace .live-camera-viewport { flex: 1; min-height: 0; position: relative; container-type: size; }
-  .camera-workspace .live-camera-grid { position: absolute; inset: 0; grid-template-columns: calc(100cqh * 16 / 9) minmax(0,1fr); grid-template-rows: minmax(0,1fr) minmax(80px,.45fr); align-items: stretch; }
+  .camera-workspace .live-camera-viewport { min-height: 0; position: relative; }
+  .camera-workspace .live-camera-grid { grid-template-columns: minmax(0,1fr) 220px; grid-template-rows: minmax(0,1fr) minmax(100px,.45fr); align-items: stretch; }
   .camera-workspace .live-camera-main { display: contents; }
-  .camera-workspace .live-camera-screen { grid-column: 1; grid-row: 1 / 3; height: 100%; min-height: 0; aspect-ratio: 16 / 9; }
+  .camera-workspace .live-camera-screen { grid-column: 1; grid-row: 1 / 3; align-self: start; min-height: 0; aspect-ratio: 16 / 9; }
   .camera-workspace .live-camera-session { grid-column: 2; grid-row: 2; display: flex; flex-direction: column; min-height: 0; padding: 10px 16px; background: #fff; }
   .camera-workspace .live-camera-session h3 { flex: 0 0 auto; margin-bottom: 6px; }
   .camera-workspace .live-camera-events { min-height: 0; max-height: none; overflow-y: auto; }
-  .camera-workspace .live-camera-detail { grid-column: 2; grid-row: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; padding: 16px; }
+  .camera-workspace .live-camera-detail { grid-column: 2; grid-row: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; padding: 14px; }
   .camera-workspace .live-camera-detail h3 { margin-bottom: 12px; }
   .camera-workspace .live-camera-metrics { gap: 14px 12px; }
   .camera-workspace .live-camera-metrics dd { margin-top: 4px; font-size: 19px; }
@@ -480,8 +480,6 @@ footer { color: #607769; font-size: 12px; line-height: 1.9; gap: 12px; }
   .camera-shell:has(.live-camera-panel > .error) .app-body { height: auto; min-height: 100dvh; }
   .camera-workspace:has(.live-camera-options details[open]) > .live-camera-panel,
   .camera-workspace:has(.live-camera-panel > .error) > .live-camera-panel { flex: none; max-height: none; }
-  .camera-workspace:has(.live-camera-options details[open]) .live-camera-viewport,
-  .camera-workspace:has(.live-camera-panel > .error) .live-camera-viewport { flex: none; height: min(max(260px,calc(100dvh - 420px)),calc((100vw - 584px) * 9 / 16)); }
 }
 .mobile-nav a[aria-current="page"] { color: var(--green, #25634d); font-weight: 700; background: #edf5ef; }
 @media (max-width: 359px) {
