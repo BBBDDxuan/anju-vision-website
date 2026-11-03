@@ -1,4 +1,4 @@
-import { useEffect, useRef, type MouseEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from 'react';
 import { Icon } from './ui';
 import { HomeScene } from './HomeScene';
 import { introductionPages, type IntroductionPage } from './introduction';
@@ -14,15 +14,17 @@ export function LandingPage({ page, onPageChange, onEnter, onCamera, demos = [],
   const current = introductionPages[index];
   const panel = useRef<HTMLDivElement>(null);
   const previous = useRef(page);
-  const entry = useRef<HTMLDetailsElement>(null);
+  const entry = useRef<HTMLDivElement>(null);
+  const [entryOpen, setEntryOpen] = useState(false);
   useEffect(() => {
     const closeOutside = (event: PointerEvent) => {
-      if (entry.current && !entry.current.contains(event.target as Node)) entry.current.open = false;
+      if (entry.current && !entry.current.contains(event.target as Node)) setEntryOpen(false);
     };
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape' || !entry.current?.open) return;
-      entry.current.open = false;
-      entry.current.querySelector('summary')?.focus();
+      if (event.key !== 'Escape' || !entryOpen) return;
+      event.preventDefault();
+      setEntryOpen(false);
+      entry.current?.querySelector('button')?.focus();
     };
     document.addEventListener('pointerdown', closeOutside);
     document.addEventListener('keydown', closeOnEscape);
@@ -30,9 +32,9 @@ export function LandingPage({ page, onPageChange, onEnter, onCamera, demos = [],
       document.removeEventListener('pointerdown', closeOutside);
       document.removeEventListener('keydown', closeOnEscape);
     };
-  }, []);
-  useEffect(() => {
-    if (entry.current) entry.current.open = false;
+  }, [entryOpen]);
+  useLayoutEffect(() => {
+    setEntryOpen(false);
     if (previous.current === page) return;
     previous.current = page;
     panel.current?.scrollTo({ top: 0 });
@@ -42,7 +44,7 @@ export function LandingPage({ page, onPageChange, onEnter, onCamera, demos = [],
   const enterWorkspace = (event: MouseEvent<HTMLAnchorElement>, view: 'camera' | 'videos') => {
     if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
-    if (entry.current) entry.current.open = false;
+    setEntryOpen(false);
     if (view === 'camera') onCamera(); else onEnter();
   };
   const demoLinks = demos.length > 0 && <div className="intro-demo-links"><span>已有真实分析案例</span>{demos.map(demo => <button key={demo.id} onClick={() => onOpenDemo?.(demo.id)}>{demo.name.replace(' · 已保存真实分析.mp4','').replace('已保存真实模型分析 · ','').replace('.mp4','')} <Icon name="arrow" size={14}/></button>)}</div>;
@@ -81,15 +83,15 @@ export function LandingPage({ page, onPageChange, onEnter, onCamera, demos = [],
       <p><span className="intro-page-count">{index + 1}<span> / {introductionPages.length}</span></span><span>{current.summary}</span></p>
       <div className="intro-pagination-actions">
         <button disabled={index === 0} onClick={() => onPageChange(introductionPages[index - 1].id)}><Icon name="arrow" size={16}/>上一页</button>
-        {index === introductionPages.length - 1 ? <details ref={entry} className="intro-entry" onBlur={event => {
-          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) event.currentTarget.open = false;
+        {index === introductionPages.length - 1 ? <div ref={entry} className="intro-entry" data-open={entryOpen} onBlur={event => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setEntryOpen(false);
         }}>
-          <summary className="intro-entry-link intro-entry-primary" aria-controls="intro-entry-options">开始使用<Icon name="arrow" size={16}/></summary>
-          <nav id="intro-entry-options" className="intro-entry-options" aria-label="选择使用方式">
+          <button type="button" className="intro-entry-link intro-entry-primary" aria-expanded={entryOpen} aria-controls="intro-entry-options" onClick={() => setEntryOpen(value => !value)}>开始使用<Icon name="arrow" size={16}/></button>
+          <nav id="intro-entry-options" className="intro-entry-options" aria-label="选择使用方式" inert={!entryOpen} aria-hidden={!entryOpen}>
             <a href={workspaceHref('camera')} onClick={event => enterWorkspace(event, 'camera')}><Icon name="video" size={21}/><span><strong>实时摄像头</strong><small>查看摄像头实时画面</small></span><Icon name="arrow" size={16}/></a>
             <a href={workspaceHref('videos')} onClick={event => enterWorkspace(event, 'videos')}><Icon name="upload" size={21}/><span><strong>导入视频</strong><small>分析已有居家录像</small></span><Icon name="arrow" size={16}/></a>
           </nav>
-        </details> : <button onClick={() => onPageChange(introductionPages[index + 1].id)}>下一页<Icon name="arrow" size={16}/></button>}
+        </div> : <button onClick={() => onPageChange(introductionPages[index + 1].id)}>下一页<Icon name="arrow" size={16}/></button>}
       </div>
     </footer>
   </main>;

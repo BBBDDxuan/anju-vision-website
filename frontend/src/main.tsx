@@ -13,6 +13,7 @@ import { VideoAnalysisControls, SafetyScanProgress, SafetyAnalysisPlan, analysis
 import { eventClass, replayDescription } from './eventPresentation';
 import { HIGH_SCORE, MIN_SCORE, confidenceIndex, eventConfidence, confidenceLabel, displayClaim, isPriorityEvent, visibleText, type SourceClaim } from './confidence';
 import './theme.css';
+import './motion.css';
 import { introductionFromHash, type IntroductionPage } from './introduction';
 import { viewFromUrl, type View } from './navigation';
 
@@ -308,11 +309,11 @@ function App() {
     const perform = () => { video.currentTime = evidence.start_ms / 1000; video.pause(); };
     if (video.readyState >= 1) perform();
     else video.addEventListener('loadedmetadata', perform, { once: true });
-    video.scrollIntoView({ behavior:'smooth', block:'nearest' });
+    video.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block:'nearest' });
   };
   const references = (ids: string[]) => ids.map(id => {
     const evidence = memory?.evidence.find(e => e.id === id);
-    return evidence ? <button className="reference" key={id} onClick={() => seek(evidence)} aria-label={`查看证据 ${stamp(evidence.start_ms)}`}>{stamp(evidence.start_ms)}–{stamp(evidence.end_ms)} ↗</button> : null;
+    return evidence ? <button className="reference" key={id} onClick={() => seek(evidence)} aria-pressed={activeEvidence?.id === id} aria-label={`查看证据 ${stamp(evidence.start_ms)}`}>{stamp(evidence.start_ms)}–{stamp(evidence.end_ms)} ↗</button> : null;
   });
   const label = (id: string | null) => memory?.entities.find(e => e.id === id)?.label || '';
   const entityType = (id: string) => memory?.entities.find(e => e.id === id)?.entity_type;
@@ -378,11 +379,13 @@ function App() {
     setActiveEvidence(null); setSeekMessage('');
   };
 
+  const configurationNotice = health && !health.analysis_ready ? <><span>录像云分析尚未就绪：{health.configuration_error?.message} 不影响本地摄像头 GPU 识别、上传和播放。</span><button className="text-button" onClick={() => refresh().catch(e => setError(e.message))}>刷新配置状态</button></> : null;
+
   return <Shell videos={videos} selected={selected} onSelect={id => { setSelected(id); navigate('videos'); }} ready={!!health?.analysis_ready} loading={!health && !healthError} serviceError={!!healthError} localCamera={!health?.cloud_mode} model={health?.model || ''} view={view} introductionPage={introductionPage} onIntroductionNavigate={navigateIntroduction} onNavigate={navigate} onDelete={requestDelete} busyVideoId={running ? selected : deleting ? deleteTarget?.id : undefined}>
     {notice && <div className="global-notice" role="status"><span>{notice}</span><button className="text-button" onClick={() => setNotice('')}>收起</button></div>}
     {view === 'home' ? <LandingPage page={introductionPage} onPageChange={navigateIntroduction} onEnter={() => navigate('videos')} onCamera={() => navigate('camera')} demos={demos} onOpenDemo={id => { setSelected(id); navigate('videos'); }}/>: <>
     {(health?.is_mock || memory?.is_mock || job?.is_mock || answer?.is_mock) && <div className="mock-banner" role="alert">测试模拟模式：事件由测试适配器提供，未执行真实AI识别，不可用作产品效果演示。</div>}
-    <main id="main-content" className={view === 'camera' ? 'camera-workspace' : undefined} tabIndex={-1}>
+    <main id="main-content" className={view === 'camera' ? 'camera-workspace' : `video-workspace${videos.length === 0 ? ' is-empty-library' : ''}`} tabIndex={-1}>
       {view === 'camera' ? <>
         <div className="intro camera-intro"><div><p className="workspace-context"><Icon name="shield" size={16} />关注正在发生的时刻</p><h1>实时摄像头</h1></div><p className="camera-intro-description">连接摄像头，查看实时画面与异常。</p></div>
         {health?.cloud_mode ? <div className="configuration"><span>当前在线环境不支持连接本机摄像头。请在本机启动服务后使用实时摄像头，或导入视频进行分析。</span><button className="text-button" onClick={() => navigate('videos')}>导入视频</button></div> : <LiveCameraPanel ready={health !== null} configurationError={healthError} onRetry={() => { void refresh().catch(e => setError(e.message)); }} />}
@@ -392,8 +395,8 @@ function App() {
       <div className="intro"><div><p className="workspace-context"><Icon name="shield" size={16} />家的安全，有据可查</p><h1>导入视频</h1><p>导入居家录像，分析并回看需要留意的时刻。</p></div></div>
       <div className="overview care-overview"><div className="overview-card"><span className="stat-icon"><Icon name="home" /></span><div><small>独居关怀</small><strong>人物异常<span>摔倒 · 举手求助 · 候选复核</span></strong></div></div><div className="overview-card"><span className="stat-icon"><Icon name="shield" /></span><div><small>家庭危险</small><strong>可见明火<span>本地扫描 · Qwen 复核</span></strong></div></div><div className="overview-card"><span className="stat-icon"><Icon name="video" /></span><div><small>证据回溯</small><strong>{videos.length}<em>段录像</em><span>原片回放 · 关键帧 · 证据问答</span></strong></div></div></div>
       {error && <div className="error" role="alert">{error}<button className="text-button" onClick={() => setError('')}>收起</button></div>}
-      {health && !health.analysis_ready && <div className="configuration"><span>录像云分析尚未就绪：{health.configuration_error?.message} 不影响本地摄像头 GPU 识别、上传和播放。</span><button className="text-button" onClick={() => refresh().catch(e => setError(e.message))}>刷新配置状态</button></div>}
-      {selected && <><nav className="event-categories" aria-label="事件分类">{([['safety','安全概览'],['person','人物事件'],['environment','环境危险事件'],['object','物体事件'],['all','全部事件']] as const).map(([key,text]) => <button key={key} aria-pressed={eventCategory === key} onClick={() => { setEventCategory(key); setEntityId(''); setReplay(null); setAnswer(null); setEventKind('all'); setEventPage(1); setTab('all'); }}>{text}</button>)}{eventCategory === 'person' && <div className="person-event-kinds" role="group" aria-label="人物事件分类">{([['general','一般事件'],['important','重要事件']] as const).map(([key,text]) => <button key={key} aria-pressed={personEventKind === key} onClick={() => { setPersonEventKind(key); setEventKind('all'); setEventPage(1); setTab('all'); }}>{text}</button>)}</div>}</nav><SafetyPanel key={selected} videoId={selected} running={running} readOnly={currentVideo?.read_only_demo} visible={eventCategory === 'safety' || eventCategory === 'all' || importantOnly} mode={eventCategory === 'environment' ? 'environment' : eventCategory === 'person' ? 'person' : 'all'} onSeek={ms => { if (videoRef.current) { videoRef.current.currentTime = ms/1000; videoRef.current.pause(); } videoRef.current?.scrollIntoView({ behavior:'smooth', block:'nearest' }); }}/></>}
+      {configurationNotice && <><div className="configuration configuration-full">{configurationNotice}</div>{videos.length === 0 && <details className="configuration configuration-compact"><summary>录像云分析尚未就绪 · 可上传和播放</summary><div className="configuration-details">{configurationNotice}</div></details>}</>}
+      {selected && <><nav className="event-categories" aria-label="事件分类">{([['safety','安全概览'],['person','人物事件'],['environment','环境危险事件'],['object','物体事件'],['all','全部事件']] as const).map(([key,text]) => <button key={key} aria-pressed={eventCategory === key} onClick={() => { setEventCategory(key); setEntityId(''); setReplay(null); setAnswer(null); setEventKind('all'); setEventPage(1); setTab('all'); }}>{text}</button>)}{eventCategory === 'person' && <div className="person-event-kinds" role="group" aria-label="人物事件分类">{([['general','一般事件'],['important','重要事件']] as const).map(([key,text]) => <button key={key} aria-pressed={personEventKind === key} onClick={() => { setPersonEventKind(key); setEventKind('all'); setEventPage(1); setTab('all'); }}>{text}</button>)}</div>}</nav><SafetyPanel key={selected} videoId={selected} running={running} readOnly={currentVideo?.read_only_demo} visible={eventCategory === 'safety' || eventCategory === 'all' || importantOnly} mode={eventCategory === 'environment' ? 'environment' : eventCategory === 'person' ? 'person' : 'all'} onSeek={ms => { if (videoRef.current) { videoRef.current.currentTime = ms/1000; videoRef.current.pause(); } videoRef.current?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block:'nearest' }); }}/></>}
       <div className="workspace">
         <section className="panel video-panel" id="watch" aria-label="视频与事件滚动区域" tabIndex={0}>
           <input ref={recordingInput} id="recording-upload" aria-label="上传 MP4" name="recording" type="file" accept="video/mp4,.mp4" hidden disabled={busy} onChange={e => { void upload(e.target.files?.[0]); e.target.value = ''; }} />

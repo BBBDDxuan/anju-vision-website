@@ -8,6 +8,7 @@ type Props = { children: ReactNode; videos: Video[]; selected: string; onSelect:
 
 export function Shell({ children, videos, selected, onSelect, ready, loading, serviceError, localCamera = true, model, view, introductionPage = 'overview', onIntroductionNavigate, onNavigate, onDelete, busyVideoId }: Props) {
   const [open, setOpen] = useState(false);
+  const [compact, setCompact] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 1024px)').matches);
   const [search, setSearch] = useState('');
   const help = useRef<HTMLDialogElement>(null);
   const sidebar = useRef<HTMLElement>(null);
@@ -25,6 +26,17 @@ export function Shell({ children, videos, selected, onSelect, ready, loading, se
   const serviceLabel = serviceError ? '服务状态不可用' : loading ? '读取服务状态…' : ready ? '录像分析可用' : '录像分析待配置';
 
   useEffect(() => {
+    const media = window.matchMedia('(max-width: 1024px)');
+    const update = () => {
+      setCompact(media.matches);
+      if (!media.matches) setOpen(false);
+    };
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
+
+  useEffect(() => {
     if (!open) return;
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const previousOverflow = document.body.style.overflow;
@@ -33,27 +45,24 @@ export function Shell({ children, videos, selected, onSelect, ready, loading, se
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') { event.preventDefault(); setOpen(false); }
       if (event.key !== 'Tab') return;
-      const focusable = Array.from(sidebar.current?.querySelectorAll<HTMLElement>('a[href],button:not(:disabled),input:not(:disabled)') || [])
+      const focusable = Array.from(sidebar.current?.querySelectorAll<HTMLElement>('a[href],button:not(:disabled),input:not(:disabled),summary') || [])
         .filter(element => element.getClientRects().length > 0);
       const first = focusable[0], last = focusable.at(-1);
       if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
     };
-    const onResize = () => { if (window.innerWidth > 1024) setOpen(false); };
     document.addEventListener('keydown', onKeyDown);
-    window.addEventListener('resize', onResize);
     return () => {
       document.body.style.overflow = previousOverflow;
       document.removeEventListener('keydown', onKeyDown);
-      window.removeEventListener('resize', onResize);
-      previousFocus?.focus();
+      if (previousFocus?.getClientRects().length) previousFocus.focus();
     };
   }, [open]);
 
   return <div className={`app-shell ${view === 'home' ? 'introduction-shell' : view === 'camera' ? 'camera-shell' : ''}`}>
     <a className="skip-link" href="#main-content">跳到主要内容</a>
-    {open && <button className="drawer-backdrop" aria-label="点击空白区域关闭导航" tabIndex={-1} onClick={() => setOpen(false)} />}
-    <aside ref={sidebar} id="library-navigation" className={`sidebar ${open ? 'is-open' : ''}`} aria-label="功能导航" role={open ? 'dialog' : undefined} aria-modal={open ? true : undefined}>
+    <button className={`drawer-backdrop ${open ? 'is-open' : ''}`} aria-label="点击空白区域关闭导航" aria-hidden={!open} inert={!open} tabIndex={-1} onClick={() => setOpen(false)} />
+    <aside ref={sidebar} id="library-navigation" className={`sidebar ${open ? 'is-open' : ''}`} inert={compact && !open} aria-label="功能导航" role={open ? 'dialog' : undefined} aria-modal={open ? true : undefined}>
       <div className="sidebar-top">
         <a className="brand" href="/" onClick={event => navigateLink(event, 'home')}><span className="brand-mark"><Icon name="home" size={22} /></span><span>安居视界<small>独居关怀与家庭安全</small></span></a>
         <button className="icon-button drawer-close" aria-label="关闭导航" onClick={() => setOpen(false)}><Icon name="close" size={18} /></button>
