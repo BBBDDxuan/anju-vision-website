@@ -165,7 +165,7 @@ class AlertCenter:
             body['handling_status'] = target
             return self._save(c, body)
 
-    def save_image(self, identifier, number, path, allowed_root):
+    def save_image(self, identifier, number, path, allowed_root, *, versioned=False):
         """Own the evidence snapshot so a new source run cannot silently change it."""
         path, allowed_root = Path(path).resolve(), Path(allowed_root).resolve()
         if not path.is_relative_to(allowed_root) or not path.is_file() or path.stat().st_size > 10_000_000:
@@ -175,18 +175,32 @@ class AlertCenter:
             return None
         directory = self.root / 'evidence' / identifier
         directory.mkdir(parents=True, exist_ok=True)
-        target = directory / f'{number}.jpg'
+        version = hashlib.sha256(content).hexdigest() if versioned else None
+        filename = f'{number}-{version}.jpg' if version else f'{number}.jpg'
+        target = directory / filename
         if not target.exists():
             temporary = target.with_suffix('.tmp')
             temporary.write_bytes(content)
             temporary.replace(target)
-        return {'url': f'/api/alerts/{identifier}/evidence/{number}', 'media_type': 'image/jpeg'}
+        url = f'/api/alerts/{identifier}/evidence/{number}'
+        return {'url': url + ('?version=' + version if version else ''), 'media_type': 'image/jpeg',
+                **({'version': version} if version else {})}
 
-    def evidence_path(self, identifier, number):
+    def evidence_path(self, identifier, number, version=None):
         item = self.get(identifier)
-        if number >= len(item['evidence']):
+        if number < 0 or number >= len(item['evidence']):
             raise AppError('EVIDENCE_NOT_FOUND', '未找到该告警证据。', 404)
-        return self.root / 'evidence' / identifier / f'{number}.jpg'
+        record = item['evidence'][number]
+        if version is not None and (len(version) != 64 or any(c not in '0123456789abcdef' for c in version)
+                                    or record.get('version') != version):
+            raise AppError('EVIDENCE_NOT_FOUND', '未找到该告警证据。', 404)
+        directory = self.root / 'evidence' / identifier
+        # Old URLs still resolve their frozen bytes; records created after this
+        # change also support callers that omit the optional version parameter.
+        if version is None and not (directory / f'{number}.jpg').is_file():
+            version = record.get('version')
+        filename = f'{number}-{version}.jpg' if version else f'{number}.jpg'
+        return directory / filename
 
     def claim(self):
         with self.connect() as c:

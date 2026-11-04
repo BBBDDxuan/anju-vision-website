@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from urllib.parse import quote
 
 from .alert_center import alert_id
+from .alert_evidence import POLICY, select_frame
 from .errors import AppError
 
 
@@ -66,7 +67,8 @@ class AlertSources:
                         if utc(record['expires_at']) > datetime.now(timezone.utc).isoformat():
                             saved = self.center.save_image(identifier, 0, record['path'], self.safety.s.data_dir / 'evidence')
                             if saved:
-                                evidence.append(saved)
+                                evidence.append({**saved, 'phase': details.get('evidence_phase', 'timing_unavailable'),
+                                                 'selection_policy': details.get('evidence_selection_policy')})
                     except Exception:
                         pass  # A temporarily missing frame must not drop the confirmed event.
                 saved_item = self.center.upsert({
@@ -111,6 +113,7 @@ class AlertSources:
                 if confirmed(result) and result.get('candidate_id') == candidate_id:
                     for event_id in result.get('event_ids', []):
                         proofs[event_id] = result
+            candidates = {c['id']: c for c in job.get('safety', {}).get('candidates', [])}
             events = {e['id']: e for e in document['events']}
             evidence_refs = {e['id']: e for e in document['evidence']}
             frames = {f['id']: f for f in document['frames']}
@@ -126,18 +129,31 @@ class AlertSources:
                 key = f"{video['id']}:{run_id}:{item['id']}"
                 identifier = alert_id('uploaded_recording', key)
                 current_ids.add(identifier)
-                # Once available, snapshot bytes and their offsets stay paired.
+                # Migrate old pre-roll thumbnails once. New content-addressed URLs
+                # keep JPEG bytes paired with offsets without overwriting history.
                 evidence = self.evidence(identifier)
-                seen = set()
-                for ref in ([] if evidence else item['evidence_ids']):
-                    for fid in evidence_refs.get(ref, {}).get('frame_ids', []):
-                        if fid in seen or len(evidence) >= 3 or fid not in frames:
-                            continue
-                        seen.add(fid)
-                        path = self.db.path.parent / 'runs' / run_id / 'frames' / f'{fid}.jpg'
-                        saved = self.center.save_image(identifier, len(evidence), path, self.db.path.parent / 'runs')
+                if not evidence or evidence[0].get('selection_policy') != POLICY:
+                    options = []
+                    for proof in matching:
+                        candidate = candidates.get(proof['candidate_id'])
+                        if candidate is None:
+                            selected_ids = {fid for ref in item['evidence_ids']
+                                            for fid in evidence_refs.get(ref, {}).get('frame_ids', [])}
+                            candidate = {'event_type': kind, 'frames': [frames[fid] for fid in selected_ids if fid in frames]}
+                        frame, phase = select_frame(candidate, proof.get('frame_ids', [f['id'] for f in candidate.get('frames', [])]))
+                        if frame is not None and frame['id'] in frames:
+                            options.append((frame, phase, candidate))
+                    if options:
+                        frame, phase, candidate = max(options, key=lambda option: option[0].get('pts_ms', -1))
+                        path = self.db.path.parent / 'runs' / run_id / 'frames' / f"{frame['id']}.jpg"
+                        saved = self.center.save_image(identifier, 0, path, self.db.path.parent / 'runs', versioned=True)
                         if saved:
-                            evidence.append({**saved, 'video_offset_ms': frames[fid]['pts_ms']})
+                            evidence = [{**saved, 'video_offset_ms': frame['pts_ms'], 'frame_id': frame['id'],
+                                         'phase': phase, 'selection_policy': POLICY}]
+                        else:
+                            evidence = []
+                    else:
+                        evidence = []
                 saved_item = self.center.upsert({
                     'id': identifier, 'source': 'uploaded_recording', 'source_key': key,
                     'source_event_id': item['id'], 'camera_id': None, 'video_id': video['id'],
@@ -148,6 +164,7 @@ class AlertSources:
                     'review_status': 'confirmed', 'review_model': matching[0]['model'],
                     'review_reason': str(matching[0].get('reason', ''))[:800],
                     'evidence': evidence, 'evidence_status': 'available' if evidence else 'pending_or_unavailable',
+                    'playback_offset_ms': evidence[0]['video_offset_ms'] if evidence else item['start_ms'],
                     'playback_url': f"/media/videos/{quote(video['id'], safe='')}",
                     'source_acknowledged': item['acknowledged'], 'source_resolved': False,
                 }, historical=historical)

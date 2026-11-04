@@ -151,10 +151,10 @@ def create_app(settings=None, provider=None, *, safety_repo=None, safety_url=Non
         return handle(identifier, 'resolve')
 
     @app.get('/api/alerts/{identifier}/evidence/{number}')
-    def evidence(identifier: str, number: int = 0):
+    def evidence(identifier: str, number: int = 0, version: str | None = Query(None, pattern=r'^[a-f0-9]{64}$')):
         if number < 0:
             raise AppError('EVIDENCE_NOT_FOUND', '未找到该告警证据。', 404)
-        path = center.evidence_path(identifier, number)
+        path = center.evidence_path(identifier, number, version)
         if not path.is_file():
             raise AppError('EVIDENCE_NOT_FOUND', '证据暂不可用。', 404)
         return FileResponse(path, media_type='image/jpeg', headers={'Cache-Control': 'no-store'})

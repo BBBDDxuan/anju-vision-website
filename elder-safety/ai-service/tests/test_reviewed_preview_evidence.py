@@ -19,7 +19,9 @@ def test_reviewed_jpeg_upload_event_association_and_source_file_independence(tmp
     app = create_app(Settings(data_dir=tmp_path / 'safety', user_token='user-' + 'a' * 32,
         device_tokens={'camera_001': 'device-' + 'b' * 32}, worker_enabled=False))
     frame = tmp_path / 'candidate.jpg'
-    cv2.imwrite(str(frame), np.zeros((40, 40, 3), np.uint8))
+    ok, encoded = cv2.imencode('.jpg', np.zeros((40, 40, 3), np.uint8))
+    assert ok
+    frame.write_bytes(encoded.tobytes())
     with TestClient(app) as client:
         def offline_transport(request):
             return client.request(request.method, request.url.path,

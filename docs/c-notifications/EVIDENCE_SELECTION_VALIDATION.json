@@ -1,0 +1,19 @@
+{
+  "task": "event-phase evidence selection",
+  "backend": {
+    "alert_phone_push_regressions": 84,
+    "live_worker_preview_regressions": 21,
+    "cloud_calls": 0,
+    "camera_connections": 0
+  },
+  "app": {
+    "related_flutter_tests": 23,
+    "analyzer_errors": 0,
+    "analyzer_warnings": 0,
+    "existing_deprecation_infos": 2,
+    "source_scope_checks": "passed"
+  },
+  "apk_built": false,
+  "phone_verified": false,
+  "real_video_detection_accuracy_improved": false
+}

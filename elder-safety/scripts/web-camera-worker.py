@@ -29,12 +29,15 @@ def apply_review_result(candidate, entry, result, alerts):
     if verdict != "confirmed" or alerts is None:
         return
     from ai_service.types import Signal
+    sys.path.insert(0, str(ROOT.parent))
+    from backend.alert_evidence import POLICY, select_frame
+    selected, phase = select_frame(candidate, result.get("frame_ids") or [])
     reviewed_signal = Signal(candidate["event_type"], candidate["track_id"], candidate["confidence"],
         {"review_status": "confirmed", "review_model": result["model"], "candidate_id": candidate["id"],
-         "cloud_images": True, "review_reason": entry["review_reason"]})
-    reviewed_ids = set(result.get('frame_ids') or [])
-    keyframe = next((Path(frame['path']) for frame in candidate.get('frames', [])
-                     if frame['id'] in reviewed_ids), None)
+         "cloud_images": True, "review_reason": entry["review_reason"],
+         "evidence_phase": phase, "evidence_selection_policy": POLICY,
+         "evidence_offset_ms": selected.get("pts_ms") if selected else None})
+    keyframe = Path(selected['path']) if selected is not None else None
     when = datetime.fromisoformat(candidate["occurred_at"])
     entry["event_id"] = (alerts.alarm(reviewed_signal, when, keyframe=keyframe)
                          if keyframe is not None else alerts.alarm(reviewed_signal, when))

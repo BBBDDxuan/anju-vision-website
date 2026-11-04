@@ -65,7 +65,8 @@ class PreviewAlerts:
             "track_id": signal.track_id,
             "details": {"source_kind": "web_camera_preview", "simulated": False,
                         "evidence_available": False, "cloud_images": bool(signal.details.get("cloud_images", False)),
-                        **({k: signal.details[k] for k in ("review_status", "review_model", "candidate_id", "review_reason")
+                        **({k: signal.details[k] for k in ("review_status", "review_model", "candidate_id", "review_reason",
+                                                                          "evidence_phase", "evidence_selection_policy", "evidence_offset_ms")
                             if k in signal.details} if signal.details.get("review_status") == "confirmed" else {}),
                         "validation_scope": ("Qwen-reviewed visual candidate, not confirmed real-world danger"
                             if signal.details.get("review_status") == "confirmed" else "candidate alarm, not confirmed danger")},

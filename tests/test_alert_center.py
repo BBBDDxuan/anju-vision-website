@@ -282,7 +282,12 @@ def test_actual_job_manager_confirmation_projects_with_evidence(harness, tmp_pat
     assert sources.status['uploaded_recording']['ready']
     records = center.listing()['alerts']
     assert {r['event_type'] for r in records} == {'suspected_fall', 'fire_detected', 'help_requested'}
-    assert len(records) == 3 and all(r['evidence'] for r in records)
+    assert len(records) == 3
+    for record in records:
+        # This scanner fixture has frames at 0.5/1.5s and trigger at 1s.
+        # It has post-fall evidence, but no frame close enough to claim an
+        # active help/flame moment. Never relabel its 0.5s pre-roll as active.
+        assert bool(record['evidence']) == (record['event_type'] == 'suspected_fall')
     first = records[0]
     center.handle(first['id'], 'ack')
     sources.sync()
