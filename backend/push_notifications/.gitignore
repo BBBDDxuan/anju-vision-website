@@ -1,0 +1,5 @@
+# Local Firebase credentials never belong in this source module.
+*.json
+*.pem
+*.key
+__pycache__/
