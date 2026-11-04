@@ -84,8 +84,10 @@ def test_manual_pause_saves_inflight_result_and_resume_keeps_cache(settings, sam
 
 
 def configured_transport(settings, handler):
+    # This transport tests request accounting, independently of local detectors.
     configured = replace(settings, api_key='SYNTHETIC_TEST_KEY', enable_network=True,
-                         billing_mode='request_limited', max_calls=1, max_daily_calls=1)
+                         billing_mode='request_limited', max_calls=1, max_daily_calls=1,
+                         hybrid_safety_enabled=False)
     return configured, QwenProvider(configured, Database(configured.data_dir), httpx.MockTransport(handler))
 
 

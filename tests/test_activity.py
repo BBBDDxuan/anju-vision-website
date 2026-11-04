@@ -104,9 +104,10 @@ def still_video(tmp_path):
 
 
 def filtered_settings(settings,**kwargs):
+    # Object-activity metering fixtures must not launch real GPU scanning.
     return replace(settings,long_video_threshold_seconds=1,long_window_seconds=2,long_window_stride_seconds=2,
         long_sampling_fps=1,activity_filter_review_seconds=6,activity_filter_person_review_seconds=4,
-        activity_filter_postroll_seconds=0,**kwargs)
+        activity_filter_postroll_seconds=0,hybrid_safety_enabled=False,**kwargs)
 
 
 def upload(client,path):

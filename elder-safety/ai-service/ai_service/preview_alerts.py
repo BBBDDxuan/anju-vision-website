@@ -1,4 +1,4 @@
-"""Metadata-only alarms from the preview; no frames or credentials enter the spool."""
+"""Durable reviewed alarms with optional source JPEG evidence; no credentials in spool."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -9,7 +9,7 @@ import uuid
 from .config import Config
 from .network import BackendClient, DeliveryWorker, backend_url
 from .sources import SourceHealth
-from .spool import Spool
+from .spool import Spool, SpoolFull
 from .types import Signal
 
 
@@ -42,8 +42,22 @@ class PreviewAlerts:
     def disconnected(self):
         self.health.clear()
 
-    def alarm(self, signal: Signal, occurred_at: datetime):
+    def alarm(self, signal: Signal, occurred_at: datetime, keyframe: Path | None = None):
         event_id = str(uuid.uuid4())
+        owned_frame = None
+        if keyframe is not None:
+            try:
+                keyframe = Path(keyframe)
+                if keyframe.is_file() and keyframe.stat().st_size <= self.delivery.config.evidence.max_jpg_bytes:
+                    content = keyframe.read_bytes()
+                    if content.startswith(b'\xff\xd8\xff'):
+                        self.spool.check_capacity(len(content) + 8192)
+                        directory = self.spool.root / 'evidence'
+                        directory.mkdir(exist_ok=True)
+                        owned_frame = directory / (event_id + '.jpg')
+                        owned_frame.write_bytes(content)
+            except (OSError, SpoolFull):
+                owned_frame = None
         self.spool.add_event({
             "event_id": event_id, "device_id": self.device_id,
             "event_type": signal.event_type, "severity": "critical",
@@ -55,7 +69,7 @@ class PreviewAlerts:
                             if k in signal.details} if signal.details.get("review_status") == "confirmed" else {}),
                         "validation_scope": ("Qwen-reviewed visual candidate, not confirmed real-world danger"
                             if signal.details.get("review_status") == "confirmed" else "candidate alarm, not confirmed danger")},
-        }, None)
+        }, owned_frame)
         return event_id
 
     def status(self):

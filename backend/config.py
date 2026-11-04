@@ -15,6 +15,7 @@ class Settings:
     allowed_hosts: tuple[str, ...] = ('127.0.0.1', 'localhost', '[::1]')
     allowed_origins: tuple[str, ...] = ('http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:8000', 'http://127.0.0.1:8000')
     cloud_mode: bool = False
+    lan_token: str = field(default="", repr=False)
     trusted_proxy_cidrs: tuple[str, ...] = ()
     cloud_cookie_secure: bool = True
     cloud_max_videos: int = 20
@@ -74,6 +75,11 @@ class Settings:
     ffprobe: str = "ffprobe"
 
     def __post_init__(self):
+        if self.lan_token and (len(self.lan_token) < 32 or not self.lan_token.isascii()
+                               or any(c.isspace() for c in self.lan_token)):
+            raise ValueError('手机访问令牌须为至少32位的无空白ASCII字符串。')
+        if self.lan_token and self.cloud_mode:
+            raise ValueError('手机局域网入口与云部署模式应分别启动。')
         if not self.allowed_hosts or '*' in self.allowed_hosts:
             raise ValueError('须配置明确的访问域名，不能允许所有域名。')
         if min(self.cloud_max_videos, self.cloud_videos_per_visitor) < 1 or self.cloud_storage_mb < 0:
@@ -121,6 +127,7 @@ class Settings:
             allowed_hosts=tuple(x.strip() for x in os.getenv('APP_ALLOWED_HOSTS', ','.join(cls.allowed_hosts)).split(',') if x.strip()),
             allowed_origins=tuple(x.strip().rstrip('/') for x in os.getenv('APP_ALLOWED_ORIGINS', ','.join(cls.allowed_origins)).split(',') if x.strip()),
             cloud_mode=flag('CLOUD_MODE'),
+            lan_token=os.getenv('APP_LAN_TOKEN', ''),
             trusted_proxy_cidrs=tuple(x.strip() for x in os.getenv('APP_TRUSTED_PROXY_CIDRS', '').split(',') if x.strip()),
             cloud_cookie_secure=os.getenv('CLOUD_COOKIE_SECURE', 'true').lower() == 'true',
             cloud_max_videos=int(os.getenv('CLOUD_MAX_VIDEOS', '20')),

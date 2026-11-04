@@ -1,5 +1,7 @@
 > 历史阶段快照：当前真实模型、视频验证与交付状态请见 [FINAL_DELIVERY](FINAL_DELIVERY.md) 和 [TEST_RESULTS](TEST_RESULTS.md)。
 
+> 2026-11-04 手机联调以 [api-contract-abc.md](api-contract-abc.md) 为唯一接口契约：后端只在 website 仓库维护，网页和 App 访问同一个 8000 根地址，8010 仅内部监听。当前启动和未验收项见 [A 交接](a-backend/ROLE_A_HANDOFF_20261104.md)。下文保留早期设计历史。
+
 # 最小架构与开发契约
 
 > 既定架构已按首轮MVP落地，未重新设计。本文包含尚未实现的可选项（补帧/修复/缓存复用等），实际完成范围见 [MVP_DELIVERY](MVP_DELIVERY.md)。

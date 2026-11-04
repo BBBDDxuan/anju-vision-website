@@ -32,7 +32,12 @@ def apply_review_result(candidate, entry, result, alerts):
     reviewed_signal = Signal(candidate["event_type"], candidate["track_id"], candidate["confidence"],
         {"review_status": "confirmed", "review_model": result["model"], "candidate_id": candidate["id"],
          "cloud_images": True, "review_reason": entry["review_reason"]})
-    entry["event_id"] = alerts.alarm(reviewed_signal, datetime.fromisoformat(candidate["occurred_at"]))
+    reviewed_ids = set(result.get('frame_ids') or [])
+    keyframe = next((Path(frame['path']) for frame in candidate.get('frames', [])
+                     if frame['id'] in reviewed_ids), None)
+    when = datetime.fromisoformat(candidate["occurred_at"])
+    entry["event_id"] = (alerts.alarm(reviewed_signal, when, keyframe=keyframe)
+                         if keyframe is not None else alerts.alarm(reviewed_signal, when))
 
 
 def main():

@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .live_camera import LiveCamera, camera_router
+from .lan_access import authorize_lan
 from .record_qa import RecordQuestionAnswerer
 from .config import ROOT, Settings
 from .db import Database
@@ -85,6 +86,7 @@ def create_app(settings: Settings | None = None, provider: VisionProvider | None
         request.state.visitor_id = visitor
         ticket = None
         try:
+            authorize_lan(request, settings.lan_token)
             origin = request.headers.get('origin')
             same_host = (origin and urlsplit(origin).scheme in {'http', 'https'}
                          and urlsplit(origin).netloc.lower() == request.url.netloc.lower())
@@ -113,6 +115,8 @@ def create_app(settings: Settings | None = None, provider: VisionProvider | None
                     request.client.host if request.client else '[absent]')
         except AppError as exc:
             response = JSONResponse({'error': exc.public()}, status_code=exc.status)
+            if exc.code == 'PHONE_AUTH_REQUIRED':
+                response.headers['WWW-Authenticate'] = 'Bearer'
         finally:
             if ticket:
                 cloud.release_upload(ticket)

@@ -1,0 +1,60 @@
+{
+  "date": "2026-11-04",
+  "website_base": "5127d7bdd01cee05dd2ec213dadf6dc964ba0f1a",
+  "app_revert": "e85049da4ec702c74d84d2a46473dcf813985b78",
+  "branch": "codex/a-unified-backend",
+  "python_regression": {
+    "backend": 405,
+    "safety": 22,
+    "detector": 576,
+    "total": 1003
+  },
+  "frontend_regression": {
+    "passed": 29
+  },
+  "launcher_smoke": {
+    "passed": true,
+    "isolated_data": true,
+    "public_port": 30814,
+    "internal_port": 30815,
+    "checks": [
+      "single_origin_auth",
+      "gateway_health",
+      "source_readiness",
+      "safety_proxy",
+      "remote_camera_control_forbidden",
+      "internal_listener_loopback_only",
+      "unconfigured_push_reported",
+      "network_model_disabled_reported"
+    ],
+    "real_phone": false,
+    "camera": false,
+    "paid_model": false,
+    "fcm": false,
+    "stopped": true
+  },
+  "fresh_config_and_check_launcher": {
+    "passed": true,
+    "new_private_config_only": true,
+    "stopped": true
+  },
+  "upstream_camera_worker_preserved_except_reviewed_jpeg_handoff": true,
+  "upstream_frontend_models_recording_config_preserved": true,
+  "assets_hashes_verified": true,
+  "private_configuration_included": false,
+  "real_videos_included": false,
+  "real_acceptance": {
+    "two_phones": false,
+    "real_camera_alert": false,
+    "real_recording_alert": false,
+    "paid_qwen": false,
+    "fcm": false,
+    "background": false,
+    "lockscreen": false
+  },
+  "pending_c_contract": [
+    "per_device_push_receipts_and_retry_classification",
+    "installation_identity_and_token_rotation"
+  ],
+  "warning": "Existing Starlette TestClient httpx deprecation warning"
+}

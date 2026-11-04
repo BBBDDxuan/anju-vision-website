@@ -150,20 +150,20 @@ class Database:
             with self.connect() as c:
                 self._save_alerts(c, job['id'], video['id'], alerts)
 
-    def safety_alerts(self, video_id):
+    def safety_alerts(self, video_id, *, run_id=None):
         from .safety import prioritize
         video = self.video(video_id)
         with self.connect() as c:
             rows = c.execute('SELECT payload,acknowledged FROM safety_alerts WHERE video_id=? AND run_id=?',
-                             (video_id, video['active_run'])).fetchall()
+                             (video_id, run_id if run_id is not None else video['active_run'])).fetchall()
         return sorted([{**prioritize(json.loads(row['payload'])), 'acknowledged': bool(row['acknowledged'])} for row in rows],
                       key=lambda alert: (alert['acknowledged'], alert['severity'] != 'urgent', -alert['start_ms']))
 
-    def acknowledge_alert(self, video_id, alert_id):
+    def acknowledge_alert(self, video_id, alert_id, *, run_id=None):
         video = self.video(video_id)
         with self.connect() as c:
             cursor = c.execute('UPDATE safety_alerts SET acknowledged=1 WHERE id=? AND video_id=? AND run_id=?',
-                               (alert_id, video_id, video['active_run']))
+                               (alert_id, video_id, run_id if run_id is not None else video['active_run']))
             if not cursor.rowcount:
                 raise AppError('NOT_FOUND', '未找到当前录像分析中的提醒。', 404)
         return {'id': alert_id, 'acknowledged': True}

@@ -6,6 +6,25 @@
 > 安装脚本会在缺少 `.env` 时生成本地配置。API Key、摄像头账号及通知令牌请通过团队安全渠道另行提供。
 > 新生成配置默认关闭云请求；填好密钥后将根 `.env` 的 `VLM_ENABLE_NETWORK` 改为 `true` 才能进行真实云复核。
 
+## 网页与 App 共用后端（2026-11-04）
+
+团队约定后端只在本 website 仓库维护，App 仓库维护手机端。原有 `backend/`、`elder-safety/` 和 `frontend/` 目录不移动；手机和网页共用这一个运行中的电脑后端。
+
+完成下面的环境安装后，在仓库根目录执行：
+
+```powershell
+.\.venv\Scripts\python.exe scripts/configure_phone.py
+.\start-phone.ps1 -Address '电脑当前局域网IPv4'
+```
+
+电脑网页仍为 `http://127.0.0.1:8000/`；手机使用 `http://电脑局域网IP:8000` 和本机 `runtime/手机连接参数.txt` 的统一令牌。内部 8010 只监听电脑 loopback，手机不填第二个端口。旧 App 的两组服务字段填写同一地址和同一令牌。
+
+统一告警新增 `/api/alerts`、详情、证据、幂等确认和 changes 游标。实摄及上传录像只在现有视觉复核确认后进入正式中心。C 的独立通知/推送模块尚待接入，新启动器关闭旧安全 worker，避免候选或模拟通知另行发送；原安全数据和接口保留。
+
+唯一接口契约见 [docs/api-contract-abc.md](docs/api-contract-abc.md)，启动和网络见 [手机连接说明](docs/a-backend/PHONE_LOCAL_SETUP.md)，A 的改动、来源接点登记和待验收项见 [A 交接](docs/a-backend/ROLE_A_HANDOFF_20261104.md)。正式 B/C 联调应先使用 `start-phone.ps1`；`start.bat` 和前端开发脚本保留原电脑用途。
+
+后端回归用 `powershell -ExecutionPolicy Bypass -File .\test.ps1`。真实摄像头、真实录像、两部手机及后台/锁屏通知分别验收，自动化测试不替代这些结果。
+
 ## 一、队友首次运行（Windows x64）
 
 1. 克隆完整仓库。模型、工具及配置模板随 Git 提交；视频由队友自行导入，真实凭据通过团队安全渠道提供。
