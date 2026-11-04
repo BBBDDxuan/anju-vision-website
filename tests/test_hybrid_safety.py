@@ -240,3 +240,35 @@ def test_review_receives_explicit_missing_transition_evidence(tmp_path):
     assert '"posture_projection": "horizontal"' in text
     assert 'unrelated' not in text
     assert pipeline.extraction(item, result) is None
+
+
+@pytest.mark.parametrize('event_type,gesture', [
+    ('help_requested', 'both_hands_raised_waving_candidate'),
+    ('fire_detected', None),
+])
+@pytest.mark.parametrize('verdict', ['rejected', 'uncertain'])
+def test_extra_review_candidates_forward_context_without_becoming_alarms(tmp_path, event_type, gesture, verdict):
+    answer = dict(verdict=verdict, event_type=event_type,
+                  reason='候选视觉证据不足，离线复核测试', frame_ids=['f_0', 'f_1'])
+    pipeline, requests = service(tmp_path, answer)
+    item = candidate(tmp_path)
+    item['event_type'] = event_type
+    item['details'] = dict(candidate_reason='persistent_model_evidence', review_required=True,
+                           hold_seconds=1.0, frames=8, unrelated='do not forward')
+    if gesture:
+        item['details']['gesture'] = gesture
+    else:
+        item['details'].update(hit_rate=.7, missing_observations=3)
+    result = pipeline.review(item, 'v1', 'j1')
+    text = requests[0]['messages'][0]['content'][0]['text']
+    assert '"review_required": true' in text
+    assert '"frames": 8' in text
+    assert 'unrelated' not in text
+    if gesture:
+        assert gesture in text
+        assert '斜俯视下允许屈肘' in text
+        assert '伸懒腰' in text
+    else:
+        assert '"hit_rate": 0.7' in text
+        assert '"missing_observations": 3' in text
+    assert pipeline.extraction(item, result) is None

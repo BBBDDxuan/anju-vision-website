@@ -83,7 +83,11 @@ class SafetyCandidateCollector:
         if self.engine.review_fall:
             self.engine.review_fall.reset()
         self.engine.fire.reset()
+        if self.engine.review_fire:
+            self.engine.review_fire.reset()
         self.engine.help.reset()
+        if self.engine.review_help:
+            self.engine.review_help.reset()
         self.engine.session = None
         self.engine.last_t = None
 
@@ -174,6 +178,8 @@ class SafetyCandidateCollector:
             # Trigger-time subject hint only; the original signal details stay unchanged.
             track = (self.engine.fire.states.get(signal.track_id) if signal.event_type == "fire_detected"
                      else self.engine.tracker.tracks.get(signal.track_id))
+            if track is None and signal.event_type == "fire_detected" and self.engine.review_fire:
+                track = self.engine.review_fire.states.get(signal.track_id)
             box = getattr(track, "box", None)
             if box is not None:
                 height, width = sample.image.shape[:2]

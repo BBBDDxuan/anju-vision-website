@@ -1,0 +1,109 @@
+{
+  "date": "2026-11-05",
+  "validation_scope": "local GPU inference, collector, evidence selection; cloud verdict not exercised",
+  "cloud_calls": 0,
+  "app_changed": false,
+  "config_changed": false,
+  "samples": {
+    "fire": {
+      "source_sha256": "622753025e3d3ceb671a2ccd7e34e405ca27c54d73f28e3ce8b2fbf62a493eb6",
+      "frames": 71,
+      "baseline_candidates": 0,
+      "completed": true,
+      "candidates": [
+        {
+          "event_type": "fire_detected",
+          "t": 7,
+          "display_evidence_pts_ms": 7000,
+          "display_phase": "during_event",
+          "evidence_pts_ms": [
+            5000,
+            5250,
+            5500,
+            5750,
+            6000,
+            6250,
+            6500,
+            6750,
+            7000,
+            7250,
+            7500,
+            7750
+          ],
+          "algorithm": "review_persistent_flame_region_v1",
+          "review_required": true,
+          "frames": 7,
+          "hold_seconds": 1.125,
+          "hit_rate": 0.7,
+          "missing_observations": 3
+        }
+      ]
+    },
+    "help": {
+      "source_sha256": "cfd38c2a66b73144085208cd9d7b7151c85d7ea9dd4ef6df2b16d82b86d522fd",
+      "frames": 97,
+      "baseline_candidates": 0,
+      "completed": true,
+      "candidates": [
+        {
+          "event_type": "help_requested",
+          "t": 2.875,
+          "display_evidence_pts_ms": 2750,
+          "display_phase": "during_event",
+          "evidence_pts_ms": [
+            1000,
+            1250,
+            1500,
+            1750,
+            2000,
+            2250,
+            2500,
+            2750,
+            3000,
+            3250,
+            3500,
+            3750
+          ],
+          "algorithm": "oblique_two_raised_waving_hands_review_v1",
+          "review_required": true,
+          "frames": 7,
+          "hold_seconds": 0.75
+        }
+      ]
+    }
+  },
+  "detector_sources_sha256": {
+    "__init__.py": "36b5a1e99e31a353fc1d67b986eb41f68bf8d5de4a8321dc05f158e5fc7e1020",
+    "__main__.py": "d220d88dd9a25cd0629c5176dd6532a2db1da40eb014a8e80796b0ddeb134918",
+    "cli.py": "940d69422b2c757e22eae439c732d3222c0259df1a52faeb45aee27793f45356",
+    "config.py": "1d5f9052db9f2340ee84002dd1da6bf247c7451d20a2cfeb96dbbc6d4aaa3a17",
+    "engine.py": "19022c2b7ebcf758f1809067a2d740092df84e54c97fcc1684a5af82fc3de88d",
+    "evidence.py": "0676a3f8e29ca9adb49dfeee2518723f459cfdb929b567fc4c43ef6a1d744bf1",
+    "fall_candidates.py": "6318dcc69fb05e072ddfb9f554f9ddbe38870cd4a83277a013faceafac6fb40f",
+    "fire_candidates.py": "3bd1ce970fa6908663f0b8e9232858136b74fcc6e65d7e1cdea3afb720b022d8",
+    "flame_tiles.py": "88c3cf21517d0a5a70c2d423a02c5ede0124492d23c234011474963bf95a8eb4",
+    "help_candidates.py": "1972f6e2aedbd73d190a55102ceedd27bd7e45115961c4b173c3cf74a719ae45",
+    "help_gesture.py": "ccc938548a30d8884afe091d39e07e1beadb4241cdfb9ac76453de5d3186dd51",
+    "local_validate.py": "7572fcb967b7e4df6a562703fc78f88ac363e9908fa5fbb9439cd129d5233870",
+    "models.py": "591cd19079f09e6883bcb14ee232c1806bc3776f50bacec15a696cd24c3eff63",
+    "network.py": "38ca183bb1359bb01593f01803b2dc38aeedcfff273b09bb0834c3ca3f887b78",
+    "pose_recovery.py": "0a532a0724f75920a77416e0ea5f86880e037205749ce1da61c617bbe7ccdbb3",
+    "preview_alerts.py": "06619eab1450e8a1d5fa2a15c5a54020d2f750fda35aafb514f4f80b36b9ebaa",
+    "realtime.py": "e0fa67c5ec50a4bbef640771b8503508d1ca6b0f637f8c000a5135c88c0df788",
+    "recording.py": "7a371f3147ad1054d32572938f469ce7da3966624e62b03d67e0d886269a72fb",
+    "runtime_env.py": "5529b1a52f6579d97e12e4acaf6be6b17ecb3402c5220f6dd2af3581b0f44dcb",
+    "safety_candidates.py": "21594c29843d4d3479ec14e1426a79b6d58df665f6c64b01417f5cb3dfc69941",
+    "sources.py": "72c3d21a9a5c1cf8242ad2a42361432f61a0ee67b73602244aad6a7ce0f92f5b",
+    "spool.py": "1d4484544dcff0ad2307f9130c60ba0bddd6d3bc2226b80f67c89b6d33cb52e0",
+    "temporal.py": "abc978a0e279262c415bc8376cba2cd0d52b7cd95a9cb1976c80afd186f575ed",
+    "tracking.py": "bb5678e645090a482094aa4fcf2cc62e4f3f07ef1613c7ed5aa4f9b5decf5209",
+    "types.py": "90ba05fff8a45251084796c11e3ea52cd9a4fd7f93c5f7c4db27d8628a133de8"
+  },
+  "tests": {
+    "detector_suite_passed": 663,
+    "backend_regressions_passed": 126,
+    "new_tests_final_rerun_passed": 87,
+    "final_review_scan_rerun_passed": 32,
+    "counts_are_not_additive": true
+  }
+}
