@@ -418,8 +418,9 @@ def create_app(settings: Settings | None = None, provider: VisionProvider | None
         return FileResponse(settings.data_dir / "runs" / job["id"] / "frames" / f"{frame_id}.jpg", media_type="image/jpeg")
 
     dist = ROOT / "frontend/dist"
-    if (dist / "assets").is_dir():
-        app.mount("/assets", StaticFiles(directory=dist / "assets"), name="assets")
+    for directory in ("assets", "demo"):
+        if (dist / directory).is_dir():
+            app.mount(f"/{directory}", StaticFiles(directory=dist / directory), name=directory)
 
     @app.get("/")
     @app.get('/workspace')

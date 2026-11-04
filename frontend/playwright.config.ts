@@ -7,5 +7,5 @@ export default defineConfig({
   workers: 1,
   reporter: [['list'], ['json', { outputFile: '../docs/browser-test-results.json' }]],
   outputDir: '../runtime/redesign-test-results',
-  use: { baseURL: 'http://127.0.0.1:5178', viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce', launchOptions: { executablePath: process.env.ANJU_BROWSER || 'C:/Program Files/Google/Chrome/Application/chrome.exe' }, screenshot: 'only-on-failure' },
+  use: { baseURL: process.env.ANJU_TEST_BASE_URL || 'http://127.0.0.1:5178', viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce', launchOptions: { executablePath: process.env.ANJU_BROWSER || 'C:/Program Files/Google/Chrome/Application/chrome.exe' }, screenshot: 'only-on-failure' },
 });
