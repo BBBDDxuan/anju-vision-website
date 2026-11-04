@@ -2,6 +2,17 @@ import type { ReactNode } from 'react';
 
 export function Icon({ name, size = 20 }: { name: string; size?: number }) {
   const paths: Record<string, ReactNode> = {
+    monitor: <><rect x="3" y="3" width="18" height="13" rx="2"/><path d="M12 16v5m-5 0h10"/></>,
+    play: <path d="m9 5 11 7-11 7Z"/>,
+    user: <><circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></>,
+    warning: <><path d="m10.3 4.4-8 14A1.8 1.8 0 0 0 4 21h16a1.8 1.8 0 0 0 1.6-2.6l-8-14a1.8 1.8 0 0 0-3.3 0Z"/><path d="M12 9v4m0 4h.01"/></>,
+    activity: <><circle cx="15" cy="4" r="2"/><path d="m4 10 5-3 5 4 5 1 2-3M4 20l5-5 5 1 2 5M9 15l3-5M5 6l-2 1"/></>,
+    'help-gesture': <><circle cx="12" cy="8" r="2.5"/><path d="m3 3 4 8 5 2 5-2 4-8M12 13v8m-5 0h10"/></>,
+    flame: <path d="M12 2c2 6-4 7-4 12-2-1-3-3-3-3-5 9 4 14 10 10 6-4 4-10 1-14 0 5-3 5-3 5 2-6-1-10-1-10Z"/>,
+    layers: <><path d="m12 3 10 5-10 5L2 8Zm-9 9 9 5 9-5m-18 5 9 5 9-5"/></>,
+    chip: <><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4m6-4v4M9 18v4m6-4v4M2 9h4m-4 6h4m12-6h4m-4 6h4M9 14v-4l3 4v-4m3 0v4"/></>,
+    document: <><path d="M14 2H5v20h14V7Zm0 0v5h5M8 11h8m-8 4h8m-8 4h5"/></>,
+    plug: <><path d="M8 2v6m8-6v6M5 8h14v5a7 7 0 0 1-14 0Zm7 12v2"/></>,
     home: <><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z" /></>,
     video: <><rect x="3" y="5" width="13" height="14" rx="3" /><path d="m16 10 5-3v10l-5-3" /></>,
     upload: <><path d="M12 16V3m-5 5 5-5 5 5M4 16v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4" /></>,

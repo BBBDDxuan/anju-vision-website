@@ -13,11 +13,15 @@ function load(name, overrides = {}) {
   if (cache.has(name) && !Object.keys(overrides).length) return cache.get(name);
   const tsx = new URL(`../src/${name}.tsx`, import.meta.url);
   let source = readFileSync(existsSync(tsx) ? tsx : new URL(`../src/${name}.ts`, import.meta.url), 'utf8');
+  // This offline CJS harness has no Vite transform. Provide its root BASE_URL
+  // while loading the real landing-page dependencies; keep every App assertion.
+  source = source.replace(/import\.meta/g, '({ env: { BASE_URL: "/" } })');
   if (name === 'main') source = source.replace(/createRoot\(document[\s\S]*$/, 'export { App };');
   const module = { exports: {} };
   const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 } });
   new Function('require', 'module', 'exports', ...Object.keys(overrides), outputText)(id => {
     if (id.endsWith('.css')) return {};
+    if (id.endsWith('.json')) return { default: require(id) };
     if (id === 'react' && overrides.hooks) return overrides.hooks;
     if (id.startsWith('./')) return load(id.slice(2));
     return require(id);

@@ -1,0 +1,90 @@
+{
+  "schemaVersion": "1.0",
+  "notice": "Offline demonstration using actual exported model analysis for fall only; help and fire videos have no recognized model results.",
+  "cases": [
+    {
+      "id": "fall",
+      "title": "跌倒 / 异常姿态",
+      "videoSrc": "/demo/videos/fall.mp4",
+      "posterSrc": "/demo/posters/fall.jpg",
+      "durationMs": 8550,
+      "previewStartSec": 3.5,
+      "previewEndSec": 7.0,
+      "resultStatus": "verified_model_export",
+      "event": {
+        "title": "疑似跌倒",
+        "type": "suspected_fall",
+        "startMs": 2300,
+        "endMs": 6300,
+        "localCandidateTriggerSec": 6.3,
+        "modelReviewVerdict": "confirmed",
+        "humanConfirmed": false,
+        "modelScore": null,
+        "originalReviewStatus": "model_unreviewed",
+        "modelReviewReason": "在pts_ms=2300至4500期间主体保持站立，随后在5000ms处可见身体快速失去支撑并下降，至6000ms已完全躺卧于地面，符合跌倒的视觉过程定义。",
+        "referencedFrames": [
+          {
+            "time_ms": 2300,
+            "image": "/demo/keyframes/sf_0fba6898a98b9cdfe8cb7c3a5bc567e4.jpg",
+            "frame_id": "sf_0fba6898a98b9cdfe8cb7c3a5bc567e4"
+          },
+          {
+            "time_ms": 4500,
+            "image": "/demo/keyframes/sf_28b04f43ea6d39cbd5a819f805e94931.jpg",
+            "frame_id": "sf_28b04f43ea6d39cbd5a819f805e94931"
+          },
+          {
+            "time_ms": 5000,
+            "image": "/demo/keyframes/sf_8755f97dff6b2eda841de6bb6fe8eda8.jpg",
+            "frame_id": "sf_8755f97dff6b2eda841de6bb6fe8eda8"
+          },
+          {
+            "time_ms": 6000,
+            "image": "/demo/keyframes/sf_d6607d255cff2a57c6d2f4daba295073.jpg",
+            "frame_id": "sf_d6607d255cff2a57c6d2f4daba295073"
+          },
+          {
+            "time_ms": 6300,
+            "image": "/demo/keyframes/sf_6e3c66e5f4b39d8cc59f11f2c47cafc5.jpg",
+            "frame_id": "sf_6e3c66e5f4b39d8cc59f11f2c47cafc5"
+          }
+        ],
+        "subjectBboxHint": {
+          "atSec": 6.3,
+          "xyxyNormalized": [
+            0.38643608093261717,
+            0.5062166879551193,
+            0.5641824722290039,
+            0.9977384116108021
+          ],
+          "note": "Only at this candidate trigger; not frame-by-frame output."
+        }
+      },
+      "disclaimer": "模型视觉复核支持疑似跌倒，不等于人工确认或受伤诊断。"
+    },
+    {
+      "id": "help",
+      "title": "举手动作线索",
+      "videoSrc": "/demo/videos/help.mp4",
+      "posterSrc": "/demo/posters/help.jpg",
+      "durationMs": 12076,
+      "previewStartSec": 2.0,
+      "previewEndSec": 9.0,
+      "resultStatus": "pending_model_fix",
+      "event": null,
+      "disclaimer": "仅展示举手动作场景，未取得模型求助识别结果，不代表真实求助。"
+    },
+    {
+      "id": "fire",
+      "title": "可见火焰场景",
+      "videoSrc": "/demo/videos/fire.mp4",
+      "posterSrc": "/demo/posters/fire.jpg",
+      "durationMs": 8927,
+      "previewStartSec": 1.0,
+      "previewEndSec": 7.0,
+      "resultStatus": "pending_model_fix",
+      "event": null,
+      "disclaimer": "仅展示打火机火焰场景，未取得模型明火识别结果，不代表厨房火灾。"
+    }
+  ]
+}

@@ -58,3 +58,14 @@ config.camera-gpu.json
 # Owner request: no camera videos or video chunks in Git.
 /examples/repro-video/
 *.part[0-9][0-9]
+
+# Approved website demo assets only; runtime camera recordings remain ignored.
+!/frontend/public/demo/videos/fall.mp4
+!/frontend/public/demo/videos/help.mp4
+!/frontend/public/demo/videos/fire.mp4
+!/frontend/dist/demo/videos/fall.mp4
+!/frontend/dist/demo/videos/help.mp4
+!/frontend/dist/demo/videos/fire.mp4
+
+# Local redesign snapshots are not part of the project.
+/frontend/.backup-*/

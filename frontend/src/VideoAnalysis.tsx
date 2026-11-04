@@ -33,7 +33,7 @@ export function VideoAnalysisControls({ mode, onModeChange, job, pending, ready,
 }) {
   const running = isAnalysisRunning(job);
   const blocked = running || pending || !ready;
-  return <section className="video-analysis" aria-label="上传录像分析">
+  return <section className="video-analysis" id="analysis-tools" aria-label="上传录像分析">
     {!demo && <div className="analysis-mode-tabs" role="group" aria-label="选择录像分析任务">
       <button type="button" aria-pressed={mode === 'safety'} disabled={running || pending} onClick={() => onModeChange('safety')}>安全分析</button>
       <button type="button" aria-pressed={mode === 'objects'} disabled={running || pending} onClick={() => onModeChange('objects')}>物体追踪</button>
