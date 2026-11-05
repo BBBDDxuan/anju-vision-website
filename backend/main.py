@@ -104,6 +104,14 @@ def create_app(settings: Settings | None = None, provider: VisionProvider | None
                 if cloud:
                     ticket = cloud.reserve_upload(request, visitor)
             response = await call_next(request)
+            if settings.lan_token and response.status_code == 400:
+                # Never log request bodies, query strings, authorization or arbitrary paths.
+                safe_value = lambda value: value if value and len(value) <= 253 and all(c.isalnum() or c in '.:-[]' for c in value) else '[invalid or absent]'
+                endpoint = request.url.path if request.url.path in {'/api/health', '/api/videos', '/api/connection', '/api/uploads'} else '[other endpoint]'
+                logging.getLogger(__name__).warning(
+                    'Phone HTTP 400: host=%s; peer=%s; endpoint=%s',
+                    safe_value(request.headers.get('host', '')),
+                    safe_value(request.client.host if request.client else ''), endpoint)
             if cloud and request.url.path == '/api/health' and response.status_code == 400:
                 # Log only the hostname, never headers/cookies/credentials, so a
                 # deployment can allowlist the exact reverse-proxy host.
@@ -128,6 +136,13 @@ def create_app(settings: Settings | None = None, provider: VisionProvider | None
 
     @app.exception_handler(AppError)
     async def app_error(request, exc):
+        if settings.lan_token:
+            # Route templates contain no filenames, IDs, credentials or query strings.
+            route = request.scope.get('route')
+            endpoint = getattr(route, 'path', '[unmatched]')
+            safe_code = exc.code if isinstance(exc.code, str) and exc.code.isascii() and all(c.isupper() or c.isdigit() or c == '_' for c in exc.code) else '[invalid]'
+            logging.getLogger(__name__).warning('Phone API error: endpoint=%s; code=%s; status=%s',
+                                                endpoint, safe_code, exc.status)
         return JSONResponse({"error": exc.public()}, status_code=exc.status)
 
     @app.exception_handler(RequestValidationError)

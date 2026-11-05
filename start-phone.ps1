@@ -1,4 +1,4 @@
-param([string]$Address = '')
+param([string]$Address = '', [string[]]$AdditionalAddress = @())
 $ErrorActionPreference = 'Stop'
 $env:PYTHONUTF8 = '1'
 $python = Join-Path $PSScriptRoot '.venv\Scripts\python.exe'
@@ -13,6 +13,8 @@ if (-not $Address) {
 }
 Push-Location -LiteralPath $PSScriptRoot
 try {
-    & $python scripts/phone_server.py --address $Address
+    $serverArgs = @('scripts/phone_server.py', '--address', $Address)
+    foreach ($item in $AdditionalAddress) { $serverArgs += @('--additional-address', $item) }
+    & $python @serverArgs
     if ($LASTEXITCODE -ne 0) { throw 'Phone server stopped with an error. Inspect runtime/phone-server logs.' }
 } finally { Pop-Location }

@@ -30,11 +30,14 @@ def private_address(value):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--address', required=True)
+    parser.add_argument('--additional-address', action='append', default=[],
+                        help='Another private IPv4 address owned by this PC to allow in the Host header.')
     parser.add_argument('--port', type=int, default=8000)
     parser.add_argument('--safety-port', type=int, default=8010)
     parser.add_argument('--check', action='store_true', help='Start, check health, then stop both child services.')
     args = parser.parse_args()
     address = private_address(args.address)
+    additional_addresses = {private_address(value) for value in args.additional_address} - {address}
     if args.port == args.safety_port or not all(1 <= p <= 65535 for p in (args.port, args.safety_port)):
         parser.error('Choose two distinct valid ports.')
     os.chdir(ROOT)
@@ -46,7 +49,7 @@ def main():
     env = os.environ.copy()
     env['APP_LAN_TOKEN'] = token
     hosts = set(env.get('APP_ALLOWED_HOSTS', '127.0.0.1,localhost,[::1]').split(','))
-    env['APP_ALLOWED_HOSTS'] = ','.join(sorted(hosts | {address}))
+    env['APP_ALLOWED_HOSTS'] = ','.join(sorted(hosts | {address} | additional_addresses))
     env['PYTHONUTF8'] = '1'
     env['APP_SAFETY_INTERNAL_URL'] = f'http://127.0.0.1:{args.safety_port}'
     env['PYTHONPATH'] = os.pathsep.join(filter(None, [str(ROOT / 'elder-safety/backend'), str(ROOT), env.get('PYTHONPATH')]))
@@ -67,6 +70,7 @@ def main():
     details.write_text(
         f'安居视界手机连接参数（仅本机保存，请勿提交或公开）\n\n'
         f'统一服务地址：http://{address}:{args.port}\n统一访问令牌：{token}\n\n'
+        + ''.join(f'其他已放行的本机地址：http://{item}:{args.port}\n' for item in sorted(additional_addresses)) + '\n'
         f'兼容旧 App：录像服务和安全后端均填上面的同一个地址、同一个令牌。\n'
         f'联系人角色：primary\n\n'
         f'新版 App 只需一个地址；旧版页面的两组配置填相同内容。手机与电脑须网络互通。\n'
@@ -99,7 +103,7 @@ def main():
                 time.sleep(.3)
         (runtime / 'status.json').write_text(json.dumps({
             'state': 'running', 'supervisor_pid': os.getpid(), 'pids': [p.pid for p in children],
-            'address': address, 'ports': [args.port, args.safety_port], 'public_ports': [args.port], 'proxy_headers': False,
+            'address': address, 'allowed_local_addresses': sorted({address} | additional_addresses), 'ports': [args.port, args.safety_port], 'public_ports': [args.port], 'proxy_headers': False,
         }, indent=2), encoding='utf8')
         print(f'PC webpage: http://127.0.0.1:{args.port}/', flush=True)
         print(f'Phone connection settings: {details}', flush=True)
