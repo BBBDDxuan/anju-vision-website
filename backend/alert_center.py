@@ -36,7 +36,19 @@ class AlertCenter:
                 CREATE TABLE IF NOT EXISTS outbox (
                     alert_id TEXT PRIMARY KEY, attempts INTEGER NOT NULL DEFAULT 0,
                     due REAL NOT NULL DEFAULT 0, state TEXT NOT NULL DEFAULT 'pending');
+                CREATE TABLE IF NOT EXISTS contact_escalations (
+                    alert_id TEXT PRIMARY KEY, first_due REAL NOT NULL,
+                    attempts INTEGER NOT NULL DEFAULT 0, due REAL NOT NULL,
+                    state TEXT NOT NULL DEFAULT 'pending');
             ''')
+            # Additive migration: old rows have no creation anchor and never
+            # acquire a backup reminder merely because this version starts.
+            c.execute('BEGIN IMMEDIATE')
+            columns = {r['name'] for r in c.execute('PRAGMA table_info(outbox)')}
+            if 'scheduled_at' not in columns:
+                c.execute('ALTER TABLE outbox ADD COLUMN scheduled_at REAL')
+            if 'escalation_planned' not in columns:
+                c.execute('ALTER TABLE outbox ADD COLUMN escalation_planned INTEGER NOT NULL DEFAULT 0')
 
     @contextmanager
     def connect(self):
@@ -75,6 +87,7 @@ class AlertCenter:
     def upsert(self, projected, *, historical=False):
         projected = dict(projected)
         with self.connect() as c:
+            c.execute('BEGIN IMMEDIATE')
             row = c.execute('SELECT body FROM alerts WHERE id=?', (projected['id'],)).fetchone()
             old = json.loads(row['body']) if row else None
             body = dict(projected)
@@ -87,14 +100,27 @@ class AlertCenter:
             body.pop('source_resolved', None)
             body['created_at'] = (old or {}).get('created_at', stamp())
             body['notification_status'] = (old or {}).get('notification_status', 'skipped_history' if historical else 'pending')
-            if body['handling_status'] != 'unacknowledged':
+            body.pop('contact_stage', None)  # A dispatch field, never source authority.
+            body.pop('contact_escalation', None)
+            if old and 'contact_escalation' in old:
+                body['contact_escalation'] = dict(old['contact_escalation'])
+            if body['handling_status'] != 'unacknowledged' or body['review_status'] != 'confirmed':
                 self._cancel(c, body)
+            elif not self._important(body):
+                count = c.execute("UPDATE contact_escalations SET state='cancelled' "
+                                  "WHERE alert_id=? AND state IN ('pending','sending')", (body['id'],)).rowcount
+                if count and 'contact_escalation' in body:
+                    body['contact_escalation']['backup_status'] = 'cancelled'
             if old and all(old.get(k) == v for k, v in body.items()):
                 return old
-            saved = self._save(c, body)
-            if not old and not historical and body['handling_status'] == 'unacknowledged':
-                c.execute('INSERT OR IGNORE INTO outbox(alert_id) VALUES(?)', (body['id'],))
-            return saved
+            if (not old and not historical and body['handling_status'] == 'unacknowledged'
+                    and body['review_status'] == 'confirmed'):
+                scheduled = time.time()
+                body['contact_escalation'] = {
+                    'primary_scheduled_at': datetime.fromtimestamp(scheduled, timezone.utc).isoformat(),
+                    'primary_status': 'pending', 'backup_due_at': None, 'backup_status': 'not_scheduled'}
+                c.execute('INSERT OR IGNORE INTO outbox(alert_id,scheduled_at) VALUES(?,?)', (body['id'], scheduled))
+            return self._save(c, body)
 
     def get(self, identifier):
         with self.connect() as c:
@@ -126,6 +152,7 @@ class AlertCenter:
     def reconcile(self, source, current_ids):
         """Keep history, but retract formal status when its original proof disappears."""
         with self.connect() as c:
+            c.execute('BEGIN IMMEDIATE')
             rows = c.execute('SELECT id,body FROM alerts WHERE source=?', (source,)).fetchall()
             for row in rows:
                 body = json.loads(row['body'])
@@ -136,32 +163,39 @@ class AlertCenter:
 
     @staticmethod
     def _cancel(c, body):
-        c.execute("UPDATE outbox SET state='cancelled' WHERE alert_id=? AND state IN ('pending','sending')", (body['id'],))
+        changed = False
+        for table, stage in [('outbox', 'primary'), ('contact_escalations', 'backup')]:
+            count = c.execute(f"UPDATE {table} SET state='cancelled' WHERE alert_id=? AND state IN ('pending','sending')",
+                              (body['id'],)).rowcount
+            if count and 'contact_escalation' in body:
+                body['contact_escalation'][stage + '_status'] = 'cancelled'
+            changed = bool(count) or changed
         if body['notification_status'] in {'pending', 'retrying'}:
             body['notification_status'] = 'cancelled'
+            changed = True
+        return changed
 
     def cancel_notification(self, identifier):
         """Cancel delivery without changing review or human handling status."""
         with self.connect() as c:
+            c.execute('BEGIN IMMEDIATE')
             row = c.execute('SELECT body FROM alerts WHERE id=?', (identifier,)).fetchone()
             if not row:
                 raise AppError('ALERT_NOT_FOUND', '未找到该告警。', 404)
             body = json.loads(row['body'])
-            previous = body['notification_status']
-            self._cancel(c, body)
-            return self._save(c, body) if previous != body['notification_status'] else body
+            return self._save(c, body) if self._cancel(c, body) else body
 
     def handle(self, identifier, action):
         with self.connect() as c:
+            c.execute('BEGIN IMMEDIATE')
             row = c.execute('SELECT body FROM alerts WHERE id=?', (identifier,)).fetchone()
             if not row:
                 raise AppError('ALERT_NOT_FOUND', '未找到该告警。', 404)
             body = json.loads(row['body'])
             target = 'resolved' if action == 'resolve' else 'acknowledged'
-            previous = body['notification_status']
-            self._cancel(c, body)
+            cancelled = self._cancel(c, body)
             if body['handling_status'] == 'resolved' or body['handling_status'] == target:
-                return self._save(c, body) if previous != body['notification_status'] else body
+                return self._save(c, body) if cancelled else body
             body['handling_status'] = target
             return self._save(c, body)
 
@@ -202,29 +236,87 @@ class AlertCenter:
         filename = f'{number}-{version}.jpg' if version else f'{number}.jpg'
         return directory / filename
 
-    def claim(self):
+    @staticmethod
+    def _important(body):
+        return (body.get('source') in {'live_camera', 'uploaded_recording'}
+                and body.get('severity') in {'critical', 'high', 'urgent'}
+                and body.get('event_type') in {'suspected_fall', 'fire_detected', 'smoke_detected', 'help_requested'})
+
+    @staticmethod
+    def _plan_escalations(c, preferences):
+        seconds = preferences.get('escalation_seconds', 120)
+        if type(seconds) is not int or not 5 <= seconds <= 86400:
+            raise ValueError('Invalid contact escalation interval')
+        roles = {p.get('contact_id') for p in preferences.get('contacts', [])}
+        rows = c.execute('''SELECT o.alert_id,o.scheduled_at,a.body FROM outbox o
+                            JOIN alerts a ON a.id=o.alert_id
+                            WHERE o.scheduled_at IS NOT NULL AND o.escalation_planned=0
+                            AND o.state IN ('pending','sending','sent')''').fetchall()
+        for row in rows:
+            body = json.loads(row['body'])
+            eligible = (body['handling_status'] == 'unacknowledged' and body['review_status'] == 'confirmed'
+                        and AlertCenter._important(body)
+                        and body['notification_status'] not in {'skipped_history', 'cancelled'}
+                        and 'backup' in roles)
+            c.execute('UPDATE outbox SET escalation_planned=1 WHERE alert_id=?', (row['alert_id'],))
+            stages = body['contact_escalation']
+            if eligible:
+                due = row['scheduled_at'] + seconds
+                c.execute('INSERT OR IGNORE INTO contact_escalations(alert_id,first_due,due) VALUES(?,?,?)',
+                          (row['alert_id'], due, due))
+                stages['backup_due_at'] = datetime.fromtimestamp(due, timezone.utc).isoformat()
+                stages['backup_status'] = 'pending'
+            else:
+                stages['backup_status'] = 'not_required'
+            AlertCenter._save(c, body)
+
+    def claim(self, *, preferences=None):
         with self.connect() as c:
-            row = c.execute("SELECT * FROM outbox WHERE (state='pending' OR state='sending') AND due<=? ORDER BY due LIMIT 1",
-                            (time.time(),)).fetchone()
+            # Serialize claims across repository instances as well as threads.
+            c.execute('BEGIN IMMEDIATE')
+            if preferences is not None:
+                if preferences.get('notifications_enabled') is not True:
+                    return None
+                self._plan_escalations(c, preferences)
+            now = time.time()
+            row = c.execute('''SELECT alert_id,attempts,due,state,'primary' AS contact_stage FROM outbox
+                               WHERE state IN ('pending','sending') AND due<=?
+                               UNION ALL
+                               SELECT alert_id,attempts,due,state,'backup' AS contact_stage FROM contact_escalations
+                               WHERE state IN ('pending','sending') AND due<=?
+                               ORDER BY due,contact_stage DESC LIMIT 1''', (now, now)).fetchone()
             if not row:
                 return None
-            c.execute("UPDATE outbox SET state='sending',due=? WHERE alert_id=?", (time.time() + 30, row['alert_id']))
+            table = 'outbox' if row['contact_stage'] == 'primary' else 'contact_escalations'
+            c.execute(f"UPDATE {table} SET state='sending',due=? WHERE alert_id=?", (now + 30, row['alert_id']))
             return dict(row)
 
-    def delivered(self, identifier, *, failed=False):
+    def delivered(self, identifier, *, failed=False, contact_stage='primary'):
+        if contact_stage not in {'primary', 'backup'}:
+            raise ValueError('Unknown contact stage')
         with self.connect() as c:
+            c.execute('BEGIN IMMEDIATE')
             row = c.execute('SELECT body FROM alerts WHERE id=?', (identifier,)).fetchone()
             body = json.loads(row['body'])
             if body['handling_status'] != 'unacknowledged' or body['review_status'] != 'confirmed':
-                previous = body['notification_status']
-                self._cancel(c, body)
-                return self._save(c, body) if previous != body['notification_status'] else body
+                return self._save(c, body) if self._cancel(c, body) else body
+            table = 'outbox' if contact_stage == 'primary' else 'contact_escalations'
+            job = c.execute(f'SELECT state,attempts FROM {table} WHERE alert_id=?', (identifier,)).fetchone()
+            # A late completion must not revive cancellation or already-sent work.
+            if not job or job['state'] not in {'pending', 'sending'}:
+                return body
             if failed:
-                attempts = c.execute('SELECT attempts FROM outbox WHERE alert_id=?', (identifier,)).fetchone()[0] + 1
-                c.execute("UPDATE outbox SET state='pending',attempts=?,due=? WHERE alert_id=?",
+                attempts = job['attempts'] + 1
+                c.execute(f"UPDATE {table} SET state='pending',attempts=?,due=? WHERE alert_id=?",
                           (attempts, time.time() + min(300, 2 ** min(attempts, 8)), identifier))
-                body['notification_status'] = 'retrying'
+                status = 'retrying'
             else:
-                c.execute("UPDATE outbox SET state='sent' WHERE alert_id=?", (identifier,))
-                body['notification_status'] = 'accepted_by_provider'
+                c.execute(f"UPDATE {table} SET state='sent' WHERE alert_id=?", (identifier,))
+                status = 'accepted_by_provider'
+            if 'contact_escalation' in body:
+                body['contact_escalation'][contact_stage + '_status'] = status
+            accepted = c.execute("SELECT 1 FROM outbox WHERE alert_id=? AND state='sent' UNION ALL "
+                                 "SELECT 1 FROM contact_escalations WHERE alert_id=? AND state='sent'",
+                                 (identifier, identifier)).fetchone()
+            body['notification_status'] = 'accepted_by_provider' if accepted else status
             return self._save(c, body)

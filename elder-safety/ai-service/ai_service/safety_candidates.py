@@ -8,7 +8,7 @@ discards pending evidence, so call ``finish`` first if it should be preserved.
 from __future__ import annotations
 
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import json
 import math
 import os
@@ -53,6 +53,7 @@ class _Frame:
     id: str
     t: float
     jpeg: bytes
+    people: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -116,7 +117,7 @@ class SafetyCandidateCollector:
             path = directory / (frame.id + ".jpg")
             _atomic_bytes(path, frame.jpeg)
             frames.append({"id": frame.id, "pts_ms": round(frame.t * 1000),
-                           "path": str(path)})
+                           "path": str(path), "person_bboxes": frame.people})
         candidate["frames"] = frames
         # A manifest is the commit marker. Partial JPEG writes are not candidates.
         atomic_json(directory / "manifest.json", candidate)
@@ -161,7 +162,18 @@ class SafetyCandidateCollector:
 
         # Detection always runs at source cadence on this single engine. Evidence
         # sampling never changes detector thresholds, inputs or configuration.
-        for signal in self.engine.process(sample):
+        signals = self.engine.process(sample)
+        if frame is not None:
+            height, width = sample.image.shape[:2]
+            # Freeze only currently observed tracks, not stale predictions. Boxes
+            # are normalized so they remain valid after evidence JPEG resizing.
+            for track_id, track in self.engine.tracker.tracks.items():
+                if track.last_t == sample.t:
+                    box = [max(0., min(1., float(value) / size))
+                           for value, size in zip(track.box, (width, height, width, height))]
+                    if box[0] < box[2] and box[1] < box[3]:
+                        frame.people[track_id] = box
+        for signal in signals:
             if signal.event_type not in EVENT_TYPES or len(self._pending) >= _MAX_PENDING:
                 continue
             confidence = float(signal.confidence)

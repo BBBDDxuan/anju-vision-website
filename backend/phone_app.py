@@ -56,7 +56,7 @@ def create_app(settings=None, provider=None, *, safety_repo=None, safety_url=Non
     if push_handler is not None and not inspect.iscoroutinefunction(push_handler):
         raise ValueError('C push handler must be async and accept alert, idempotency_key')
     center = AlertCenter(app.state.settings.data_dir / 'alert-center')
-    sources = AlertSources(center, app.state.db, safety_repo)
+    sources = AlertSources(center, app.state.db, safety_repo, faces=app.state.face_recognition)
     app.state.alert_center, app.state.alert_sources = center, sources
     old_lifespan = app.router.lifespan_context
 
@@ -73,9 +73,17 @@ def create_app(settings=None, provider=None, *, safety_repo=None, safety_url=Non
     async def dispatch():
         while True:
             if push_handler is not None:
-                job = await asyncio.to_thread(center.claim)
+                try:
+                    preferences = await asyncio.to_thread(safety_repo.get_preferences)
+                    job = await asyncio.to_thread(center.claim, preferences=preferences)
+                except Exception:
+                    # Storage/configuration failures must not kill the dispatcher
+                    # or bypass the user's notification preferences.
+                    await asyncio.sleep(.5)
+                    continue
                 if job:
                     item = await asyncio.to_thread(center.get, job['alert_id'])
+                    item['contact_stage'] = job['contact_stage']
                     if item['handling_status'] != 'unacknowledged' or item['review_status'] != 'confirmed':
                         await asyncio.to_thread(center.cancel_notification, item['id'])
                         await asyncio.sleep(.1)
@@ -87,9 +95,9 @@ def create_app(settings=None, provider=None, *, safety_repo=None, safety_url=Non
                                 or receipt.get('is_mock') is not False):
                             raise ValueError('A real provider acceptance receipt is required')
                     except Exception:
-                        await asyncio.to_thread(center.delivered, item['id'], failed=True)
+                        await asyncio.to_thread(center.delivered, item['id'], failed=True, contact_stage=job['contact_stage'])
                     else:
-                        await asyncio.to_thread(center.delivered, item['id'])
+                        await asyncio.to_thread(center.delivered, item['id'], contact_stage=job['contact_stage'])
             await asyncio.sleep(.5)
 
     @asynccontextmanager
