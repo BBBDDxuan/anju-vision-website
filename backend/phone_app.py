@@ -12,6 +12,7 @@ import httpx
 from fastapi import Query, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 
+from .app_updates import app_updates_router
 from .camera_monitoring import monitoring_router
 from .alert_center import AlertCenter
 from .alert_sources import AlertSources
@@ -37,6 +38,7 @@ def create_app(settings=None, provider=None, *, safety_repo=None, safety_url=Non
     if not app.state.settings.lan_token:
         raise ValueError('Phone gateway requires APP_LAN_TOKEN')
     app.include_router(monitoring_router(app.state.live_camera))
+    app.include_router(app_updates_router(ROOT / 'runtime' / 'app-updates'))
     owned_repo = safety_repo is None
     if owned_repo:
         sys.path.insert(0, str(ROOT / 'elder-safety/backend'))
