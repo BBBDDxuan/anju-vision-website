@@ -72,3 +72,7 @@ config.camera-gpu.json
 
 # Local redesign snapshots are not part of the project.
 /frontend/.backup-*/
+
+# Private local APK updater: APKs, signer pin and generated manifest stay on this PC.
+/runtime/app-updates/
+*.apk

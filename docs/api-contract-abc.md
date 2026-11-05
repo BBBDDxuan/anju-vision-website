@@ -40,7 +40,7 @@ Authorization: Bearer <在本机填写，样例不提供真实值>
 | POST `/api/v1/push-tokens`、DELETE `/api/v1/push-tokens/{id}` | 手机登记/解绑自己的推送 token | 复用，C 负责客户端接入 |
 | GET/PUT `/api/v1/preferences` | 通知总开关和联系人设置 | 复用，C 模块需读取并遵守 |
 
-设备注册、心跳、事件写入、证据上传不经手机代理开放。手机 `/api/camera/*` 的控制限制保留；不得通过 `X-Forwarded-For` 等头绕过。原录像逐条提醒接口保留，但正式手机告警以统一接口为准。
+设备注册、心跳、事件写入、证据上传不经手机代理开放。手机 `/api/camera/*` 的控制限制保留；2026-11-05 新增受统一令牌保护的 `/api/monitoring/camera`，用于共享后端监护的连接、状态、启动和停止，详见 [监护契约](PHONE_CAMERA_MONITORING.md)；不得通过 `X-Forwarded-For` 等头绕过。原录像逐条提醒接口保留，但正式手机告警以统一接口为准。
 
 ## 告警字段及样例
 

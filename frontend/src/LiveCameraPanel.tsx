@@ -225,7 +225,7 @@ export function LiveCameraPanel({ ready = true, configurationError = '', onRetry
       </div></details>
       <details><summary>录像与存储</summary><div className="live-camera-option-content">
         {pollError && <p>连接已中断，以下为最近一次读取的录像与存储信息。</p>}
-        <p>启用录像后，随预览开始和停止；关闭工作台约 30 秒后停止。保存原始视频，无音频。</p>
+        <p>启用录像后，随后端监护开始和停止；关闭工作台后继续录像。保存原始视频，无音频。</p>
         {!recordingStatus ? <p>开启摄像头后读取存储配置。</p> : <dl>
           <div><dt>录像开关</dt><dd>{recordingStatus.enabled ? '已启用' : '未启用'}</dd></div>
           <div><dt>正在录制</dt><dd>{typeof status?.recording === 'boolean' ? status.recording ? '是' : '否' : '未下发'}</dd></div>
@@ -240,6 +240,6 @@ export function LiveCameraPanel({ ready = true, configurationError = '', onRetry
         </dl>}
       </div></details>
     </div>
-    <p className="live-camera-privacy">云端复核使用候选证据画面；关闭工作台约 30 秒后停止监测。</p>
+    <p className="live-camera-privacy">云端复核使用候选证据画面；关闭工作台后继续监测，点击停止或关闭后端服务后结束。</p>
   </section>;
 }

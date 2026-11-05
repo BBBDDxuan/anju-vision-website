@@ -12,6 +12,8 @@ import httpx
 from fastapi import Query, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 
+from .app_updates import app_updates_router
+from .camera_monitoring import monitoring_router
 from .alert_center import AlertCenter
 from .alert_sources import AlertSources
 from .errors import AppError
@@ -35,6 +37,8 @@ def create_app(settings=None, provider=None, *, safety_repo=None, safety_url=Non
         raise ValueError('Phone gateway must run separately from cloud mode')
     if not app.state.settings.lan_token:
         raise ValueError('Phone gateway requires APP_LAN_TOKEN')
+    app.include_router(monitoring_router(app.state.live_camera))
+    app.include_router(app_updates_router(ROOT / 'runtime' / 'app-updates'))
     owned_repo = safety_repo is None
     if owned_repo:
         sys.path.insert(0, str(ROOT / 'elder-safety/backend'))
@@ -118,7 +122,9 @@ def create_app(settings=None, provider=None, *, safety_repo=None, safety_url=Non
                 'notifications': {'configured': push_handler is not None,
                                   'delivery_verified': False},
                 'legacy_safety_worker': 'disabled_in_unified_launcher',
-                'camera_control': 'local_computer_only'}
+                'camera_control': 'authenticated_shared_backend',
+                'camera_monitoring': {'endpoint': '/api/monitoring/camera',
+                                      'lifetime': 'backend', 'shared_camera': True}}
 
     @app.get('/api/alerts')
     def alerts(limit: int = Query(100, ge=1, le=200), offset: int = Query(0, ge=0),

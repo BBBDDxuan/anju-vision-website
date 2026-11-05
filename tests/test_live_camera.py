@@ -94,25 +94,40 @@ def test_owned_worker_start_ping_and_stop(tmp_path,monkeypatch,config_prefix):
             assert kwargs.get("encoding") == "utf-8-sig"
         return original_read_text(path, *args, **kwargs)
     monkeypatch.setattr(live_camera.Path, "read_text", read_config)
+    heartbeat = threading.Event()
+    class Input(io.BytesIO):
+        def write(self, data):
+            result = super().write(data)
+            if data == b"ping\n":
+                heartbeat.set()
+            return result
     class Process:
         pid = 123
         def __init__(self,*args,**kwargs):
             assert kwargs["stderr"] == live_camera.subprocess.DEVNULL
             assert "RTSP_URL" not in kwargs["env"]
-            self.stdin,self.stdout = io.BytesIO(),io.BytesIO()
+            assert kwargs["env"]["SAFETY_CAMERA_CONNECTION_FILE"] == str(tmp_path/"runtime/camera-connection.json")
+            assert not any("rtsp://" in arg for arg in args[0])
+            self.stdin,self.stdout = Input(),io.BytesIO()
             self.done = False
         def poll(self): return 0 if self.done else None
         def wait(self,timeout): self.done=True;return 0
     monkeypatch.setattr(live_camera.subprocess,"Popen",Process)
     monkeypatch.setenv("RTSP_URL","rtsp://sensitive-source")
     monkeypatch.setattr(LiveCamera,"_read",lambda *args:None)
+    profile = tmp_path/"runtime/camera-connection.json"
+    profile.parent.mkdir()
+    profile.write_text('{"rtsp_url":"rtsp://synthetic-camera"}')
     controller = LiveCamera(tmp_path)
     assert controller.start()["state"] == "starting"
     owned = controller.process
+    # Starting the worker alone must keep it alive; no HTTP/status polling.
+    assert heartbeat.wait(timeout=1)
     controller.status()
     assert b"ping" in owned.stdin.getvalue()
     assert controller.stop()["state"] == "stopped"
     assert owned.done and controller.process is None
+    assert controller.heartbeat_stop.is_set()
 
 
 def test_worker_death_never_leaves_recording_marked_active(tmp_path):

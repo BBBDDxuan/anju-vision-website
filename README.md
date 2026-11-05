@@ -1,5 +1,15 @@
 # 安居视界 · 团队可复现运行包
 
+## 使用说明入口
+
+- [手机直接开启后端摄像头监护](docs/PHONE_CAMERA_MONITORING.md)：无需保持电脑网页或手机预览打开。
+
+- **第一次运行或配置 `.env`：[首次运行、环境配置与手机联调](docs/GETTING_STARTED.md)**。按安装、生成令牌、编辑配置、自检、启动的顺序操作。
+- [完整环境变量表](docs/c-notifications/ENV_CONFIGURATION.md)：根 `.env`、`elder-safety/.env`、`.env.phone`、GPU 路径、RTSP、预算和 Firebase。
+- [手机连接与网络排错](docs/a-backend/PHONE_LOCAL_SETUP.md)；[统一 API 契约](docs/api-contract-abc.md)。
+
+网页与手机联调使用 `start-phone.ps1`，已构建的前端随服务一起提供；`start.ps1` 仅用于电脑单机模式。真实配置在每台运行后端的电脑本机填写，队友拉取仓库后需要各自配置。
+
 本仓库包含网页前端、网页后端、实时摄像头、本地安全检测、模型权重、FFmpeg/FFprobe、团队运行配置和自检工具。按所有者要求，不上传视频、视频分片、录像或真实凭据。
 
 > **凭据仅在本机保存，不提交 Git。** 两份 `.env.example` 保留全部运行参数及可移植路径，
@@ -10,16 +20,19 @@
 
 团队约定后端只在本 website 仓库维护，App 仓库维护手机端。原有 `backend/`、`elder-safety/` 和 `frontend/` 目录不移动；手机和网页共用这一个运行中的电脑后端。
 
-完成下面的环境安装后，在仓库根目录执行：
+完成下面的环境安装后，首次在仓库根目录执行初始化，再编辑配置，最后启动：
 
 ```powershell
 .\.venv\Scripts\python.exe scripts/configure_phone.py
-.\start-phone.ps1 -Address '电脑当前局域网IPv4'
+# 按首次运行指南编辑 .env 和 elder-safety/.env，再启动。
+powershell -NoProfile -ExecutionPolicy Bypass -File .\start-phone.ps1 -Address '电脑当前局域网IPv4'
 ```
+
+**自定义 GPU 环境注意：** `configure_phone.py` 会重写 `SAFETY_PYTHON` 和 `SAFETY_MODEL_CONFIG`；执行后恢复自己的路径。已有配置日常启动无需重新初始化。
 
 电脑网页仍为 `http://127.0.0.1:8000/`；手机使用 `http://电脑局域网IP:8000` 和本机 `runtime/手机连接参数.txt` 的统一令牌。内部 8010 只监听电脑 loopback，手机不填第二个端口。旧 App 的两组服务字段填写同一地址和同一令牌。
 
-统一告警新增 `/api/alerts`、详情、证据、幂等确认和 changes 游标。实摄及上传录像只在现有视觉复核确认后进入正式中心。C 的独立通知/推送模块尚待接入，新启动器关闭旧安全 worker，避免候选或模拟通知另行发送；原安全数据和接口保留。
+统一告警新增 `/api/alerts`、详情、证据、幂等确认和 changes 游标。实摄及上传录像只在现有视觉复核确认后进入正式中心。仓库已包含独立通知/推送模块，需配置 Firebase、启用插件并完成 App 接线后分别验收实际送达。新启动器关闭旧安全 worker，避免候选或模拟通知另行发送；原安全数据和接口保留。
 
 唯一接口契约见 [docs/api-contract-abc.md](docs/api-contract-abc.md)，启动和网络见 [手机连接说明](docs/a-backend/PHONE_LOCAL_SETUP.md)，A 的改动、来源接点登记和待验收项见 [A 交接](docs/a-backend/ROLE_A_HANDOFF_20261104.md)。正式 B/C 联调应先使用 `start-phone.ps1`；`start.bat` 和前端开发脚本保留原电脑用途。
 
@@ -67,7 +80,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\setup-team.ps1 -Device cud
 1. 复制模板（`setup-team.ps1` 首次运行也会自动创建）：
 
 ```powershell
-Copy-Item .\elder-safety\.env.example .\elder-safety\.env
+if (-not (Test-Path -LiteralPath .\elder-safety\.env)) {
+    Copy-Item -LiteralPath .\elder-safety\.env.example -Destination .\elder-safety\.env
+}
 notepad .\elder-safety\.env
 ```
 
@@ -126,8 +141,9 @@ CPU/不同设备的数值与具体触发时间可能不同，脚本会据实际�
 ## 四、运行配置与移到其他目录
 
 - 根 `.env`：团队视觉服务、预算及网页配置；本机填写真实配置，不提交 API Key。
-- `elder-safety/.env`：摄像头和可选手机通知服务；**相机地址只对能访问相机所在局域网的电脑有效**。
+- `elder-safety/.env`：摄像头 RTSP、设备身份与内部安全服务；**相机地址只对能访问相机所在局域网的电脑有效**。
 - `elder-safety/ai-service/config.team.json`：已调好的检测阈值与可移植相对路径。
+- `.env.phone`：由 `configure_phone.py` 生成的手机统一访问令牌，仅本机保存。
 - `runtime/team-camera.json`：安装时生成的可移植相对路径配置；路径相对该 JSON 文件解析，属于运行产物，不提交到 Git。
 - `repro-assets.json`：模型、工具的大小及 SHA256。
 
@@ -183,18 +199,13 @@ Node.js 仅在需要修改前端时安装。仓库已提交构建后的 `fronten
 这两份 FFmpeg 工具来自不同年代的构建，本次不偷偷替换；媒体和扫描功能需按自检结果确认。
 来源、许可文本及分发说明见 `THIRD_PARTY_NOTICES.md`。
 
-## 七、可选手机通知后端
+## 七、手机告警与可选 Firebase 通知
 
-`elder-safety/backend/` 和 `elder-safety/scripts/` 也已附带。网页不是独立手机 App 源码包。
-若要在本机额外启动通知中继，可在已安装的网页环境安装其依赖：
+手机联调统一使用 `start-phone.ps1`，它同时管理 8000 共享入口和仅本机监听的 8010 内部安全服务，不需要额外手动启动旧安全后端。摄像头识别由电脑网页点击“开启摄像头”，测试时保持工作台打开。
 
-```powershell
-.\.venv\Scripts\python.exe -m pip install -r elder-safety/backend/requirements.txt
-$env:PYTHONPATH = "$PWD\elder-safety\backend"
-.\.venv\Scripts\python.exe -m uvicorn safety_backend.main:create_app --factory --host 127.0.0.1 --port 8010 --no-access-log
-```
+App 的地址和令牌见启动后生成的 `runtime/手机连接参数.txt`。正式通知插件位于 `backend/push_notifications/`，配置 `APP_ALERT_PUSH_HANDLER`、`APP_FCM_ENABLED`、`APP_FCM_CREDENTIALS`、`APP_FCM_ORIGIN` 前先阅读 [完整步骤](docs/GETTING_STARTED.md#7-可选真实-firebase-通知) 和 [推送接点](docs/c-notifications/A_INTEGRATION.md)。
 
-真实 Firebase 推送仍需要对应 Firebase 项目和服务凭据；本包不会伪造这些配置，也没有替队友验证手机通知。
+真实 Firebase 推送还需要 App 对应项目的客户端配置、设备登记、通知权限和业务接线；提供商接受不等于手机、后台或锁屏已经送达。真实凭据保留在本机，不提交到 Git。
 
 ## 八、提交前检查
 

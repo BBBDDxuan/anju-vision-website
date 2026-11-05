@@ -1,10 +1,12 @@
 # 手机连接共享后端
 
+首次安装先看 [首次运行与配置指南](../GETTING_STARTED.md)，需要逐项填写时看 [完整 `.env` 变量表](../c-notifications/ENV_CONFIGURATION.md)。
+
 以下命令在 website 仓库根目录执行。网页和 App 共用同一后端，App 仓库不再保留后端副本。唯一接口契约见 [api-contract-abc.md](../api-contract-abc.md)，版本：`2026-11-04.v1`。
 
 ## 启动与地址
 
-首次拉取先运行 `setup.bat` 安装环境，再执行 `.\.venv\Scripts\python.exe scripts/configure_phone.py` 生成本机令牌。已有凭据保留；备份位于忽略的 `runtime/`。脚本不启用付费模型网络，不连接摄像头。
+首次拉取先运行 `setup.bat` 安装环境，再执行 `.\.venv\Scripts\python.exe scripts/configure_phone.py` 生成本机令牌。已有凭据保留；备份位于忽略的 `runtime/`。脚本不启用付费模型网络，不连接摄像头。它会重写根 `.env` 的 `SAFETY_PYTHON` 和 `SAFETY_MODEL_CONFIG`；使用自定义 GPU 解释器或检测 JSON 时，初始化后恢复自己的值。日常启动无需重复初始化。
 
 日常双击 `start-phone.bat`，或者指定当前电脑的局域网 IPv4：
 
@@ -33,7 +35,7 @@
 
 旧 App 的连接检查、录像和兼容安全接口可复用；这不表示旧 APK 已接入统一告警。B 必须将正式列表改接 `/api/alerts`，C 使用相同数据流，不能继续把旧 `/api/v1/events` 候选当危险通知。
 
-白名单每次启动加入当前局域网 IP，禁止代理头改写客户端 IP。手机无法借代理开启电脑实时摄像头。实时 AI 仍在电脑网页手动开启；实时画面预览另行验收。
+白名单每次启动加入当前局域网 IP，禁止代理头改写客户端 IP。更新后的 App 使用受令牌保护的 `/api/monitoring/camera` 提交连接并开启后端监护，无需电脑网页保持打开。旧本机预览接口仍拒绝手机访问。详见 [监护使用说明](../PHONE_CAMERA_MONITORING.md)。
 
 ## 网络与防火墙
 
@@ -58,7 +60,7 @@ New-NetFirewallRule -DisplayName 'Anju phone API 8000' -Direction Inbound -Actio
 
 新启动器关闭旧安全 worker 的复核、通知、升级和离线监测任务，保留内部数据和设备 API。正式通知由统一 outbox 和 C 的模块承担，避免旧 worker 并发发送候选或模拟通知。若单独运行旧 safety 入口，行为仍是旧实现，不能同时用于此次正式验收。
 
-推送插件未配置时 `/api/connection.notifications.configured=false`；告警照常持久化并可查询，新告警等待接入。首次导入的历史告警不会批量推送。现有插件接点仍为整体回执，C 的逐设备结果、安装实例和 token 轮换还需冻结后适配。提供商接收与手机、后台或锁屏送达分别验收。
+推送插件未配置时 `/api/connection.notifications.configured=false`；告警照常持久化并可查询，新告警等待接入。首次导入的历史告警不会批量推送。仓库已提供独立推送模块及逐 token 接受记录，启用配置见 [推送接点](../c-notifications/A_INTEGRATION.md)。插件整体回执和逐 token 接受记录不等同于服务端完整安装实例所有权管理。提供商接收与手机、后台或锁屏送达分别验收。
 
 GPU、模型文件和媒体工具可独立自检：
 
@@ -75,7 +77,7 @@ GPU、模型文件和媒体工具可独立自检：
 | 超时、拒绝连接 | 地址、进程、监听、防火墙或终端隔离 |
 | `400 Invalid host header` | 当前地址未加入主机白名单，更新地址后重启 |
 | `401 PHONE_AUTH_REQUIRED` | 缺少或错误统一令牌，包括图片/播放器请求 |
-| `403` 摄像头控制拒绝 | 保留的本机控制限制，去电脑网页开启 AI |
+| `403` 摄像头控制拒绝 | 更新 App 使用 `/api/monitoring/camera`，旧本机预览接口仍受限 |
 | `503 SAFETY_SERVICE_UNAVAILABLE` | 内部 8010 不可用，检查内部服务日志 |
 | `analysis.ready=false` | Key、网络开关或计费配置未就绪，读取 `analysis.error` |
 | `sources.*.ready=false` | 来源同步失败，不撤销已有告警；检查来源库 |

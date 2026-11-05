@@ -1,4 +1,4 @@
-"""Loopback-only, opt-in live camera preview. No camera secrets reach HTTP responses."""
+"""Backend-owned live camera monitoring with a loopback-only preview. No camera secrets reach HTTP responses."""
 from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor
 from uuid import uuid4
@@ -41,6 +41,8 @@ class LiveCamera:
         self.review_seen = set()
         self.review_error = None
         self.lock = threading.RLock()
+        self.control_lock = threading.RLock()
+        self.heartbeat_stop = threading.Event()
         self.process = self.thread = None
         self.frame = None
         self.received = None
@@ -69,7 +71,7 @@ class LiveCamera:
                 pass
 
     def start(self):
-        with self.lock:
+        with self.control_lock, self.lock:
             if self.process and self.process.poll() is None:
                 return self.status()
             self.frame, self.received = None, None
@@ -89,6 +91,10 @@ class LiveCamera:
                 env.pop(key, None)
             env["PATH"] = os.pathsep.join([home, str(Path(home)/"Library/bin"), str(Path(home)/"Scripts"), env.get("PATH", "")])
             env["PYTHONUTF8"] = "1"
+            env.pop("SAFETY_CAMERA_CONNECTION_FILE", None)
+            profile = self.root / "runtime/camera-connection.json"
+            if profile.is_file():
+                env["SAFETY_CAMERA_CONNECTION_FILE"] = str(profile)
             self.review_error = None
             self.review_session = "live_" + uuid4().hex
             self.review_seen = set()
@@ -106,7 +112,21 @@ class LiveCamera:
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
             self.thread = threading.Thread(target=self._read, args=(self.process,), daemon=True, name="camera-preview-reader")
             self.thread.start()
+            self.heartbeat_stop = threading.Event()
+            threading.Thread(target=self._keep_alive, args=(self.process, self.heartbeat_stop),
+                             daemon=True, name="camera-backend-heartbeat").start()
             return dict(self.info)
+
+    def _keep_alive(self, process, stopped):
+        # The backend owns the worker lifetime, even without any HTTP clients.
+        # The worker watchdog still stops an orphan if the backend disappears.
+        while not stopped.is_set():
+            with self.lock:
+                if self.process is not process or process.poll() is not None:
+                    return
+                self._send(b"ping")
+            if stopped.wait(5):
+                return
 
     def _read(self, process):
         try:
@@ -204,6 +224,11 @@ class LiveCamera:
             return self.frame
 
     def stop(self):
+        with self.control_lock:
+            return self._stop_owned()
+
+    def _stop_owned(self):
+        self.heartbeat_stop.set()
         with self.lock:
             process = self.process
             self._send(b"stop")
