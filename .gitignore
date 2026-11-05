@@ -58,3 +58,6 @@ config.camera-gpu.json
 # Owner request: no camera videos or video chunks in Git.
 /examples/repro-video/
 *.part[0-9][0-9]
+
+# Local detector test output; never publish generated evidence.
+/elder-safety/ai-service/var/
