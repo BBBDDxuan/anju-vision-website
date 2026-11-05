@@ -1,10 +1,12 @@
 # 手机连接共享后端
 
+首次安装先看 [首次运行与配置指南](../GETTING_STARTED.md)，需要逐项填写时看 [完整 `.env` 变量表](../c-notifications/ENV_CONFIGURATION.md)。
+
 以下命令在 website 仓库根目录执行。网页和 App 共用同一后端，App 仓库不再保留后端副本。唯一接口契约见 [api-contract-abc.md](../api-contract-abc.md)，版本：`2026-11-04.v1`。
 
 ## 启动与地址
 
-首次拉取先运行 `setup.bat` 安装环境，再执行 `.\.venv\Scripts\python.exe scripts/configure_phone.py` 生成本机令牌。已有凭据保留；备份位于忽略的 `runtime/`。脚本不启用付费模型网络，不连接摄像头。
+首次拉取先运行 `setup.bat` 安装环境，再执行 `.\.venv\Scripts\python.exe scripts/configure_phone.py` 生成本机令牌。已有凭据保留；备份位于忽略的 `runtime/`。脚本不启用付费模型网络，不连接摄像头。它会重写根 `.env` 的 `SAFETY_PYTHON` 和 `SAFETY_MODEL_CONFIG`；使用自定义 GPU 解释器或检测 JSON 时，初始化后恢复自己的值。日常启动无需重复初始化。
 
 日常双击 `start-phone.bat`，或者指定当前电脑的局域网 IPv4：
 
@@ -58,7 +60,7 @@ New-NetFirewallRule -DisplayName 'Anju phone API 8000' -Direction Inbound -Actio
 
 新启动器关闭旧安全 worker 的复核、通知、升级和离线监测任务，保留内部数据和设备 API。正式通知由统一 outbox 和 C 的模块承担，避免旧 worker 并发发送候选或模拟通知。若单独运行旧 safety 入口，行为仍是旧实现，不能同时用于此次正式验收。
 
-推送插件未配置时 `/api/connection.notifications.configured=false`；告警照常持久化并可查询，新告警等待接入。首次导入的历史告警不会批量推送。现有插件接点仍为整体回执，C 的逐设备结果、安装实例和 token 轮换还需冻结后适配。提供商接收与手机、后台或锁屏送达分别验收。
+推送插件未配置时 `/api/connection.notifications.configured=false`；告警照常持久化并可查询，新告警等待接入。首次导入的历史告警不会批量推送。仓库已提供独立推送模块及逐 token 接受记录，启用配置见 [推送接点](../c-notifications/A_INTEGRATION.md)。插件整体回执和逐 token 接受记录不等同于服务端完整安装实例所有权管理。提供商接收与手机、后台或锁屏送达分别验收。
 
 GPU、模型文件和媒体工具可独立自检：
 
