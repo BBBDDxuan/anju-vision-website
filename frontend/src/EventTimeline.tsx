@@ -36,9 +36,11 @@ type Props = {
   references: (ids: string[]) => ReactNode;
   confidenceOf: (event: TimelineEvent) => ConfidenceLevel;
   entityType: (id: string) => string | undefined;
+  selectedEventId?: string | null;
+  onSelect?: (event: TimelineEvent) => void;
 };
 
-export function EventTimeline({ rows, isMock, label, actionName, references, confidenceOf, entityType }: Props) {
+export function EventTimeline({ rows, isMock, label, actionName, references, confidenceOf, entityType, selectedEventId, onSelect }: Props) {
   const title = (e: TimelineEvent) => `${e.epistemic_type === 'inferred' ? '可能：' : ''}${eventDescription(e,label,entityType,actionName)}`;
   const status = (e: TimelineEvent) => isMock ? '测试模拟记录 · 未执行AI识别' : e.epistemic_type === 'inferred' ? '上下文推测 · 尚未证实' : e.model_score == null ? confidenceOf(e) === 'high' ? '多时刻画面证据 · 按证据分级' : '画面证据 · 按证据分级' : '模型观察 · 可点击时间回看证据';
   const body = (e: TimelineEvent) => <><p>{title(e)}</p><small>{status(e)}</small><div>{references(e.evidence_ids)}</div>{e.uncertainty_reasons.length > 0 && <small className="reason">{visibleText(e.uncertainty_reasons.join('；'))}</small>}</>;
@@ -49,8 +51,8 @@ export function EventTimeline({ rows, isMock, label, actionName, references, con
     const level = row.members.some(source => confidenceOf(source) === 'hidden') ? 'hidden'
       : row.members.some(source => confidenceOf(source) === 'medium') ? 'medium' : 'high';
     if (level === 'hidden') return null;
-    return <article className={`event confidence-${level}${isPriorityEvent(e) ? ' priority-event' : ''}${grouped ? ' event-group' : ''}`} key={row.id} data-source-count={row.members.length} data-confidence={level}>
-      <time>{stamp(e.start_ms)}{grouped && <span className="group-end">至 {stamp(last)}</span>}</time>
+    return <article className={`event confidence-${level}${isPriorityEvent(e) ? ' priority-event' : ''}${grouped ? ' event-group' : ''}${row.members.some(member => member.id === selectedEventId) ? ' is-selected' : ''}`} key={row.id} data-event-id={e.id} data-source-count={row.members.length} data-confidence={level}>
+      <time>{onSelect ? <button className="event-select" aria-label={`选中事件 ${stamp(e.start_ms)}`} aria-pressed={row.members.some(member => member.id === selectedEventId)} onClick={() => onSelect(e)}>{stamp(e.start_ms)}</button> : stamp(e.start_ms)}{grouped && <span className="group-end">至 {stamp(last)}</span>}</time>
       <div>{!grouped ? body(e) : <>
         <p>{mixedFall ? `可能：${eventDescription(e,label,entityType,actionName)}` : row.kind === 'repeated_observations' ? `多次看见：${eventDescription(e,label,entityType,actionName)}` : title(e)}</p>
         <small>{row.kind === 'repeated_observations' ? `${row.members.length}条采样观察 · 合并展示` : row.kind === 'consecutive_actions' ? `${row.members.length}条相邻行为记录 · 合并展示` : `${row.members.length}条共享证据的重复记录 · 合并展示`}</small>

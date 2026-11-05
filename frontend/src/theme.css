@@ -458,17 +458,12 @@ footer { color: #607769; font-size: 12px; line-height: 1.9; gap: 12px; }
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
-.intro > p.camera-intro-description { margin: 10px 0 0; color: #536c60; font-size: 14px; line-height: 1.9; }
 /* Give the preview the available desktop width with a compact status column.
    Short windows may scroll; the 16:9 picture stays uncropped. */
 @media (min-width: 1025px) and (min-height: 650px) {
   .camera-shell .app-body { min-height: 100dvh; display: flex; flex-direction: column; }
   .camera-shell .topbar { flex: 0 0 72px; }
   .camera-workspace { flex: 1; min-height: 0; width: 100%; max-width: none; display: flex; flex-direction: column; padding: 18px 24px 14px; }
-  .camera-workspace .camera-intro { flex: 0 0 auto; align-items: center; gap: 24px; margin: 0 0 14px; }
-  .camera-intro .workspace-context { margin-bottom: 3px; line-height: 1.5; }
-  .camera-intro h1 { margin: 0; font-size: 28px; line-height: 1.4; }
-  .camera-intro-description { margin: 0; max-width: 36em; font-size: 13px; }
   .camera-workspace > .live-camera-panel { display: flex; flex-direction: column; flex: none; min-height: 0; margin: 0; }
   .camera-workspace .live-camera-heading { flex: 0 0 auto; min-height: 72px; padding: 12px 20px; }
   .camera-workspace .live-camera-panel > .error { flex: 0 0 auto; }
