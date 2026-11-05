@@ -1,0 +1,704 @@
+/* Scoped workspace finish. The existing viewport, task and media layout remains intact. */
+.av-workspace-shell {
+  --ink: var(--color-ink);
+  --muted: var(--color-muted);
+  --canvas: var(--color-paper);
+  --surface: var(--color-surface);
+  --line: var(--color-line);
+  --green: var(--color-sage);
+  --soft: var(--color-soft);
+  --color-text-primary: var(--color-ink);
+  --color-text-secondary: var(--color-muted);
+  --ws-accent: var(--color-evergreen);
+  --ws-warning: var(--color-warning);
+  --ws-danger: var(--color-danger);
+  background: var(--canvas);
+  color: var(--ink);
+  color-scheme: light;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.av-workspace-shell :is(button, input, select, textarea) { font-family: inherit; }
+.av-workspace-shell :is(button, a, input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--ws-accent);
+  outline-offset: 3px;
+}
+.av-workspace-shell :is(input, select, textarea) { accent-color: var(--ws-accent); }
+.av-workspace-shell button { transition: background 180ms ease, color 180ms ease, border-color 180ms ease, box-shadow 180ms ease; }
+.av-workspace-shell button:disabled { opacity: .5; }
+.av-workspace-shell :is(h1, h2, h3) { color: var(--ink); }
+.av-workspace-shell :is(.muted, .empty) { color: var(--muted); }
+.av-workspace-shell .app-body { background: var(--canvas); }
+.av-workspace-shell :is(.workspace-sidebar-middle, .analysis-player-column, .workspace-inspector-scroll) {
+  scrollbar-color: #c6cfc3 transparent;
+  scrollbar-width: thin;
+}
+
+/* Navigation forms a quiet frame around the working area. */
+.av-workspace-shell .sidebar {
+  background: #fbfcf9;
+  color: var(--ink);
+  border-color: var(--line);
+  box-shadow: none;
+}
+.av-workspace-shell .av-brand { color: var(--ink); }
+.av-workspace-shell .av-brand > svg { color: var(--ws-accent); }
+.av-workspace-shell .av-brand strong { font-size: 20px; letter-spacing: 1px; }
+.av-workspace-shell .av-brand small { color: var(--muted); font-size: 8px; letter-spacing: 2.7px; }
+.av-workspace-shell .sidebar-caption { color: var(--muted); font-size: 11px; letter-spacing: 1.2px; margin-bottom: 13px; }
+.av-workspace-shell .workspace-link {
+  color: #607268;
+  background: transparent;
+  border-color: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 8px;
+  gap: 11px;
+}
+.av-workspace-shell .workspace-link.is-active {
+  color: #354f40;
+  background: #eaf0e6;
+  border-color: #dde6d6;
+  box-shadow: none;
+}
+.av-workspace-shell .workspace-link:not(.is-active):hover { color: var(--ink); background: #f0f3ec; }
+.av-workspace-shell .workspace-link > i { background: var(--ws-accent); width: 4px; height: 4px; }
+.av-workspace-shell .sidebar-bottom { border-color: var(--line); }
+.av-workspace-shell .av-sidebar-note { color: var(--ws-accent); gap: 9px; }
+.av-workspace-shell .av-sidebar-note p { color: var(--muted); font-size: 11px; line-height: 1.8; }
+.av-workspace-shell .av-sidebar-note small { color: var(--muted); font-size: 10px; }
+.av-workspace-shell :is(.av-back-home, .help-button) { color: #62756a; min-height: 40px; font-size: 12px; border-radius: 7px; }
+.av-workspace-shell :is(.av-back-home, .help-button):hover { color: var(--ink); background: var(--soft); }
+.av-workspace-shell .av-recording-library > summary { color: var(--muted); font-size: 11px; }
+.av-workspace-shell .av-recording-library > summary > span { background: #edf1e9; color: #536b5b; padding: 3px 7px; }
+.av-workspace-shell .library-search { background: #fff; color: var(--muted); border-color: var(--line); min-height: 40px; border-radius: 7px; }
+.av-workspace-shell .library-search input { color: var(--ink); font-size: 12px; background: transparent; }
+.av-workspace-shell .library-search input::placeholder { color: #718175; }
+.av-workspace-shell .library-item { color: var(--ink); min-height: 58px; gap: 9px; border-radius: 8px; }
+.av-workspace-shell .library-item strong { font-size: 12px; font-weight: 500; }
+.av-workspace-shell .library-item small { color: var(--muted); font-size: 10px; }
+.av-workspace-shell .library-item.selected { background: #edf2e9; border-color: #dce5d5; }
+.av-workspace-shell .library-item:hover { background: #f0f3ed; }
+.av-workspace-shell .library-icon { background: #ecf0e7; color: #627d68; width: 28px; height: 32px; }
+.av-workspace-shell .library-delete { color: #77877b; min-width: 28px; min-height: 32px; top: 12px; }
+.av-workspace-shell .library-delete:hover { background: #f4e9e4; color: var(--ws-danger); }
+.av-workspace-shell .library-empty { color: var(--muted); font-size: 12px; padding-block: 14px; }
+.av-workspace-shell .topbar { background: #fbfcf9ed; border-color: var(--line); box-shadow: none; }
+.av-workspace-shell .breadcrumb { color: var(--muted); font-size: 12px; }
+.av-workspace-shell .breadcrumb strong { color: var(--ink); font-weight: 500; }
+.av-workspace-shell .breadcrumb > span { color: #9aa89b; }
+.av-workspace-shell .av-workspace-top-right { gap: 18px; }
+.av-workspace-shell .model-status { color: var(--muted); font-size: 11px; }
+.av-workspace-shell .model-status code { color: #5b7062; background: #f0f3ec; border-color: #e2e8dd; font-size: 10px; }
+.av-workspace-shell .status-dot { background: #a58a60; }
+.av-workspace-shell .status-dot.ready { background: #6d8d70; box-shadow: 0 0 0 3px #6d8d7012; }
+.av-workspace-shell .status-dot.error { background: #b56f5e; box-shadow: 0 0 0 3px #b56f5e12; }
+.av-workspace-shell .av-workspace-avatar { background: #e8eee1; border-color: #dce4d4; color: #536b58; width: 31px; height: 31px; }
+.av-workspace-shell .icon-button { color: #5e7565; min-width: 40px; min-height: 40px; border-radius: 7px; }
+.av-workspace-shell .icon-button:hover { background: var(--soft); }
+
+/* Controls and panel surfaces share one restrained palette. */
+.av-workspace-shell .panel { background: #fff; border-color: var(--line); border-radius: 12px; box-shadow: 0 3px 16px #253a3304; }
+.av-workspace-shell .panel-head { border-color: var(--line); }
+.av-workspace-shell .panel-head strong { color: var(--ink); font-size: 15px; font-weight: 600; }
+.av-workspace-shell .panel-head .muted { font-size: 11px; }
+.av-workspace-shell :is(.primary, .live-camera-controls > button) {
+  background: var(--ws-accent);
+  color: #fff;
+  border: 1px solid var(--ws-accent);
+  border-radius: 7px;
+  min-height: 42px;
+  padding: 10px 17px;
+  font-size: 12px;
+  font-weight: 500;
+  box-shadow: none;
+}
+.av-workspace-shell :is(.primary, .live-camera-controls > button):hover { background: #405c4d; border-color: #405c4d; }
+.av-workspace-shell input:not([type=checkbox]):not([type=range]),
+.av-workspace-shell select,
+.av-workspace-shell textarea {
+  color: var(--ink);
+  background: #fff;
+  border-color: var(--line);
+  border-radius: 7px;
+  font-size: 13px;
+}
+.av-workspace-shell input::placeholder { color: #738275; }
+.av-workspace-shell .text-button { color: #536e5e; font-size: 12px; }
+.av-workspace-shell .tag { background: #edf2e8; border-color: #dde5d6; color: #536e57; font-size: 10px; }
+.av-workspace-shell .tag.amber { background: #f7f1e6; border-color: #e9ddc7; color: var(--ws-warning); }
+.av-workspace-shell .reference { background: #edf2e9; color: #506c56; border-color: #dce5d4; border-radius: 5px; font-size: 11px; min-height: 30px; }
+.av-workspace-shell .reference[aria-pressed=true] { background: #e1ebd9; border-color: #a8bca0; color: #344f39; }
+.av-workspace-shell .error { color: #985344; background: #faf1ed; border: 1px solid #ead7cf; font-size: 12px; line-height: 1.8; }
+.av-workspace-shell :is(.configuration, .warning) { color: var(--ws-warning); background: #f8f4e9; border-color: #e7dfcb; font-size: 12px; line-height: 1.8; }
+.av-workspace-shell :is(.global-notice, .cloud-demo-note, .mock-banner) { color: #536b57; background: #eef3e8; border-color: #dce5d3; font-size: 11px; line-height: 1.8; }
+.av-workspace-shell .privacy { color: var(--muted); font-size: 11px; }
+.av-workspace-shell .camera-workspace-note { color: var(--muted); font-size: 12px; margin-bottom: 14px; }
+.av-workspace-shell .workspace-notices .configuration { padding: 8px 12px; margin-bottom: 10px; font-size: 11px; }
+
+/* Playback stays visually distinct from the paper-like controls around it. */
+.av-workspace-shell .video-panel .panel-head { background: #fff; padding: 14px 18px; gap: 10px; }
+.av-workspace-shell .video-panel .panel-head strong { color: var(--ink); font-size: 15px; }
+.av-workspace-shell .workspace-task-state { color: #5b715e; background: #f1f4ed; border-color: #e2e8db; border-radius: 6px; font-size: 11px; padding: 6px 9px; }
+.av-workspace-shell :is(.recording-import, .delete-video-button) { color: #5c7261; background: #fafbf8; border-color: var(--line); font-size: 11px; min-height: 36px; padding: 7px 10px; }
+.av-workspace-shell .recording-import:hover { background: #edf2e7; }
+.av-workspace-shell .delete-video-button:hover { color: var(--ws-danger); background: #f8efea; border-color: #e7d5cc; }
+.av-workspace-shell .video-select { padding: 11px 16px; gap: 9px; color: var(--muted); border-color: var(--line); }
+.av-workspace-shell .video-select label { color: var(--muted); font-size: 11px; }
+.av-workspace-shell .video-select select { font-size: 12px; padding: 9px; min-height: 38px; background: #fbfcf8; }
+.av-workspace-shell .video-panel > video { background: #17251e; border-color: #23392a; }
+.av-workspace-shell .recording-controls { border-color: var(--line); padding: 10px 16px; gap: 9px; }
+.av-workspace-shell .playback-clock { color: #536e5b; font-size: 12px; }
+.av-workspace-shell .playback-clock > span:last-child { color: var(--muted); }
+.av-workspace-shell .time-jump { border-color: var(--line); border-radius: 6px; }
+.av-workspace-shell .time-jump input { background: #fbfcf8; color: #536b5b; min-height: 36px; border-radius: 0; font-size: 11px; }
+.av-workspace-shell .time-jump button { background: #f0f4ea; color: #536d58; border-color: var(--line); min-height: 36px; padding-inline: 11px; font-size: 11px; }
+.av-workspace-shell .empty-video.upload-dropzone { background: #f4f6ef; color: var(--ink); border-color: var(--line); gap: 12px; }
+.av-workspace-shell .empty-video.upload-dropzone:hover:not(:disabled) { background: #edf2e6; }
+.av-workspace-shell .empty-video.upload-dropzone.is-dragging { background: #e5eddd; box-shadow: inset 0 0 0 2px #9db395; }
+.av-workspace-shell .empty-video strong { color: var(--ink); font-size: 21px; font-weight: 500; letter-spacing: .1px; }
+.av-workspace-shell .empty-video small { color: var(--muted); font-size: 12px; line-height: 1.8; }
+.av-workspace-shell .empty-video .empty-upload-icon { color: #688268; background: #e8eedf; border-color: #d9e2d0; width: 56px; height: 56px; border-radius: 14px; }
+.av-workspace-shell .empty-video .empty-upload-action { background: var(--ws-accent); color: #fff; border-radius: 7px; min-height: 42px; font-size: 12px; padding: 11px 22px; }
+.av-workspace-shell .upload-progress { color: var(--muted); background: #f5f7f0; border-color: var(--line); font-size: 12px; }
+.av-workspace-shell .upload-progress > div { color: var(--muted); font-size: 12px; }
+.av-workspace-shell .workspace-seek-status { color: #5f7864; font-size: 11px; padding: 3px 16px 10px; }
+.av-workspace-shell .evidence-timebar { padding: 10px 16px 6px; }
+.av-workspace-shell .evidence-timebar-track { background: #e6ebdf; height: 7px; }
+.av-workspace-shell .timebar-coverage { background: #98b19a; }
+.av-workspace-shell .timebar-evidence { background: #b78d64; }
+.av-workspace-shell .timebar-evidence.is-selected { background: #a87445; box-shadow: 0 0 0 1px #a8744540; }
+.av-workspace-shell .timebar-cursor { background: #354d3a; }
+.av-workspace-shell .evidence-timebar-track:focus-within { outline-color: var(--ws-accent); }
+.av-workspace-shell .timebar-labels { color: #61735f; font-size: 11px; }
+.av-workspace-shell .timebar-labels > span { color: #7b664d; font-size: 10px; }
+.av-workspace-shell .timebar-markers button { background: #f5f7ef; border-color: var(--line); color: #5c715f; font-size: 11px; min-height: 34px; }
+.av-workspace-shell .timebar-markers button[aria-pressed=true] { background: #f3eade; border-color: #c9ac87; color: #805c38; }
+.av-workspace-shell .timebar-markers > span { color: var(--muted); font-size: 11px; }
+
+/* The analysis drawer uses compact, readable rows instead of bright layers. */
+.av-workspace-shell .workspace-task-tray { border-color: var(--line); }
+.av-workspace-shell .workspace-task-tray[open] { background: #fafbf7; }
+.av-workspace-shell .workspace-task-tray > summary { color: #536b58; font-size: 12px; padding: 13px 16px; }
+.av-workspace-shell .workspace-task-tray > summary > span:last-child { color: var(--muted); font-size: 11px; }
+.av-workspace-shell .workspace-task-tray .video-analysis { padding: 0 16px 14px; }
+.av-workspace-shell .analysis-mode-tabs { background: #f0f3eb; border-color: var(--line); padding: 3px; border-radius: 7px; }
+.av-workspace-shell .analysis-mode-tabs button { color: #617363; background: transparent; font-size: 12px; min-height: 36px; border-radius: 5px; }
+.av-workspace-shell .analysis-mode-tabs button[aria-pressed=true] { color: #405c45; background: #fff; border-color: #dce5d3; box-shadow: 0 1px 4px #253a3308; }
+.av-workspace-shell :is(.analysis-method, .analysis-task-note, .analysis-job-status, .analysis-job-progress) { color: var(--muted); font-size: 11px; line-height: 1.8; }
+.av-workspace-shell .workspace-task-tray .analysis-bar { gap: 8px; }
+.av-workspace-shell .workspace-task-tray .analysis-bar button { font-size: 12px; min-height: 40px; }
+.av-workspace-shell :is(.analysis-details, .activity-summary) { color: #5f7361; background: #f2f5ed; border-color: var(--line); font-size: 12px; border-radius: 7px; }
+.av-workspace-shell .analysis-details summary { color: #536e58; font-size: 12px; }
+.av-workspace-shell :is(.analysis-details summary > span, .analysis-plan, .activity-plan) { color: var(--muted); font-size: 11px; line-height: 1.8; }
+.av-workspace-shell .safety-scan-progress { color: var(--muted); background: #f3f6ef; border-color: var(--line); }
+.av-workspace-shell .safety-scan-progress dt { color: var(--muted); font-size: 11px; }
+.av-workspace-shell .safety-scan-progress dd { color: var(--ink); font-size: 13px; }
+.av-workspace-shell .coverage > div:first-child { color: var(--muted); font-size: 11px; }
+.av-workspace-shell .coverage strong { color: #5b775f; }
+.av-workspace-shell .coverage-track { background: #e7eddf; }
+.av-workspace-shell .coverage-track > span { background: #829f7c; }
+.av-workspace-shell .coverage-track > span.static-screened { background: #b5beb0; }
+.av-workspace-shell .coverage-labels { color: var(--muted); font-size: 10px; }
+.av-workspace-shell progress { accent-color: #809c76; }
+
+/* Inspector tabs, events, question answering and human review. */
+.av-workspace-shell .analysis-inspector { background: #fff; border-color: var(--line); border-radius: 12px; box-shadow: 0 3px 16px #253a3304; }
+.av-workspace-shell .workspace-inspector-tabs { background: #fbfcf9; border-color: var(--line); padding: 5px 10px 0; }
+.av-workspace-shell .workspace-inspector-tabs button { color: #687a69; padding: 13px 4px; font-size: 12px; min-height: 48px; background: transparent; }
+.av-workspace-shell .workspace-inspector-tabs button[aria-selected=true] { color: #3f5c44; border-bottom-color: #6c8664; background: transparent; }
+.av-workspace-shell .workspace-inspector-tabs button:hover { color: var(--ink); background: #f1f4eb; }
+.av-workspace-shell .workspace-inspector-scroll { padding: 18px 17px; }
+.av-workspace-shell .inspector-section-heading { margin-bottom: 16px; }
+.av-workspace-shell .inspector-section-heading h2 { font-size: 17px; font-weight: 500; letter-spacing: -.2px; }
+.av-workspace-shell .inspector-section-heading > span { color: var(--muted); font-size: 11px; }
+.av-workspace-shell .workspace-tool-tabs { gap: 7px; margin-bottom: 16px; }
+.av-workspace-shell .workspace-tool-tabs button { color: #627662; background: #f7f9f2; border-color: var(--line); font-size: 12px; min-height: 40px; border-radius: 7px; }
+.av-workspace-shell .workspace-tool-tabs button[aria-pressed=true] { color: #405d43; background: #eaf0e2; border-color: #cbd9bf; }
+.av-workspace-shell .timeline-panel { background: transparent; border: 0; box-shadow: none; }
+.av-workspace-shell .event-categories { margin-bottom: 16px; }
+.av-workspace-shell .event-categories button { color: #647760; background: #f7f9f2; border-color: var(--line); min-height: 36px; padding: 7px 10px; font-size: 11px; }
+.av-workspace-shell .event-categories button[aria-pressed=true] { color: #3c593f; background: #e9f0df; border-color: #cad9bc; }
+.av-workspace-shell .confidence-legend { color: var(--muted); background: transparent; font-size: 10px; }
+.av-workspace-shell .confidence-legend details,
+.av-workspace-shell .confidence-legend details[open] { color: var(--muted); background: #f6f8f1; border-color: var(--line); font-size: 11px; }
+.av-workspace-shell .high-dot { background: #769674; }
+.av-workspace-shell .medium-dot { background: #b49461; }
+.av-workspace-shell .event-tools { gap: 9px; }
+.av-workspace-shell .event-search { background: #fff; border-color: var(--line); color: #73836f; min-height: 40px; }
+.av-workspace-shell .event-search input { background: transparent; color: var(--ink); font-size: 12px; }
+.av-workspace-shell .event-tools select { font-size: 12px; min-height: 38px; padding: 8px; background: #fbfcf8; color: #61765f; }
+.av-workspace-shell .event-filters button { background: #fff; color: #627660; border-color: var(--line); font-size: 11px; padding: 7px 9px; min-height: 34px; }
+.av-workspace-shell .event-filters button.active { background: #edf3e5; color: #46603e; border-color: #cfdec1; }
+.av-workspace-shell .event-fold-controls { color: var(--muted); font-size: 11px; margin-block: 14px; }
+.av-workspace-shell .event-fold-controls button { color: #647660; background: #f6f8ef; border-color: var(--line); min-height: 32px; padding: 6px 8px; font-size: 11px; }
+.av-workspace-shell .event { background: #fcfdf9; border-color: #e3e9dd; border-radius: 9px; padding: 13px 11px; margin-block: 10px; gap: 10px; }
+.av-workspace-shell .event.is-selected { background: #f0f5e8; border-color: #a9be9b; }
+.av-workspace-shell .event.priority-event { background: #fbf4ee; border-color: #ead9cb; }
+.av-workspace-shell .event:has(.reference[aria-pressed=true]) { background: #eef4e6; outline: 1px solid #aec6a0; outline-offset: 1px; }
+.av-workspace-shell .event p { color: var(--ink); font-size: 13px; line-height: 1.8; }
+.av-workspace-shell .event :is(small, time) { color: var(--muted); font-size: 11px; line-height: 1.8; }
+.av-workspace-shell .event::before { background: #d9e2d1; }
+.av-workspace-shell .event::after { background: #8ca980; border-color: #fff; }
+.av-workspace-shell .event.confidence-high > div { border-color: #cadcbd; }
+.av-workspace-shell .event.confidence-medium > div { border-color: #e5d3ae; }
+.av-workspace-shell .event.confidence-medium::after { background: #b99a67; }
+.av-workspace-shell .event.priority-event::after { background: #ac7463; }
+.av-workspace-shell .event.priority-event > div { border-color: #d6afa1; }
+.av-workspace-shell .event .reference { font-size: 10px; padding: 6px 8px; }
+.av-workspace-shell .event > .tag { color: #617d56; background: #edf3e5; font-size: 10px; }
+.av-workspace-shell .event.confidence-medium .tag { color: var(--ws-warning); background: #f7f0e1; }
+.av-workspace-shell .event.priority-event .tag { color: #965b48; background: #f5e5dc; }
+.av-workspace-shell .event-select { color: #5d7b53; border-bottom-color: #a4bb97; font-size: 11px; }
+.av-workspace-shell .event-select[aria-pressed=true] { color: #36552d; }
+.av-workspace-shell .event-group-sources { color: var(--muted); font-size: 11px; }
+.av-workspace-shell .event-source { color: #61755d; background: #f1f5e9; border-color: var(--line); }
+.av-workspace-shell .pagination { color: var(--muted); border-color: var(--line); font-size: 11px; gap: 7px; }
+.av-workspace-shell .pagination button { background: #f5f8ef; color: #62795b; border-color: var(--line); min-height: 34px; font-size: 11px; }
+.av-workspace-shell .empty { color: var(--muted); font-size: 13px; line-height: 1.9; }
+.av-workspace-shell .workspace-alerts { border-color: var(--line); }
+.av-workspace-shell .workspace-alerts > summary { color: #5f7659; font-size: 12px; }
+.av-workspace-shell .answer-panel { color: var(--ink); background: transparent; border: 0; box-shadow: none; }
+.av-workspace-shell .answer-panel .panel-head { background: transparent; padding-bottom: 14px; }
+.av-workspace-shell .answer-panel .panel-head strong { color: var(--ink); font-size: 15px; }
+.av-workspace-shell .workspace-qa-context { color: var(--muted); font-size: 12px; line-height: 1.8; margin-bottom: 18px; }
+.av-workspace-shell .answer-panel :is(label, form > label) { color: #526d4d; font-size: 13px; }
+.av-workspace-shell .answer-panel input { background: #fff; color: var(--ink); border-color: var(--line); font-size: 13px; }
+.av-workspace-shell .answer-panel .question-input { gap: 8px; }
+.av-workspace-shell .answer-panel .question-input input { padding: 12px; min-height: 44px; }
+.av-workspace-shell .answer-panel .question-input button { font-size: 12px; padding: 10px 15px; min-height: 44px; }
+.av-workspace-shell .answer-panel .suggestions { gap: 7px; }
+.av-workspace-shell .answer-panel .suggestions button { color: #62775b; background: #f6f9ef; border-color: var(--line); font-size: 11px; padding: 7px 10px; min-height: 34px; }
+.av-workspace-shell .answer-panel .answer-empty { background: #f6f8f0; color: #738f66; border-color: #e1e8d8; padding: 22px 18px; margin-top: 22px; border-radius: 10px; gap: 12px; }
+.av-workspace-shell .answer-panel .answer-empty h2 { color: #4a6640; font-size: 19px; font-weight: 500; }
+.av-workspace-shell .answer-panel .answer-empty p { color: var(--muted); font-size: 12px; line-height: 1.8; }
+.av-workspace-shell .answer-panel .claim,
+.av-workspace-shell .replay-entry { background: #f2f6eb; border-left-color: #9ab886; border-bottom-color: var(--line); color: var(--ink); padding: 14px; }
+.av-workspace-shell .answer-panel .claim p { color: var(--ink); font-size: 13px; line-height: 1.9; }
+.av-workspace-shell .answer-panel .claim h3 { color: #5f7c50; font-size: 12px; }
+.av-workspace-shell .answer-panel .claim.inference h3 { color: #60765a; }
+.av-workspace-shell .answer-panel .claim.unknown h3 { color: var(--ws-warning); }
+.av-workspace-shell .answer-panel .claim.confidence-medium,
+.av-workspace-shell .replay-entry.confidence-medium { background: #f8f4e9; border-left-color: #c5aa79; }
+.av-workspace-shell .answer-panel .claim-explanations summary { color: #7b6e50; font-size: 11px; }
+.av-workspace-shell .answer-panel .reference { background: #eaf2df; border-color: #d1e0c3; color: #5a7749; }
+.av-workspace-shell .answer-panel .warning { color: var(--ws-warning); background: #f8f4e9; border-color: #e7dfcb; font-size: 12px; }
+.av-workspace-shell .answer-panel .record-qa-details summary { color: var(--muted); font-size: 11px; }
+.av-workspace-shell .answer-panel .record-qa-option { color: #607559; font-size: 11px; line-height: 1.8; }
+.av-workspace-shell .answer-panel .record-qa-settings { border-color: var(--line); }
+.av-workspace-shell .record-qa-note { color: var(--muted); font-size: 11px; }
+.av-workspace-shell .evidence-view { border-color: var(--line); }
+.av-workspace-shell .evidence-view h2 { color: var(--ink); font-size: 14px; }
+.av-workspace-shell .evidence-view .muted { color: var(--muted); font-size: 11px; }
+.av-workspace-shell .evidence-view img { background: #19271d; border-radius: 6px; }
+.av-workspace-shell .replay-view > select { background: #fbfcf8; color: var(--ink); border-color: var(--line); min-height: 42px; font-size: 12px; }
+.av-workspace-shell .replay-entry p { color: var(--ink); font-size: 12px; line-height: 1.8; }
+.av-workspace-shell .replay-entry.priority-event { background: #faf1ec; color: var(--ink); border-color: #bb8d76; }
+.av-workspace-shell .frame-link { background: #344631; color: #f2f6e9; border-radius: 6px; }
+.av-workspace-shell .query-context { background: #eef4e4; color: #5b7750; font-size: 12px; }
+.av-workspace-shell .review-panel { color: var(--ink); background: #f9fbf5; border-color: var(--line); border-radius: 9px; padding: 14px; font-size: 12px; }
+.av-workspace-shell .review-panel summary { color: #526f47; font-size: 13px; }
+.av-workspace-shell .review-panel h3 { color: var(--ink); font-size: 13px; }
+.av-workspace-shell .review-panel button { background: #f0f5e7; color: #58764a; border-color: #d6e3c8; font-size: 11px; min-height: 36px; padding: 7px 9px; }
+.av-workspace-shell .review-panel :is(input, select, textarea) { color: var(--ink); background: #fff; font-size: 12px; border-color: var(--line); }
+.av-workspace-shell .review-panel :is(input, select) { min-height: 38px; }
+.av-workspace-shell .review-panel textarea { min-height: 90px; padding: 10px; }
+.av-workspace-shell .review-panel p { color: var(--muted); font-size: 12px; line-height: 1.8; }
+.av-workspace-shell .review-success { background: #eaf3e0; color: #557347; font-size: 12px; }
+.av-workspace-shell .event-review { border-color: var(--line); }
+
+/* Camera diagnostics follow the same quiet hierarchy; actual pictures stay dark. */
+.av-workspace-shell .live-camera-panel { background: #fff; border-color: var(--line); border-radius: 12px; box-shadow: 0 3px 16px #253a3304; margin-top: 0; margin-bottom: 22px; }
+.av-workspace-shell .live-camera-heading { padding: 19px 22px; background: #fff; border-color: var(--line); gap: 16px; }
+.av-workspace-shell .live-camera-heading h2 { color: var(--ink); font-size: 20px; font-weight: 500; margin: 0 0 7px; }
+.av-workspace-shell .live-camera-heading p { color: var(--muted); font-size: 12px; line-height: 1.8; }
+.av-workspace-shell .live-camera-controls { gap: 12px; }
+.av-workspace-shell .live-camera-state { background: #f0f3e9; color: #65775d; border-color: #e0e6d7; font-size: 11px; padding: 7px 10px; }
+.av-workspace-shell .live-camera-state[data-state=running] { color: #4a7041; background: #eaf3e2; }
+.av-workspace-shell .live-camera-state:is([data-state=connecting], [data-state=starting], [data-state=loading]) { color: #5f7657; background: #eef4e6; }
+.av-workspace-shell .live-camera-state:is([data-state=reconnecting], [data-state=stale]) { color: var(--ws-warning); background: #f8f1e2; }
+.av-workspace-shell .live-camera-state:is([data-state=error], [data-state=unavailable]) { color: var(--ws-danger); background: #faf0ea; }
+.av-workspace-shell .live-camera-screen { background: #1b2921; }
+.av-workspace-shell .live-camera-screen-label { color: #d3ded0; background: #26372ce6; border-color: #a5b99b40; font-size: 10px; }
+.av-workspace-shell .live-camera-placeholder { gap: 13px; }
+.av-workspace-shell .live-camera-placeholder strong { color: #e3ebde; font-size: 21px; font-weight: 400; }
+.av-workspace-shell .live-camera-placeholder span { color: #adbdab; font-size: 12px; max-width: 300px; line-height: 1.8; }
+.av-workspace-shell .camera-placeholder-icon { color: #91a68c; margin-bottom: 7px; }
+.av-workspace-shell .live-camera-detail { background: #fafbf7; border-color: var(--line); padding: 20px; }
+.av-workspace-shell .live-camera-detail h3 { color: #3e5835; font-size: 13px; font-weight: 500; margin-bottom: 15px; }
+.av-workspace-shell .live-camera-metrics { gap: 10px; }
+.av-workspace-shell .live-camera-metrics > div { background: #f1f5e9; border-color: #e0e7d5; border-radius: 8px; padding: 14px 12px; }
+.av-workspace-shell :is(.live-camera-metrics dt, .live-camera-summary dt) { color: var(--muted); font-size: 11px; }
+.av-workspace-shell .live-camera-metrics dd { color: #46613b; font-size: 22px; font-weight: 500; }
+.av-workspace-shell .live-camera-summary { gap: 14px; padding-top: 21px; }
+.av-workspace-shell .live-camera-summary > div { border-color: var(--line); }
+.av-workspace-shell .live-camera-summary dd { color: #506a44; font-size: 12px; }
+.av-workspace-shell .live-camera-session { background: #fff; border-color: var(--line); padding: 20px 22px; }
+.av-workspace-shell .live-camera-session h3 { color: var(--ink); font-size: 13px; font-weight: 500; }
+.av-workspace-shell .live-camera-session > .muted { color: var(--muted); font-size: 12px; line-height: 1.8; }
+.av-workspace-shell .live-camera-events > li { color: var(--ink); background: #f6f9f0; border-color: var(--line); padding: 12px; border-radius: 7px; margin-bottom: 7px; }
+.av-workspace-shell .live-camera-event-content p,
+.av-workspace-shell .live-camera-events time { color: var(--muted); font-size: 11px; }
+.av-workspace-shell .live-camera-event-review { color: var(--ws-warning); background: #f5eddf; font-size: 11px; }
+.av-workspace-shell .live-camera-event-review[data-review=confirmed] { color: #4f7042; background: #e8f1dd; }
+.av-workspace-shell .live-camera-event-review[data-review=rejected] { color: #68775f; background: #eef2e7; }
+.av-workspace-shell .live-camera-event-review[data-review=unavailable] { color: var(--ws-danger); background: #f8ece5; }
+.av-workspace-shell .live-camera-options { border-color: var(--line); padding-inline: 22px; gap: 0 24px; }
+.av-workspace-shell .live-camera-options summary { color: #5d7751; font-size: 12px; padding-block: 16px; }
+.av-workspace-shell .live-camera-option-content { color: var(--muted); font-size: 12px; line-height: 1.8; }
+.av-workspace-shell .live-camera-option-content dt { color: var(--muted); font-size: 11px; }
+.av-workspace-shell .live-camera-option-content dd { color: #546f47; font-size: 12px; }
+.av-workspace-shell .live-camera-privacy { color: var(--muted); font-size: 11px; line-height: 1.8; padding: 0 22px 18px; }
+
+/* Real warning and review states retain meaning without decorative color. */
+.av-workspace-shell .safety-panel { color: var(--ink); background: #fff; border-color: var(--line); }
+.av-workspace-shell .safety-metrics { background: #f4f7ed; color: var(--muted); border-color: var(--line); gap: 8px; }
+.av-workspace-shell .safety-metrics > span { background: #f0f5e6; color: #617957; font-size: 11px; }
+.av-workspace-shell .safety-metrics strong { color: #647b4e; font-weight: 500; font-size: 23px; }
+.av-workspace-shell :is(.safety-notification, .safety-boundary, .safety-explainer, .safety-reason) { color: var(--muted); font-size: 12px; line-height: 1.8; }
+.av-workspace-shell .safety-alert { background: #faf6ec; color: #735c3d; border-color: #e9ddbf; border-left-color: #b69a64; }
+.av-workspace-shell .safety-alert.urgent { background: #fcf3ee; color: #925947; border-color: #ead0c3; border-left-color: #b7826b; }
+.av-workspace-shell .safety-alert-heading { color: #866c46; font-size: 13px; }
+.av-workspace-shell .safety-alert.urgent .safety-alert-heading { color: #995e49; }
+.av-workspace-shell :is(.safety-alert small, .safety-frames figcaption) { color: #776f5c; font-size: 11px; }
+.av-workspace-shell .safety-actions button { min-height: 36px; font-size: 11px; }
+.av-workspace-shell .safety-frames img { background: #e9eddf; border-radius: 5px; }
+.av-workspace-shell .priority-event .reason { color: #976b53; }
+
+/* Dialogs and mobile navigation use the same paper surfaces. */
+.av-workspace-shell :is(.help-dialog, .delete-dialog) { background: #fff; color: var(--ink); border-color: var(--line); border-radius: 14px; box-shadow: 0 24px 90px #253a3324; padding: 28px; }
+.av-workspace-shell :is(.help-dialog, .delete-dialog)::backdrop { background: #263c3259; backdrop-filter: blur(5px); }
+.av-workspace-shell .help-dialog h2 { color: var(--ink); font-size: 21px; font-weight: 500; }
+.av-workspace-shell .help-dialog :is(ol, p),
+.av-workspace-shell .delete-dialog p { color: #5d7357; font-size: 13px; line-height: 1.9; }
+.av-workspace-shell .delete-dialog-icon { background: #f7ece5; color: #ae7861; border-radius: 10px; }
+.av-workspace-shell .delete-dialog .delete-name { background: #f1f6e8; color: #536f45; padding: 12px; }
+.av-workspace-shell .delete-dialog .muted { color: var(--muted); font-size: 12px; }
+.av-workspace-shell .delete-actions button { color: #607a53; background: #fff; border-color: var(--line); min-height: 42px; }
+.av-workspace-shell .delete-actions .danger-button { background: #a97259; border-color: #a97259; color: #fff; }
+.av-workspace-shell .mobile-nav { background: #fbfcf7f5; border-color: var(--line); box-shadow: 0 -3px 16px #253a3305; padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+.av-workspace-shell .mobile-nav :is(a, button) { color: #6b7d60; font-size: 10px; min-height: 48px; }
+.av-workspace-shell .mobile-nav [aria-current=page] { color: #49633b; background: #eaf1df; }
+.av-workspace-shell .drawer-backdrop { background: #253a333d; backdrop-filter: blur(3px); }
+
+@media (min-width: 1025px) and (max-height: 800px) {
+  .av-workspace-shell .sidebar-caption { margin-bottom: 9px; }
+  .av-workspace-shell .av-recording-library { margin-top: 18px; }
+  .av-workspace-shell .video-panel .panel-head { padding: 12px 16px; min-height: 58px; }
+  .av-workspace-shell .video-select { padding-block: 9px; }
+  .av-workspace-shell .workspace-inspector-scroll { padding: 16px 15px; }
+  .av-workspace-shell .sidebar-bottom { padding-top: 7px; }
+}
+
+@media (max-width: 1024px) {
+  .av-workspace-shell .av-workspace-top-right { gap: 12px; }
+  .av-workspace-shell .sidebar { box-shadow: 8px 0 36px #253a3314; }
+}
+
+@media (max-width: 900px) {
+  .av-workspace-shell .workspace-inspector-tabs { border-radius: 11px 11px 0 0; background: #fbfcf9f5; backdrop-filter: blur(12px); }
+  .av-workspace-shell .workspace-inspector-tabs button { min-height: 49px; }
+  .av-workspace-shell .analysis-inspector { min-height: 370px; }
+  .av-workspace-shell .video-panel > video { aspect-ratio: 16 / 10; }
+}
+
+@media (max-width: 850px) {
+  .av-workspace-shell .live-camera-heading { padding: 18px; }
+  .av-workspace-shell .live-camera-detail { padding: 18px; border-top-color: var(--line); }
+  .av-workspace-shell .live-camera-session { padding: 18px; }
+  .av-workspace-shell .live-camera-options { padding-inline: 18px; }
+  .av-workspace-shell .live-camera-options details + details { border-color: var(--line); }
+  .av-workspace-shell .live-camera-privacy { padding-inline: 18px; }
+}
+
+@media (max-width: 600px) {
+  .av-workspace-shell .model-status { font-size: 10px; }
+  .av-workspace-shell .breadcrumb { font-size: 12px; }
+  .av-workspace-shell .video-select { padding: 10px 12px; flex-wrap: wrap; gap: 7px; }
+  .av-workspace-shell .video-select select { flex: 1; max-width: none; min-width: 0; }
+  .av-workspace-shell .delete-video-button { font-size: 11px; min-height: 38px; }
+  .av-workspace-shell .recording-controls { padding: 10px 12px; }
+  .av-workspace-shell .time-jump { margin-left: auto; }
+  .av-workspace-shell .time-jump input { width: 92px; }
+  .av-workspace-shell .workspace-inspector-scroll { padding: 18px 15px; }
+  .av-workspace-shell .empty-video strong { font-size: 20px; }
+  .av-workspace-shell .empty-video small { font-size: 11px; }
+  .av-workspace-shell .live-camera-heading h2 { font-size: 20px; }
+  .av-workspace-shell .live-camera-controls { gap: 10px; }
+  .av-workspace-shell .live-camera-controls > button { min-height: 44px; }
+  .av-workspace-shell .live-camera-metrics > div { padding: 13px 12px; }
+  .av-workspace-shell .review-panel .review-controls { gap: 8px; }
+  .av-workspace-shell .review-panel .review-controls :is(input, select) { min-height: 42px; }
+  .av-workspace-shell :is(.help-dialog, .delete-dialog) { padding: 23px; }
+}
+
+@media (max-width: 480px) {
+  .av-workspace-shell .video-panel .panel-head { padding: 14px; gap: 10px; }
+  .av-workspace-shell .workspace-task-state { padding: 6px 8px; font-size: 10px; }
+  .av-workspace-shell .recording-import { font-size: 11px; min-height: 38px; }
+  .av-workspace-shell .workspace-inspector-tabs { padding-inline: 6px; }
+  .av-workspace-shell .workspace-inspector-tabs button { font-size: 11px; gap: 5px; padding-inline: 3px; }
+  .av-workspace-shell .workspace-inspector-tabs button svg { width: 15px; height: 15px; }
+  .av-workspace-shell .answer-panel .answer-empty { padding: 20px 15px; }
+  .av-workspace-shell .answer-panel .answer-empty h2 { font-size: 18px; }
+  .av-workspace-shell .answer-panel .question-input button { padding-inline: 12px; }
+  .av-workspace-shell .event { grid-template-columns: 51px minmax(0, 1fr); gap: 8px; padding: 12px 9px; }
+  .av-workspace-shell .event p { font-size: 12px; }
+  .av-workspace-shell .event :is(small, time) { font-size: 10px; }
+  .av-workspace-shell .event .reference { padding-inline: 7px; }
+  .av-workspace-shell .evidence-timebar { padding-inline: 12px; }
+  .av-workspace-shell .timebar-labels { font-size: 10px; gap: 5px; }
+  .av-workspace-shell .timebar-labels > span { font-size: 9px; }
+  .av-workspace-shell .workspace-task-tray > summary { padding-inline: 13px; }
+  .av-workspace-shell .workspace-task-tray > summary > span:last-child { font-size: 10px; }
+  .av-workspace-shell .review-panel { padding: 12px; }
+  .av-workspace-shell .live-camera-placeholder strong { font-size: 20px; }
+  .av-workspace-shell .live-camera-metrics dd { font-size: 22px; }
+  .av-workspace-shell .live-camera-summary dd { font-size: 12px; }
+  .av-workspace-shell .safety-metrics > span { min-width: 0; font-size: 10px; }
+  .av-workspace-shell .safety-metrics strong { font-size: 21px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .av-workspace-shell,
+  .av-workspace-shell *,
+  .av-workspace-shell *::before,
+  .av-workspace-shell *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
+/* Camera page final composition. LiveCameraPanel owns status polling; this
+   wrapper only gives its presentation one surface and a predictable grid. */
+.av-workspace-shell .camera-workspace {
+  background: var(--canvas);
+}
+.av-workspace-shell .camera-page-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin: 0 0 14px;
+  padding: 0 2px;
+}
+.av-workspace-shell .camera-page-heading-copy { min-width: 0; }
+.av-workspace-shell .camera-page-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 5px;
+  color: var(--green);
+  font-size: 11px;
+  letter-spacing: .5px;
+}
+.av-workspace-shell .camera-page-heading h1 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 30px;
+  line-height: 1.25;
+  font-weight: 600;
+  letter-spacing: -.3px;
+}
+.av-workspace-shell .camera-page-heading-copy > p:last-child {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.av-workspace-shell .camera-capability-list {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 7px;
+  padding-bottom: 1px;
+}
+.av-workspace-shell .camera-capability-list span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid #dce5d7;
+  border-radius: 7px;
+  color: #5d765d;
+  background: #f0f4eb;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.av-workspace-shell .camera-capability-list svg { color: var(--green); }
+.av-workspace-shell .live-camera-workspace {
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 3px 16px #253a3304;
+}
+.av-workspace-shell .live-camera-workspace > .live-camera-panel {
+  flex: 1 0 auto;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+  background: transparent;
+}
+.av-workspace-shell .live-camera-heading {
+  min-height: 54px;
+  padding: 10px 18px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.av-workspace-shell .live-camera-heading-spacer { flex: 1 1 auto; min-width: 1px; }
+.av-workspace-shell .live-camera-controls { justify-content: flex-end; }
+.av-workspace-shell .live-camera-controls > button { min-height: 40px; }
+.av-workspace-shell .live-camera-viewport { min-width: 0; }
+.av-workspace-shell .live-camera-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.38fr) minmax(0, 1fr);
+  align-items: stretch;
+  min-width: 0;
+}
+.av-workspace-shell .live-camera-main {
+  display: block;
+  min-width: 0;
+  background: #192a20;
+}
+.av-workspace-shell .live-camera-screen {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  min-height: 0;
+  background: #163524;
+}
+.av-workspace-shell .live-camera-detail {
+  min-width: 0;
+  min-height: 100%;
+  overflow-y: auto;
+  border-left: 1px solid var(--line);
+  background: #fbfcf9;
+  padding: 22px;
+}
+.av-workspace-shell .live-camera-detail h3 { margin-bottom: 16px; }
+.av-workspace-shell .live-camera-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.av-workspace-shell .live-camera-metrics > div { min-width: 0; padding: 14px 12px; }
+.av-workspace-shell .live-camera-metrics dd { font-size: 22px; line-height: 1.25; white-space: nowrap; }
+.av-workspace-shell .live-camera-summary { gap: 11px; padding-top: 18px; }
+.av-workspace-shell .live-camera-summary > div { min-width: 0; }
+.av-workspace-shell .live-camera-detail > .muted { margin-top: 14px; }
+.av-workspace-shell .live-camera-detail > .error { margin-top: 12px; padding: 10px; }
+.av-workspace-shell .live-camera-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+.av-workspace-shell .live-camera-options > details {
+  min-width: 0;
+  padding: 0 18px;
+  border-right: 1px solid var(--line);
+}
+.av-workspace-shell .live-camera-options > details:last-child { border-right: 0; }
+.av-workspace-shell .live-camera-options > details > summary {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 54px;
+  padding: 14px 0;
+  color: #4f684f;
+  font-size: 13px;
+  font-weight: 500;
+  list-style: none;
+}
+.av-workspace-shell .live-camera-options > details > summary::-webkit-details-marker { display: none; }
+.av-workspace-shell .live-camera-options > details > summary::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  margin-left: auto;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg) translateY(-2px);
+  transition: transform 180ms ease;
+}
+.av-workspace-shell .live-camera-options > details[open] > summary::after { transform: rotate(225deg) translate(-1px, -1px); }
+.av-workspace-shell .live-camera-options > details > summary > svg { flex: 0 0 auto; color: var(--ws-accent); }
+.av-workspace-shell .live-camera-options .live-camera-option-content { padding: 0 0 17px; }
+.av-workspace-shell .live-camera-options .live-camera-option-content dl { gap: 10px 14px; }
+.av-workspace-shell .live-camera-options .live-camera-session .live-camera-option-content { max-height: 190px; overflow: auto; }
+.av-workspace-shell .live-camera-options .live-camera-events { max-height: 160px; }
+.av-workspace-shell .live-camera-options .live-camera-events li { margin-bottom: 6px; }
+.av-workspace-shell .live-camera-privacy {
+  margin: 0;
+  padding: 12px 18px 15px;
+  background: #fbfcf9;
+  border-top: 1px solid var(--line);
+}
+.av-workspace-shell .camera-workspace > .privacy { margin: 10px 0 0; }
+
+/* Video analysis uses the same 16:9 media rule and gives the inspector enough
+   width for Chinese labels at the 1600px reference viewport. */
+.av-workspace-shell .analysis-layout { grid-template-columns: minmax(0, 1.42fr) minmax(390px, 1fr); gap: 18px; }
+.av-workspace-shell .unified-workspace .video-panel > video { aspect-ratio: 16 / 9; height: auto; max-height: none; }
+.av-workspace-shell .unified-workspace .empty-video { aspect-ratio: 16 / 9; height: auto; min-height: 300px; }
+.av-workspace-shell .workspace-inspector-tabs { flex: 0 0 auto; }
+
+@media (min-width: 1025px) and (max-height: 800px) {
+  .av-workspace-shell .live-camera-heading { min-height: 48px; padding-block: 7px; }
+  .av-workspace-shell .live-camera-detail { padding: 16px; }
+  .av-workspace-shell .live-camera-metrics > div { padding: 11px 10px; }
+  .av-workspace-shell .live-camera-metrics dd { font-size: 19px; }
+  .av-workspace-shell .live-camera-summary { padding-top: 13px; gap: 8px; }
+  .av-workspace-shell .live-camera-options > details > summary { min-height: 46px; padding-block: 11px; }
+  .av-workspace-shell .live-camera-privacy { padding-block: 8px 10px; }
+}
+
+@media (max-width: 1100px) and (min-width: 901px) {
+  .av-workspace-shell .live-camera-grid { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); }
+  .av-workspace-shell .analysis-layout { grid-template-columns: minmax(0, 1.2fr) minmax(350px, 1fr); }
+}
+
+@media (max-width: 900px) {
+  .av-workspace-shell .live-camera-workspace { overflow: visible; }
+  .av-workspace-shell .live-camera-workspace > .live-camera-panel { flex: none; }
+  .av-workspace-shell .live-camera-grid { grid-template-columns: 1fr; }
+  .av-workspace-shell .live-camera-detail { border-left: 0; border-top: 1px solid var(--line); min-height: 0; }
+  .av-workspace-shell .live-camera-options { grid-template-columns: 1fr; }
+  .av-workspace-shell .live-camera-options > details { border-right: 0; }
+  .av-workspace-shell .live-camera-options > details + details { border-top: 1px solid var(--line); }
+  .av-workspace-shell .live-camera-options .live-camera-session .live-camera-option-content { max-height: none; }
+}
+
+@media (min-width: 1025px) and (min-height: 650px) {
+  .av-workspace-shell .camera-workspace > .live-camera-workspace { min-height: 0; }
+  .av-workspace-shell .live-camera-workspace > .live-camera-panel { min-height: 0; }
+  .av-workspace-shell .camera-workspace:has(.live-camera-options details[open]) > .live-camera-workspace,
+  .av-workspace-shell .camera-workspace:has(.live-camera-panel > .error) > .live-camera-workspace { flex: none; }
+}
+
+@media (max-width: 600px) {
+  .av-workspace-shell .camera-page-heading { align-items: flex-start; flex-direction: column; gap: 12px; margin-bottom: 12px; }
+  .av-workspace-shell .camera-page-heading h1 { font-size: 26px; }
+  .av-workspace-shell .camera-capability-list { justify-content: flex-start; width: 100%; }
+  .av-workspace-shell .camera-capability-list span { flex: 1 1 auto; justify-content: center; min-width: 0; }
+  .av-workspace-shell .live-camera-heading { min-height: 52px; padding: 9px 13px; }
+  .av-workspace-shell .live-camera-controls { width: 100%; justify-content: space-between; }
+  .av-workspace-shell .live-camera-detail { padding: 18px; }
+  .av-workspace-shell .live-camera-options > details { padding-inline: 15px; }
+  .av-workspace-shell .live-camera-privacy { padding-inline: 15px; }
+}
+
+@media (max-width: 480px) {
+  .av-workspace-shell .live-camera-heading { padding-inline: 11px; }
+  .av-workspace-shell .live-camera-detail { padding: 15px; }
+  .av-workspace-shell .live-camera-metrics { gap: 8px; }
+  .av-workspace-shell .live-camera-metrics > div { padding: 11px 9px; }
+  .av-workspace-shell .live-camera-metrics dd { font-size: 18px; }
+  .av-workspace-shell .live-camera-options > details { padding-inline: 13px; }
+}

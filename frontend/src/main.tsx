@@ -1,5 +1,6 @@
 import { StrictMode, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import './design-tokens.css';
 import './style.css';
 import './dashboard.css';
 import { Shell } from './Shell';
@@ -22,6 +23,8 @@ import { InspectorTabs } from './VideoAnalysisWorkspace';
 import { EvidenceTimebar } from './EvidenceTimebar';
 import { seekVideo } from './seekVideo';
 import './unified-workspace.css';
+import './swiss-site.css';
+import './swiss-workspace.css';
 
 type PublicError = { code: string; message: string; retryable: boolean };
 type Video = { id: string; name: string; duration_ms: number; active_run?: string | null; read_only_demo?: boolean };
@@ -354,7 +357,7 @@ function App() {
   };
   const references = (ids: string[]) => ids.map(id => {
     const evidence = memory?.evidence.find(e => e.id === id);
-    return evidence ? <button className="reference" key={id} onClick={() => seek(evidence)} aria-pressed={activeEvidence?.id === id} aria-label={`查看证据 ${stamp(evidence.start_ms)}`}>{stamp(evidence.start_ms)}–{stamp(evidence.end_ms)} ↗</button> : null;
+    return evidence ? <button className="reference" key={id} onClick={() => seek(evidence)} aria-pressed={activeEvidence?.id === id} aria-label={`查看证据 ${stamp(evidence.start_ms)}`}>{stamp(evidence.start_ms)}–{stamp(evidence.end_ms)} <Icon name="arrow-up-right" size={13}/></button> : null;
   });
   const label = (id: string | null) => memory?.entities.find(e => e.id === id)?.label || '';
   const entityType = (id: string) => memory?.entities.find(e => e.id === id)?.entity_type;
@@ -427,7 +430,18 @@ function App() {
     {(health?.is_mock || memory?.is_mock || job?.is_mock || answer?.is_mock) && <div className="mock-banner" role="alert">测试模拟模式：事件由测试适配器提供，未执行真实AI识别，不可用作产品效果演示。</div>}
     <main id="main-content" className={view === 'camera' ? 'camera-workspace' : `video-workspace unified-workspace${videos.length === 0 ? ' is-empty-library' : ''}`} aria-label={view === 'camera' ? '实时摄像头工作台' : 'AI 视频分析工作台'} tabIndex={-1}>
       {view === 'camera' ? <>
-        <p className="camera-workspace-note"><Icon name="shield" size={15} />连接摄像头，查看实时画面与异常。</p>
+        <header className="camera-page-heading">
+          <div className="camera-page-heading-copy">
+            <p className="camera-page-eyebrow"><Icon name="shield" size={15} />本地实时看护</p>
+            <h1>实时摄像头</h1>
+            <p>连接摄像头，查看实时画面与异常。</p>
+          </div>
+          <div className="camera-capability-list" aria-label="本地识别能力">
+            <span><Icon name="activity" size={16} />跌倒</span>
+            <span><Icon name="help-gesture" size={16} />举手求助</span>
+            <span><Icon name="flame" size={16} />可见明火</span>
+          </div>
+        </header>
         {health?.cloud_mode ? <div className="configuration"><span>当前在线环境不支持连接本机摄像头。请在本机启动服务后使用实时摄像头，或导入视频进行分析。</span><button className="text-button" onClick={() => navigate('videos')}>导入视频</button></div> : <LiveCameraPanel ready={health !== null} configurationError={healthError} onRetry={() => { void refresh().catch(e => setError(e.message)); }} />}
         <p className="privacy">切换导航不会停止摄像头。需要结束实时看护时，请点击“停止预览”。</p>
       </> : <>
@@ -499,7 +513,7 @@ function App() {
               {!replay ? <p className="empty">选择对象，串起它在这段视频中的经历。</p> : <><p className="replay-title">{replay.entity.label}的记忆线索</p>{replayEntries.length === 0 && <p className="empty">没有可回放的直接事件。</p>}{replayDisplayEntries.map(entry => {
                 const evidence = memory?.evidence.find(e => entry.evidence_ids.includes(e.id));
                 const frame = memory?.frames.find(f => evidence?.frame_ids.includes(f.id));
-                return <article className={`replay-entry confidence-${entry.confidence}${isPriorityEvent(entry.event) ? ' priority-event' : ''}`} data-confidence={entry.confidence} data-source-count={entry.sourceEntries.length || 1} key={entry.id}>{frame && <button className="frame-link" onClick={() => evidence && seek(evidence)} aria-label={`回放 ${stamp(entry.start_ms)}`}><img src={frame.url} alt={`${label(entry.event.subject_id)} ${stamp(entry.start_ms)}`} loading="lazy" /><span>▶ {stamp(entry.start_ms)}</span></button>}<div><span className={`tag ${entry.confidence === 'medium' ? 'amber' : ''}`}>{isPriorityEvent(entry.event) ? '重点关注 · ' : ''}{confidenceLabel(entry.confidence)}{entry.epistemic_type === 'inferred' ? ' · 推测' : ''}</span><p>{visibleText(replayDescription(entry,label,entityType,actionName))}</p>{entry.sourceEntries.length > 1 && <><small>{stamp(entry.start_ms)}–{stamp(entry.end_ms)} · 合并 {entry.sourceEntries.length} 条相关原始记录{entry.groupKind === 'repeated_observations' && ' · 多次采样看见，不表示期间始终在场'}</small><details className="event-group-sources"><summary>展开 {entry.sourceEntries.length} 条原始记录</summary>{entry.sourceEntries.map(source => <div key={source.id}><p>{stamp(source.start_ms)}–{stamp(source.end_ms)} {visibleText(replayDescription(source,label,entityType,actionName))}</p>{source.event.uncertainty_reasons.map((reason,i) => <p className="muted" key={i}>{visibleText(reason)}</p>)}{references(source.evidence_ids)}</div>)}</details></>}{entry.epistemic_type === 'inferred' && entry.rule_id !== 'conditional_containment_v1' && entry.event.uncertainty_reasons.length > 0 && <details><summary>推测依据与限制</summary>{entry.event.uncertainty_reasons.map((reason,i) => <p className="muted" key={i}>{visibleText(reason)}</p>)}</details>}{references(entry.evidence_ids)}</div></article>;
+                return <article className={`replay-entry confidence-${entry.confidence}${isPriorityEvent(entry.event) ? ' priority-event' : ''}`} data-confidence={entry.confidence} data-source-count={entry.sourceEntries.length || 1} key={entry.id}>{frame && <button className="frame-link" onClick={() => evidence && seek(evidence)} aria-label={`回放 ${stamp(entry.start_ms)}`}><img src={frame.url} alt={`${label(entry.event.subject_id)} ${stamp(entry.start_ms)}`} loading="lazy" /><span><Icon name="play" size={13}/> {stamp(entry.start_ms)}</span></button>}<div><span className={`tag ${entry.confidence === 'medium' ? 'amber' : ''}`}>{isPriorityEvent(entry.event) ? '重点关注 · ' : ''}{confidenceLabel(entry.confidence)}{entry.epistemic_type === 'inferred' ? ' · 推测' : ''}</span><p>{visibleText(replayDescription(entry,label,entityType,actionName))}</p>{entry.sourceEntries.length > 1 && <><small>{stamp(entry.start_ms)}–{stamp(entry.end_ms)} · 合并 {entry.sourceEntries.length} 条相关原始记录{entry.groupKind === 'repeated_observations' && ' · 多次采样看见，不表示期间始终在场'}</small><details className="event-group-sources"><summary>展开 {entry.sourceEntries.length} 条原始记录</summary>{entry.sourceEntries.map(source => <div key={source.id}><p>{stamp(source.start_ms)}–{stamp(source.end_ms)} {visibleText(replayDescription(source,label,entityType,actionName))}</p>{source.event.uncertainty_reasons.map((reason,i) => <p className="muted" key={i}>{visibleText(reason)}</p>)}{references(source.evidence_ids)}</div>)}</details></>}{entry.epistemic_type === 'inferred' && entry.rule_id !== 'conditional_containment_v1' && entry.event.uncertainty_reasons.length > 0 && <details><summary>推测依据与限制</summary>{entry.event.uncertainty_reasons.map((reason,i) => <p className="muted" key={i}>{visibleText(reason)}</p>)}</details>}{references(entry.evidence_ids)}</div></article>;
               })}{replay.unknowns.map((text, i) => <p className="warning" key={i}>{text}</p>)}<p className="muted">回放仅覆盖这段视频。黄色线索包含不确定性，请结合原片理解。</p></>}
             </div></>}</div>
               <div hidden={toolsTab !== 'review'}>{!selected ? <p className="empty">请选择录像后进行人工核对与画面标定。</p> : currentVideo?.read_only_demo ? <p className="empty">此案例只读。重新分析创建副本后，可保存人工复核。</p> : <>        {selected && !currentVideo?.read_only_demo && <section className="av-review-section" id="review" aria-label="人工复核与画面标定"><ReviewPanel key={selected} initialOpen={true} videoId={selected} memory={memory} videoRef={videoRef} running={running} onChange={() => loadMemory(selected)} onSeek={seek}/></section>}</>}</div>
