@@ -2,6 +2,8 @@
 
 ## 使用说明入口
 
+- [手机直接开启后端摄像头监护](docs/PHONE_CAMERA_MONITORING.md)：无需保持电脑网页或手机预览打开。
+
 - **第一次运行或配置 `.env`：[首次运行、环境配置与手机联调](docs/GETTING_STARTED.md)**。按安装、生成令牌、编辑配置、自检、启动的顺序操作。
 - [完整环境变量表](docs/c-notifications/ENV_CONFIGURATION.md)：根 `.env`、`elder-safety/.env`、`.env.phone`、GPU 路径、RTSP、预算和 Firebase。
 - [手机连接与网络排错](docs/a-backend/PHONE_LOCAL_SETUP.md)；[统一 API 契约](docs/api-contract-abc.md)。

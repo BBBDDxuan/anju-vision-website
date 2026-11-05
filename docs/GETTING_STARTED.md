@@ -2,7 +2,7 @@
 
 更新日期：2026-11-05。适用于本 website 仓库的 Windows 本地运行。所有命令均在克隆后的仓库根目录执行；下文 `G:\比赛\AI黑客松\网页美化\Github` 是路径示例，请替换为自己的位置。
 
-建议顺序：安装环境 → 初始化本机令牌 → 编辑两份运行配置 → 自检 → 启动共享服务 → 电脑开启摄像头 → 手机连接 → 验收告警。已有环境日常运行从第 5 节开始。
+建议顺序：安装环境 → 初始化本机令牌 → 编辑两份运行配置 → 自检 → 启动共享服务 → 手机连接并开启摄像头监护 → 验收告警。已有环境日常运行从第 5 节开始。
 
 完整变量表见 [环境变量详解](c-notifications/ENV_CONFIGURATION.md)，接口见 [统一 API 契约](api-contract-abc.md)。本指南不包含任何真实账号、密钥或令牌。
 
@@ -113,7 +113,7 @@ CLOUD_MODE=false
 notepad .\elder-safety\.env
 ```
 
-将 `RTSP_URL` 填为摄像头本地访问设置中核实、且电脑能访问的完整地址：
+使用更新后的 App 可以直接提交摄像头信息，无需手动填写 `RTSP_URL`；`elder-safety/.env` 文件和设备身份仍须存在。手动本机配置时，将 `RTSP_URL` 填为核实且电脑能访问的完整地址：
 
 ```dotenv
 RTSP_URL='rtsp://camera_user:camera_password@192.168.137.39:554/replace-with-verified-stream-path'
@@ -163,7 +163,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\start-phone.ps1 -Address '
 
 等待 `Both services are running`。电脑打开 `http://127.0.0.1:8000/`；手机访问 `http://电脑当前IP:8000`。8000 是网页与手机统一入口；8010 只供内部服务使用。保持终端运行，`Ctrl+C` 停止两个服务。
 
-在电脑网页点击“开启摄像头”，等到“本地实时识别中”。手机没有远程开启摄像头控制权限。测试时保持电脑工作台打开；关闭工作台约 30 秒后会停止监测。
+更新后的 App 可在“局域网摄像头”填写设备信息，点击“连接摄像头并开启后端监护”。等待后端状态变为“正在识别”。电脑网页无需打开，手机退出预览后监护继续；显式停止或退出后端才结束。详见 [手机开启后端监护](PHONE_CAMERA_MONITORING.md)。电脑本机网页仍可开启或停止同一监护进程。
 
 ### 只在电脑上使用
 
@@ -219,7 +219,7 @@ APP_FCM_ORIGIN='http://192.168.1.10:8000'
 | 手机连接超时 | IP 是否变化、手机网络是否可达、服务是否运行、防火墙/终端隔离 |
 | `400 Invalid host header` | 用当前可达 IP 重新执行 `start-phone.ps1 -Address ...`，不要把白名单改为 `*` |
 | `401 PHONE_AUTH_REQUIRED` | App 和媒体请求是否使用 `.env.phone` 的统一令牌 |
-| 手机摄像头操作 `403` | 在电脑 `127.0.0.1:8000` 网页开启摄像头 |
+| 手机摄像头操作 `403` | 更新 App 使用 `/api/monitoring/camera`，旧 `/api/camera/*` 保留本机限制 |
 | `503 SAFETY_SERVICE_UNAVAILABLE` | 内部服务日志、内部令牌 JSON 与端口是否正确 |
 | `CAMERA_RUNTIME_MISSING` | 根 `.env` 中检测 Python、基础环境和本地摄像头配置是否存在 |
 | 能显示画面但没有正式告警 | 本地候选、复核开关/Key/模型、复核结果、设备中继和统一中心逐层检查 |

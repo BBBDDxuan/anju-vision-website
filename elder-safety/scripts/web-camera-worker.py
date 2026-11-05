@@ -95,6 +95,10 @@ def main():
         from urllib.parse import urlsplit
         values = dotenv_values(ROOT / ".env")
         url = values.get("RTSP_URL") or ""
+        # A phone-provided connection stays in a local ignored file, never argv.
+        profile = os.environ.get("SAFETY_CAMERA_CONNECTION_FILE")
+        if profile:
+            url = json.loads(Path(profile).read_text(encoding="utf-8"))["rtsp_url"]
         parsed = urlsplit(url)
         if parsed.scheme not in ("rtsp", "rtsps") or not parsed.hostname or not parsed.username or not parsed.password:
             raise ValueError
