@@ -13,6 +13,11 @@ const uiOutput = ts.transpileModule(uiSource, {
 }).outputText;
 const uiModule = { exports: {} };
 new Function('require', 'module', 'exports', uiOutput)(require, uiModule, uiModule.exports);
+const apiOutput = ts.transpileModule(readFileSync(new URL('../src/memberApi.ts', import.meta.url), 'utf8'), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+}).outputText;
+const memberApiModule = { exports: {} };
+new Function('require', 'module', 'exports', apiOutput)(require, memberApiModule, memberApiModule.exports);
 const source = readFileSync(new URL('../src/LiveCameraPanel.tsx', import.meta.url), 'utf8');
 const { outputText } = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 },
@@ -28,6 +33,7 @@ function render(status, props = {}) {
   loadPanel(id => {
     if (id === './live-camera.css') return {};
     if (id === './ui') return uiModule.exports;
+    if (id === './memberApi') return memberApiModule.exports;
     if (id === 'react') return {
       ...React,
       useState: initial => [stateIndex++ === 0 ? status : initial, forbidSideEffect],
@@ -117,6 +123,16 @@ test('Per-event review reason and model are shown as escaped text, without a glo
   assert.match(html, /复核说明：&lt;script&gt;confirmed danger&lt;\/script&gt;/);
   assert.match(html, /复核模型：event-review-model/);
   assert.doesNotMatch(html, /<script>|qwen-review-test/);
+});
+
+test('Person alerts show matched identity as a candidate; unknown and fire never borrow a name', () => {
+  const event = { ...candidate, review_status: 'confirmed', review_model: 'synthetic-review',
+    face_identity: { status: 'matched', member_id: 'member-1', name: '<测试家人>' } };
+  assert.match(eventMarkup(event), /&lt;测试家人&gt;（人脸识别候选，请核对）/);
+  const unknown = eventMarkup({ ...event, face_identity: { ...event.face_identity, status: 'unknown', reason: 'member_deleted' } });
+  assert.match(unknown, /身份未确认/);
+  assert.doesNotMatch(unknown, /测试家人/);
+  assert.doesNotMatch(eventMarkup({ ...event, event_type: 'fire_detected' }), /成员：|测试家人/);
 });
 
 test('Pipeline, availability, supported tasks and review errors are explicit', () => {

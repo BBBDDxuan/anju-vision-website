@@ -37,14 +37,18 @@ class MemberProfileInput(BaseModel):
     name: str = Field(max_length=80)
     relationship: str = Field(max_length=80)
     notes: str = Field(max_length=2000)
+    label_color: str | None = Field(default=None, pattern=r'^#[0-9a-fA-F]{6}$')
+    label_letter: str | None = Field(default=None, max_length=2)
     bindings: list[MemberBinding] = Field(max_length=MAX_BINDINGS)
     # Accept the complete Flutter toJson() shape, but never trust the client count.
     face_sample_count: int | None = Field(default=None, ge=0, le=2147483647)
     revision: int | None = Field(default=None, ge=0, le=9223372036854775806)
 
-    @field_validator('name', 'relationship', 'notes')
+    @field_validator('name', 'relationship', 'notes', 'label_letter')
     @classmethod
     def safe_text(cls, value, info):
+        if value is None:
+            return value
         permitted = '\n\r\t' if info.field_name == 'notes' else ''
         if any((ord(c) < 32 and c not in permitted) or ord(c) == 127 for c in value):
             raise ValueError('Text contains a control character')
@@ -70,6 +74,9 @@ def initialize_profiles(c):
         revision INTEGER NOT NULL)''')
     # Retain only ID/version tombstones, so delete/recreate cannot accept an old revision.
     c.execute('CREATE TABLE IF NOT EXISTS household_versions (id TEXT PRIMARY KEY, revision INTEGER NOT NULL)')
+    c.execute('''CREATE TABLE IF NOT EXISTS household_label_styles (
+        member_id TEXT PRIMARY KEY REFERENCES household_members(id) ON DELETE CASCADE,
+        color TEXT NOT NULL, letter TEXT NOT NULL)''')
     legacy = c.execute('''SELECT id,name FROM members WHERE id NOT IN
         (SELECT id FROM household_members) AND id NOT IN (SELECT id FROM household_versions) ORDER BY id''').fetchall()
     number = c.execute('SELECT COALESCE(MAX(number),0) FROM household_members').fetchone()[0]
@@ -96,7 +103,9 @@ class MemberProfiles:
             AS face_sample_count FROM household_members p''' + (' WHERE p.id=?' if member_id is not None else '')
             + ' ORDER BY p.number,p.id', (self.faces.model_version, member_id) if member_id is not None
             else (self.faces.model_version,)).fetchall()
-        return [{**dict(row), 'bindings': json.loads(row['bindings'])} for row in rows]
+        styles = {r[0]: {'label_color': r[1], 'label_letter': r[2]}
+                  for r in c.execute('SELECT member_id,color,letter FROM household_label_styles')}
+        return [{**dict(row), 'bindings': json.loads(row['bindings']), **styles.get(row['id'], {})} for row in rows]
 
     def members(self):
         with self.faces.connect() as c:
@@ -120,6 +129,12 @@ class MemberProfiles:
                 notes=excluded.notes,bindings=excluded.bindings,revision=excluded.revision''',
                 (member_id, profile.number, profile.name, profile.relationship, profile.notes,
                  json.dumps([b.model_dump() for b in profile.bindings], ensure_ascii=False), revision))
+            if profile.label_color is not None or profile.label_letter is not None:
+                style = c.execute('SELECT color,letter FROM household_label_styles WHERE member_id=?', (member_id,)).fetchone()
+                c.execute('''INSERT INTO household_label_styles VALUES(?,?,?)
+                    ON CONFLICT(member_id) DO UPDATE SET color=excluded.color,letter=excluded.letter''',
+                    (member_id, profile.label_color or (style[0] if style else '#237e7b'),
+                     profile.label_letter if profile.label_letter is not None else (style[1] if style else '')))
             c.execute('UPDATE members SET name=? WHERE id=?',
                       (display_name({'name': profile.name, 'number': profile.number}), member_id))
             return self._read(c, member_id)[0]

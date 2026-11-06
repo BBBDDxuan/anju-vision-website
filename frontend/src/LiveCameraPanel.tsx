@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from './ui';
+import { faceIdentityLabel, type FaceIdentity } from './memberApi';
 import './live-camera.css';
 
 type ReviewStatus = 'pending' | 'confirmed' | 'rejected' | 'uncertain' | 'unavailable';
-type LiveEvent = { candidate_id?: string; event_type: string; occurred_at: string; confidence: number; event_id?: string | null; review_status?: ReviewStatus; review_reason?: string; review_model?: string };
+type LiveEvent = { candidate_id?: string; event_type: string; occurred_at: string; confidence: number; event_id?: string | null; review_status?: ReviewStatus; review_reason?: string; review_model?: string; face_identity?: FaceIdentity };
 type CameraStatus = { safety_pipeline?: string; review_model?: string; review_enabled?: boolean; review_error?: string; cloud_calls?: boolean; sparks_enabled?: boolean; recording: boolean; recording_status?: { enabled: boolean; state: string; directory?: string; segment_seconds?: number; retention_days?: number; max_gib?: number; min_free_gib?: number; files?: number; bytes?: number; deleted_files?: number; error?: string }; help_facing_camera_required?: boolean; help_face_candidates?: number | null; fall_diagnostics?: { track_id: string; state: string }[]; alerts?: { enabled: boolean; pending?: number; worker_alive?: boolean; error?: string }; state: string; frames: number; persons?: number; fire_candidates?: number; width?: number; height?: number; preview_width?: number; preview_height?: number; flame_tiling_enabled?: boolean; fps?: number; fire_fps?: number; fire_inference_ms?: number; fire_state?: string; inference_ms?: number; device?: string; frame_age_seconds?: number | null; events: LiveEvent[] };
 const stateName: Record<string,string> = { stopped:'未开启', starting:'模型加载中', connecting:'连接摄像头', running:'本地实时识别中', reconnecting:'断线重连中', stale:'画面已过期', error:'连接异常' };
 const recordingStateName: Record<string,string> = { disabled:'未启用', starting:'正在启动录像', recording:'正在录像', reconnecting:'断线重连中', paused_low_space:'磁盘空间不足，录像已暂停', error:'录像异常', stopped:'录像已停止' };
@@ -202,6 +203,7 @@ export function LiveCameraPanel({ ready = true, configurationError = '', onRetry
         <div className="live-camera-event-content">
           <strong>{eventName[event.event_type] || event.event_type}</strong>
           <span className="live-camera-event-review" data-review={event.review_status}>Qwen 已复核确认</span>
+          {event.event_type !== 'fire_detected' && <p className="alert-member-identity">成员：{faceIdentityLabel(event.face_identity)}</p>}
           {event.review_reason && <p>复核说明：{event.review_reason}</p>}
           {event.review_model && <p>复核模型：{event.review_model}</p>}
         </div>

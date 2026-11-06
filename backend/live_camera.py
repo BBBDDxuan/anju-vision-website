@@ -214,7 +214,23 @@ class LiveCamera:
             result["frame_age_seconds"] = round(age, 3) if age is not None else None
             if result.get("state") == "running" and (age is None or age > 3):
                 result["state"] = "stale"
-            return result
+        # Read the current association at response time so clearing templates or
+        # deleting a profile revokes old labels without restarting the camera.
+        faces = getattr(self.safety, 'faces', None)
+        if faces is not None:
+            events = []
+            for event in result.get('events', []):
+                public = dict(event)
+                if (event.get('event_type') in {'suspected_fall', 'help_requested'}
+                        and event.get('review_status') == 'confirmed' and event.get('review_model')):
+                    try:
+                        identity = faces.event_identity([event['candidate_id']] if event.get('candidate_id') else [])
+                    except Exception:
+                        identity = {'status': 'unknown', 'member_id': None, 'reason': 'identity_unavailable'}
+                    public.update(member_id=identity['member_id'], face_identity=identity)
+                events.append(public)
+            result['events'] = events
+        return result
 
     def image(self):
         with self.lock:

@@ -19,8 +19,9 @@ export function Shell({ children, videos, selected, onSelect, ready, loading, se
   const navigation = [
     { view: 'camera' as const, icon: 'video', label: '实时摄像头' },
     { view: 'videos' as const, icon: 'upload', label: 'AI 视频分析' },
+    { view: 'members' as const, icon: 'user', label: '家庭成员' },
   ];
-  const activeLabel = view === 'camera' ? '实时摄像头' : 'AI 视频分析';
+  const activeLabel = view === 'members' ? '家庭成员' : view === 'camera' ? '实时摄像头' : 'AI 视频分析';
   const navigateLink = (event: MouseEvent<HTMLAnchorElement>, next: View) => {
     if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
     event.preventDefault(); onNavigate(next); setOpen(false);

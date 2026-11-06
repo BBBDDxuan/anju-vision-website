@@ -19,6 +19,40 @@ def test_exact_read_rejects_truncated_pipe():
     with pytest.raises(EOFError): read_exact(io.BytesIO(b"ab"),3)
 
 
+def test_live_status_reads_current_face_identity_and_survives_failures(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    from backend.config import Settings
+    from backend.face_recognition import FaceRecognition
+    from tests.test_member_profiles import fake_face
+    faces = FaceRecognition(Settings(data_dir=tmp_path / 'identities'))
+    monkeypatch.setattr(faces, '_features', lambda data: [fake_face()])
+    faces.enroll('web-member', '合成家人', True, b'synthetic')
+    monkeypatch.setattr(faces, '_candidate_identity', lambda candidate: {
+        'status': 'matched', 'member_id': 'web-member', 'name': '合成家人', 'similarity': .9})
+    faces.associate_candidate({'id': 'candidate-web'})
+    controller = LiveCamera(tmp_path)
+    controller.safety = SimpleNamespace(faces=faces, ready=lambda: None, enabled=True, model='synthetic-review')
+    event = {'candidate_id': 'candidate-web', 'event_type': 'suspected_fall',
+             'review_status': 'confirmed', 'review_model': 'synthetic-review'}
+    controller.info['events'] = [event, {**event, 'event_type': 'fire_detected'}, {**event, 'review_status': 'pending'}]
+    try:
+        result = controller.status()
+        assert result['events'][0]['member_id'] == 'web-member'
+        assert result['events'][0]['face_identity']['name'] == '合成家人'
+        assert 'member_id' not in controller.info['events'][0]  # Never mutate the worker snapshot.
+        assert all('face_identity' not in e for e in result['events'][1:])
+        faces.delete('web-member')
+        assert controller.status()['events'][0]['face_identity']['reason'] == 'member_deleted'
+        def unavailable(ids):
+            raise RuntimeError('synthetic failure')
+        monkeypatch.setattr(faces, 'event_identity', unavailable)
+        broken = controller.status()['events'][0]
+        assert broken['face_identity']['reason'] == 'identity_unavailable'
+        assert broken['review_status'] == 'confirmed'
+    finally:
+        controller.close()
+
+
 def client_for(controller, host="127.0.0.1", cloud=False):
     app = FastAPI()
     @app.exception_handler(AppError)

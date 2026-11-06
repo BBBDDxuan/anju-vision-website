@@ -27,6 +27,7 @@ test('Workspace panel links and legacy anchors resolve without changing selected
     assert.equal(inspectorFromUrl(url), expected); assert.equal(viewFromUrl(url), 'videos');
   }
   assert.equal(viewFromUrl(new URL('http://localhost/workspace?view=camera&panel=qa')), 'camera');
+  assert.equal(viewFromUrl(new URL('http://localhost/workspace?view=members')), 'members');
 });
 
 test('Shared seek waits for actual metadata and seeked, then pauses at the real video time', async () => {

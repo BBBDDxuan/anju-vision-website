@@ -1,4 +1,4 @@
-export type View = 'home' | 'camera' | 'videos';
+export type View = 'home' | 'camera' | 'videos' | 'members';
 export type InspectorTab = 'events' | 'qa' | 'tools';
 
 export function inspectorFromUrl(url: URL): InspectorTab {
@@ -14,5 +14,6 @@ export function viewFromUrl(url: URL): View {
   // Existing video links and /workspace continue to open the recording tools.
   const video = url.searchParams.get('video') || '';
   if (url.pathname !== '/workspace' && !/^v_[A-Za-z0-9_-]{1,80}$/.test(video)) return 'home';
-  return url.searchParams.get('view') === 'camera' ? 'camera' : 'videos';
+  const view = url.searchParams.get('view');
+  return view === 'camera' || view === 'members' ? view : 'videos';
 }

@@ -10,6 +10,9 @@ const uiSource = readFileSync(new URL('../src/ui.tsx',import.meta.url),'utf8');
 const uiOutput = ts.transpileModule(uiSource,{ compilerOptions:{ module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022 } }).outputText;
 const uiModule = { exports: {} };
 new Function('require','module','exports',uiOutput)(require,uiModule,uiModule.exports);
+const memberApiOutput = ts.transpileModule(readFileSync(new URL('../src/memberApi.ts',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+const memberApiModule = {exports:{}};
+new Function('require','module','exports',memberApiOutput)(require,memberApiModule,memberApiModule.exports);
 const source = readFileSync(new URL('../src/LiveCameraPanel.tsx',import.meta.url),'utf8');
 const { outputText } = ts.transpileModule(source,{ compilerOptions:{ module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022 } });
 const evaluate = new Function('require','module','exports','fetch','window','document','URL','Image','performance',outputText);
@@ -26,7 +29,7 @@ function harness(respond,decode = () => Promise.resolve()) {
   const fetch=async(path,init)=>{calls.push({path,init,at:now});return respond(path,init);};
   const module={exports:{}};
   let nextUrl=0;
-  evaluate(id=>id==='react'?hooks:id==='./ui'?uiModule.exports:id.endsWith('.css')?{}:require(id),module,module.exports,fetch,window,events,{createObjectURL:()=>`blob:fixture-${++nextUrl}`,revokeObjectURL:url=>revoked.push(url)},class{decode(){return decode();}},{now:()=>now});
+  evaluate(id=>id==='react'?hooks:id==='./ui'?uiModule.exports:id==='./memberApi'?memberApiModule.exports:id.endsWith('.css')?{}:require(id),module,module.exports,fetch,window,events,{createObjectURL:()=>`blob:fixture-${++nextUrl}`,revokeObjectURL:url=>revoked.push(url)},class{decode(){return decode();}},{now:()=>now});
   function render(){stateIndex=0;refIndex=0;effects.length=0;return module.exports.LiveCameraPanel({});}
   render();const cleanup=effects[0]();
   async function advance(ms){const end=now+ms;await flush();for(;;){let selected;for(const [id,t]of timers)if(t.at<=end&&(!selected||t.at<selected[1].at))selected=[id,t];if(!selected)break;const[id,t]=selected;now=t.at;if(t.interval)t.at+=t.delay;else timers.delete(id);t.fn();await flush();}now=end;await flush();}

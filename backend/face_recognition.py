@@ -214,9 +214,12 @@ class FaceRecognition:
         width, height = image_dimensions(data)
         if min(width, height) < 1 or width * height > MAX_IMAGE_PIXELS:
             raise AppError('FACE_IMAGE_DIMENSIONS', '图片像素数不得超过 1600 万。', 422)
-        image = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
-        if image is None or image.shape[:2] != (height, width):
+        # Phone JPEGs often store rotation/mirroring in EXIF. Match the oriented
+        # image displayed by browsers and mobile photo viewers, including boxes.
+        image = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
+        if image is None or image.shape[:2] not in {(height, width), (width, height)}:
             raise AppError('FACE_IMAGE_INVALID', '无法解码图片，请先将照片方向校正后保存。', 422)
+        height, width = image.shape[:2]
         scale = min(1.0, self.settings.face_max_side / max(width, height))
         if scale < 1:
             image = cv2.resize(image, (max(1, round(width*scale)), max(1, round(height*scale))), interpolation=cv2.INTER_AREA)

@@ -11,6 +11,7 @@ import numpy as np
 import pytest
 
 from backend.errors import AppError
+from backend.config import Settings
 from backend.face_recognition import FaceRecognition, MODEL_HASHES
 from backend.main import create_app
 from scripts import prepare_face_models as provision
@@ -27,6 +28,18 @@ def fake_face():
     vector = np.zeros(128, dtype='<f4')
     vector[0] = 1
     return {'feature': vector, 'bbox': [.2, .1, .4, .4], 'quality': 'usable', 'detection_score': .99}
+
+
+def test_web_label_styles_survive_clients_without_style_fields(tmp_path):
+    faces = FaceRecognition(Settings(data_dir=tmp_path))
+    member = faces.profiles.upsert('web-member', profile('web-member', label_color='#3f594b', label_letter='家'))
+    assert member['label_color'] == '#3f594b' and member['label_letter'] == '家'
+    # A future App update can continue sending the existing profile shape.
+    updated = faces.profiles.upsert('web-member', profile('web-member', revision=member['revision'], name='新名字'))
+    assert updated['label_color'] == '#3f594b' and updated['label_letter'] == '家'
+    faces.profiles.delete('web-member')
+    recreated = faces.profiles.upsert('web-member', profile('web-member'))
+    assert 'label_color' not in recreated and 'label_letter' not in recreated
 
 
 @pytest.fixture

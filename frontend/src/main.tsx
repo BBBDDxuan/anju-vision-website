@@ -7,6 +7,7 @@ import { Shell } from './Shell';
 import { ReviewPanel } from './ReviewPanel';
 import { LanSetup } from './LanSetup';
 import { LiveCameraPanel } from './LiveCameraPanel';
+import { MemberManagement } from './MemberManagement';
 import { Icon, mergedRanges, sizeLabel, stamp, durationLabel } from './ui';
 import { EventTimeline, timelineRows, type EventGroup } from './EventTimeline';
 import { LandingPage, type DemoVideo } from './LandingPage';
@@ -441,8 +442,8 @@ function App() {
     {notice && <div className="global-notice" role="status"><span>{notice}</span><button className="text-button" onClick={() => setNotice('')}>收起</button></div>}
     {view === 'home' ? <LandingPage page={introductionPage} onPageChange={navigateIntroduction} onEnter={() => navigate('videos')} onCamera={() => navigate('camera')} demos={demos} onOpenDemo={id => { setSelected(id); navigate('videos'); }}/>: <>
     {(health?.is_mock || memory?.is_mock || job?.is_mock || answer?.is_mock) && <div className="mock-banner" role="alert">测试模拟模式：事件由测试适配器提供，未执行真实AI识别，不可用作产品效果演示。</div>}
-    <main id="main-content" className={view === 'camera' ? 'camera-workspace' : `video-workspace unified-workspace${videos.length === 0 ? ' is-empty-library' : ''}`} aria-label={view === 'camera' ? '实时摄像头工作台' : 'AI 视频分析工作台'} tabIndex={-1}>
-      {view === 'camera' ? <>
+    <main id="main-content" className={view === 'members' ? 'members-workspace' : view === 'camera' ? 'camera-workspace' : `video-workspace unified-workspace${videos.length === 0 ? ' is-empty-library' : ''}`} aria-label={view === 'members' ? '家庭成员管理' : view === 'camera' ? '实时摄像头工作台' : 'AI 视频分析工作台'} tabIndex={-1}>
+      {view === 'members' ? <MemberManagement cloud={health?.cloud_mode} ready={health !== null}/> : view === 'camera' ? <>
         <header className="camera-page-heading">
           <div className="camera-page-heading-copy">
             <p className="camera-page-eyebrow"><Icon name="shield" size={15} />本地实时看护</p>
@@ -456,6 +457,7 @@ function App() {
           </div>
         </header>
         {health && !health.cloud_mode && <LanSetup />}
+        {!health?.cloud_mode && <p className="privacy">先到 <a href="/workspace?view=members" onClick={event => { event.preventDefault(); navigate('members'); }}>家庭成员</a> 录入人脸，跌倒与求助告警会尝试显示成员身份。</p>}
         {health?.cloud_mode ? <div className="configuration"><span>当前在线环境不支持连接本机摄像头。请在本机启动服务后使用实时摄像头，或导入视频进行分析。</span><button className="text-button" onClick={() => navigate('videos')}>导入视频</button></div> : <LiveCameraPanel ready={health !== null} configurationError={healthError} onRetry={() => { void refresh().catch(e => setError(e.message)); }} />}
         <p className="privacy">切换导航不会停止摄像头。需要结束实时看护时，请点击“停止预览”。</p>
       </> : <>

@@ -177,6 +177,36 @@ def test_real_models_load_from_unicode_workspace_and_handle_blank(tmp_path, exte
     assert service.profiles.members() == []
 
 
+@pytest.mark.parametrize('orientation', range(1, 9))
+def test_phone_jpeg_exif_orientation_matches_display_and_resize(tmp_path, orientation):
+    pixels = np.zeros((240, 480, 3), np.uint8)
+    pixels[:120, :240] = (10, 100, 240)
+    pixels[120:, 240:] = (200, 40, 20)
+    ok, encoded = cv2.imencode('.jpg', pixels)
+    assert ok
+    raw = encoded.tobytes()
+    # A minimal TIFF IFD with EXIF Orientation, without an extra image dependency.
+    exif = b'Exif\x00\x00II' + struct.pack('<HIH', 42, 8, 1)
+    exif += struct.pack('<HHIHHI', 0x112, 3, 1, orientation, 0, 0)
+    photo = raw[:2] + b'\xff\xe1' + struct.pack('>H', len(exif)+2) + exif + raw[2:]
+    original = cv2.imdecode(np.frombuffer(raw, np.uint8), cv2.IMREAD_COLOR)
+    expected = {
+        1: lambda x: x,
+        2: lambda x: cv2.flip(x, 1),
+        3: lambda x: cv2.rotate(x, cv2.ROTATE_180),
+        4: lambda x: cv2.flip(x, 0),
+        5: lambda x: cv2.transpose(x),
+        6: lambda x: cv2.rotate(x, cv2.ROTATE_90_CLOCKWISE),
+        7: lambda x: cv2.flip(cv2.transpose(x), -1),
+        8: lambda x: cv2.rotate(x, cv2.ROTATE_90_COUNTERCLOCKWISE),
+    }[orientation](original)
+    service = FaceRecognition(Settings(data_dir=tmp_path, face_max_side=320))
+    height, width = expected.shape[:2]
+    expected = cv2.resize(expected, (round(width*320/max(width, height)),
+                                    round(height*320/max(width, height))), interpolation=cv2.INTER_AREA)
+    assert np.array_equal(service._decode(photo), expected)
+
+
 def test_model_integrity_failures_are_explicit(tmp_path):
     directory = tmp_path/'models'
     directory.mkdir()

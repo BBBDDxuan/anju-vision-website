@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { Icon, stamp } from './ui';
 import { isEnvironmentEvent } from './eventPresentation';
 import { isPriorityEvent } from './confidence';
+import { faceIdentityLabel, type FaceIdentity } from './memberApi';
 import './safety.css';
 
 type Alert = { id: string; title: string; person_label: string; severity: 'urgent' | 'attention'; action: string;
-  start_ms: number; end_ms: number; acknowledged: boolean; evidence_ids: string[]; message: string; is_mock: boolean; epistemic_type?: string; subject_label?: string; reasons?: string[] };
+  start_ms: number; end_ms: number; acknowledged: boolean; evidence_ids: string[]; message: string; is_mock: boolean; epistemic_type?: string; subject_label?: string; reasons?: string[]; face_identity?: FaceIdentity };
 type AlertData = { alerts: Alert[]; evidence: { id: string; frame_ids: string[] }[];
   frames: { id: string; pts_ms: number; url: string }[]; absence_alert_seconds: number };
 
@@ -30,7 +31,7 @@ export function SafetyPanel({ videoId, running, onSeek, visible = true, mode = '
         for (const alert of next.alerts) {
           if (isPriorityEvent(alert) && initialized.current && !seen.current.has(alert.id) && !alert.acknowledged && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
             try { new Notification(`${alert.is_mock ? '模拟测试 · ' : ''}历史录像提醒：${alert.title}`, {
-              body: `${alert.subject_label || alert.person_label} · 片段 ${stamp(alert.start_ms)}，请在网页查看证据。非当前现场。`, tag: alert.id,
+              body: `${isEnvironmentEvent(alert) ? alert.subject_label || alert.person_label : faceIdentityLabel(alert.face_identity)} · 片段 ${stamp(alert.start_ms)}，请在网页查看证据。非当前现场。`, tag: alert.id,
             }); } catch { /* The persistent on-page alert remains available if browser notifications fail. */ }
           }
           seen.current.add(alert.id);
@@ -71,6 +72,7 @@ export function SafetyPanel({ videoId, running, onSeek, visible = true, mode = '
         return <article key={alert.id} className={`safety-alert ${alert.severity} ${alert.acknowledged ? 'acknowledged' : ''}`}>
           <div className="safety-alert-heading"><strong>{alert.is_mock ? '模拟测试 · ' : ''}{alert.title}</strong><span>{alert.acknowledged ? '已知悉' : alert.severity === 'urgent' ? '优先关注' : '注意观察'}</span></div>
           <p>{alert.subject_label || alert.person_label} · 视频 {stamp(alert.start_ms)}–{stamp(alert.end_ms)}{alert.epistemic_type === 'inferred' ? ' · 推测/规则提醒' : ''}</p>
+          {!isEnvironmentEvent(alert) && <p className="alert-member-identity">成员：{faceIdentityLabel(alert.face_identity)}</p>}
           {!!alert.reasons?.length && <details className="safety-reason"><summary>查看事件依据</summary><small className="reason">{alert.reasons.join('；')}</small></details>}
           <div className="safety-actions"><button className="reference" onClick={() => { onSeek(alert.start_ms); setExpanded(expanded === alert.id ? '' : alert.id); }}>查看视频证据 <Icon name="arrow-up-right" size={13}/></button>{!readOnly && !alert.acknowledged && <button className="text-button" disabled={pending === alert.id} onClick={() => void acknowledge(alert)}>标记已知悉</button>}</div>
           {expanded === alert.id && <div className="safety-frames">{frames.map(frame => <figure key={frame.id}><img src={frame.url} loading="lazy" alt={`事件证据 ${stamp(frame.pts_ms)}`}/><figcaption>{stamp(frame.pts_ms)}</figcaption></figure>)}</div>}
