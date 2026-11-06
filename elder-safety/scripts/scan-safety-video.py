@@ -43,9 +43,10 @@ def sampling_stride(fps, config, scan_fps=DEFAULT_SCAN_FPS):
     gap = min(config.fall.max_gap_seconds, config.fire.max_gap_seconds,
               config.tracking.max_gap_seconds, config.help.max_gap_seconds)
     ceilings = [fps / scan_fps, fps * gap]
-    for detector in (config.fire, config.help):
-        if detector.min_frames > 1:
-            ceilings.append(fps * detector.hold_seconds / (detector.min_frames - 1))
+    fire_hold = min(config.fire.hold_seconds, config.fire.strict_hold)
+    for hold, frames in ((fire_hold, config.fire.min_frames), (config.help.hold_seconds, config.help.min_frames)):
+        if frames > 1:
+            ceilings.append(fps * hold / (frames - 1))
     return max(1, math.floor(min(ceilings) + 1e-8))
 
 
@@ -208,6 +209,7 @@ def scan_video(source: Path, config, output: Path, max_frames: int | None = None
                   "timestamp_basis": "decoded_frame_index/source_fps; CFR assumption, not decoded source PTS",
                   "source_sha256": source_digest,
                   "scan_policy": {"version": SCAN_VERSION, "requested_fps": scan_fps,
+                      "flame_imgsz": config.models.flame_imgsz,
                       "stride": stride, "effective_fps": fps / stride if stride else None},
                   "scan_fingerprint": scan_fingerprint,
                   "timings": {**timings, "wall_seconds": round(time.perf_counter() - started, 6)},
@@ -299,6 +301,7 @@ def main(argv=None):
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--max-frames", type=int)
     parser.add_argument("--scan-fps", type=float, default=DEFAULT_SCAN_FPS)
+    parser.add_argument("--flame-imgsz", type=int, choices=(640, 1280))
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args(argv)
     if args.max_frames is not None and args.max_frames < 1:
@@ -306,7 +309,10 @@ def main(argv=None):
     previous = signal.signal(signal.SIGTERM, _cancel)
     try:
         from ai_service.config import Config
-        report = scan_video(args.source, Config.load(args.config), args.output,
+        config = Config.load(args.config)
+        if args.flame_imgsz is not None:
+            config.models.flame_imgsz = args.flame_imgsz
+        report = scan_video(args.source, config, args.output,
                             max_frames=args.max_frames, scan_fps=args.scan_fps, resume=args.resume)
         _emit("done", report["frames"], len(report["candidates"]), report["completed"])
         return 0

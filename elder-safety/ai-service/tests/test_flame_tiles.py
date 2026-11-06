@@ -47,7 +47,8 @@ def result(box=(20,30,60,90), score=.8):
         cls=Tensor([0])), names={0:'fire',1:'smoke'})
 
 
-def test_tiled_model_restores_coordinates_and_batches_at_most_four(tmp_path):
+@pytest.mark.parametrize('imgsz', [640, 1280])
+def test_tiled_model_restores_coordinates_and_batches_at_most_four(tmp_path, imgsz):
     weight = tmp_path/'trusted-test-fire.pt'; weight.touch()
     calls=[]
     class Model:
@@ -57,13 +58,15 @@ def test_tiled_model_restores_coordinates_and_batches_at_most_four(tmp_path):
             return [result() for _ in image] if isinstance(image,list) else [result()]
     config=ModelConfig(flame_weights=str(weight), flame_classes=['fire'],
         flame_license={k:'test' for k in ('name','source','license','usage_review')},
-        flame_tiling_enabled=True,flame_tile_size=1280)
+        flame_imgsz=imgsz,flame_tiling_enabled=True,flame_tile_size=1280)
     models=LocalModels(config,factory=lambda *a,**k:Model())
     poses,flames=models.infer(np.zeros((1620,2880,3),np.uint8))
     assert poses == []
     assert len(flames) == 6  # Full-frame and first-tile duplicates merged.
     assert any(f.bbox == (1620.,370.,1660.,430.) for f in flames)
     assert all(len(image)<=4 for image,_ in calls if isinstance(image,list))
+    assert calls[0][1]['imgsz'] == imgsz
+    assert all(kwargs['imgsz'] == 640 for _,kwargs in calls[1:])
     assert all('conf' not in kwargs for _,kwargs in calls)  # No lowered threshold.
 
 

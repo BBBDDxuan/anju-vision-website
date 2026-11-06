@@ -6,6 +6,7 @@ import math
 import numpy as np
 
 from .config import FallConfig, FireConfig
+from .fire_candidates import match_flame_region
 from .types import Flame, Pose, Signal, finite_box, iou
 
 
@@ -159,6 +160,21 @@ class FireState:
     last_t: float
     count: int = 1
     last_alert: float = -math.inf
+    observations: deque[tuple[float, bool]] = field(default_factory=deque)
+
+    def observe(self, t: float, hit: bool, window: float) -> None:
+        self.observations.append((t, hit))
+        while self.observations and t - self.observations[0][0] > window + 1e-8:
+            self.observations.popleft()
+        # Keep the most recent run containing at most one missed observation.
+        misses = [when for when, found in self.observations if not found]
+        if len(misses) > 1:
+            while self.observations[0][0] <= misses[-2]:
+                self.observations.popleft()
+        while self.observations and not self.observations[0][1]:
+            self.observations.popleft()
+        self.count = sum(found for _, found in self.observations)
+        self.since = self.observations[0][0] if self.observations else t
 
 
 class FireDetector:
@@ -166,12 +182,20 @@ class FireDetector:
         self.config = config
         self.states: dict[str, FireState] = {}
         self.next_id = 1
+        self.last_t: float | None = None
 
     def reset(self):
         self.states.clear()
+        self.last_t = None
 
     def update(self, detections: list[Flame], t: float) -> list[Signal]:
         c = self.config
+        window = c.confirmation_window_seconds
+        if window is not None:
+            if not math.isfinite(t) or (self.last_t is not None and t <= self.last_t):
+                self.states.clear()
+                return []
+            self.last_t = t
         current = {}
         signals = []
         for detection in sorted(detections, key=lambda d: d.confidence, reverse=True):
@@ -179,12 +203,17 @@ class FireDetector:
                     or not finite_box(detection.bbox)):
                 continue
             best = None
-            best_iou = c.region_iou
+            best_score = -math.inf
             for key, state in self.states.items():
-                overlap = iou(state.box, detection.bbox)
-                if (key not in current and 0 < t-state.last_t <= c.max_gap_seconds
-                        and overlap >= best_iou):
-                    best, best_iou = key, overlap
+                if key in current or not 0 < t-state.last_t <= c.max_gap_seconds:
+                    continue
+                if window is not None:
+                    score = match_flame_region(state.box, detection.bbox, c.region_iou)
+                else:
+                    overlap = iou(state.box, detection.bbox)
+                    score = overlap if overlap >= c.region_iou else None
+                if score is not None and score >= best_score:
+                    best, best_score = key, score
             if best is None:
                 best = f"fire-{self.next_id}"
                 self.next_id += 1
@@ -194,8 +223,10 @@ class FireDetector:
                 state.count += 1
                 state.last_t = t
                 state.box = detection.bbox
+            if window is not None:
+                state.observe(t, True, window)
             current[best] = state
-            if (state.count >= c.min_frames and t-state.since + 1e-8 >= c.hold_seconds
+            if (state.count >= c.min_frames and t-state.since + 1e-8 >= c.strict_hold
                     and t-state.last_alert >= c.cooldown_seconds):
                 state.last_alert = t
                 signals.append(Signal("fire_detected", best, min(1.0, detection.confidence), {
@@ -204,5 +235,11 @@ class FireDetector:
                     "limitation": "TV imagery and lamps cannot be reliably distinguished",
                     "confidence_kind": "flame_detector_score_not_calibrated_event_probability",
                 }))
-        self.states = current  # missing regions break persistence immediately
+        if window is not None:
+            for key, state in self.states.items():
+                if key not in current and t - state.last_t <= c.max_gap_seconds:
+                    state.observe(t, False, window)
+                    if state.count:
+                        current[key] = state
+        self.states = current
         return signals

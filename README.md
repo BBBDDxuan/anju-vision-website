@@ -168,7 +168,7 @@ CPU/不同设备的数值与具体触发时间可能不同，脚本会据实际�
 powershell -NoProfile -ExecutionPolicy Bypass -File .\start.ps1
 ```
 
-启动日志直接显示在当前 PowerShell。若要同时保存日志：
+`start.bat` 会打开独立的服务终端。直接运行 `start.ps1` 时，日志显示在当前终端。两种方式都可以在服务终端按 Ctrl+C 停止。若要同时保存日志：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\start.ps1 *>&1 |

@@ -32,6 +32,13 @@ class FireConfig:
     min_frames: int = 5
     max_gap_seconds: float = 0.30
     cooldown_seconds: float = 15.0
+    review_confidence: float | None = None
+    strict_hold_seconds: float | None = None
+    confirmation_window_seconds: float | None = None
+
+    @property
+    def strict_hold(self) -> float:
+        return self.hold_seconds if self.strict_hold_seconds is None else self.strict_hold_seconds
 
 
 @dataclass
@@ -76,6 +83,7 @@ class ModelConfig:
     cpu_threads: int = 4
     pose_max_width: int = 640
     pose_fall_recovery_enabled: bool = False
+    flame_imgsz: int = 640
     flame_tile_size: int = 1280
     flame_tile_overlap: float = 0.25
     flame_max_tiles: int = 12
@@ -154,6 +162,8 @@ class Config:
             raise ValueError("pose_max_width must be 256..1920")
         if not 320 <= self.models.flame_tile_size <= 1920:
             raise ValueError("flame_tile_size must be 320..1920")
+        if type(self.models.flame_imgsz) is not int or self.models.flame_imgsz not in (640, 1280):
+            raise ValueError("flame_imgsz must be 640 or 1280")
         if not 0 < self.models.flame_tile_overlap <= 0.5:
             raise ValueError("flame_tile_overlap must be in (0, 0.5]")
         if not 1 <= self.models.flame_max_tiles <= 16:
@@ -168,6 +178,11 @@ class Config:
             raise ValueError("fall angles must satisfy 0 < upright < fallen <= 90")
         if self.fall.hold_seconds > self.fall.observation_seconds:
             raise ValueError("hold_seconds must fit observation_seconds")
+        if self.fire.review_confidence is not None and not 0 < self.fire.review_confidence <= 1:
+            raise ValueError("fire.review_confidence must be in (0, 1]")
+        if (self.fire.confirmation_window_seconds is not None
+                and self.fire.confirmation_window_seconds < self.fire.strict_hold):
+            raise ValueError("fire.strict_hold must fit confirmation_window_seconds")
         if self.reconnect_max_seconds < self.reconnect_initial_seconds:
             raise ValueError("invalid reconnect bounds")
         if self.retry_max_seconds < self.retry_initial_seconds:
@@ -196,6 +211,11 @@ def update(obj, data: dict) -> None:
             update(current, value)
         else:
             # Reject accidental string thresholds and float counters early.
+            if isinstance(obj, FireConfig) and key in {"review_confidence", "strict_hold_seconds", "confirmation_window_seconds"}:
+                if value is not None and (not isinstance(value, (int, float)) or isinstance(value, bool)):
+                    raise ValueError(f"fire.{key} must be numeric or null")
+                setattr(obj, key, value)
+                continue
             if isinstance(current, bool) and not isinstance(value, bool):
                 raise ValueError(f"{key} must be boolean")
             if isinstance(current, int) and not isinstance(current, bool) and (not isinstance(value, int) or isinstance(value, bool)):

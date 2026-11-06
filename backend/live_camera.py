@@ -208,7 +208,6 @@ class LiveCamera:
 
     def status(self):
         with self.lock:
-            self._send(b"ping")
             result = dict(self.info)
             result.update(self._review_status())
             age = time.monotonic()-self.received if self.received is not None else None

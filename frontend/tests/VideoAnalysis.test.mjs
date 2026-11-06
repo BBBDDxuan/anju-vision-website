@@ -29,7 +29,7 @@ function load(name, overrides = {}) {
   if (!Object.keys(overrides).length) cache.set(name, module.exports);
   return module.exports;
 }
-const { VideoAnalysisControls, SafetyScanProgress, SafetyAnalysisPlan } = load('VideoAnalysis');
+const { FlameScanSetting, VideoAnalysisControls, SafetyScanProgress, SafetyAnalysisPlan } = load('VideoAnalysis');
 const render = (component, props) => renderToStaticMarkup(React.createElement(component, props));
 const baseJob = { id: 'j_test', video_id: 'v_test', status: 'paused', stage: '等待恢复', progress: 40, resumable: true, failed_windows: [], is_mock: false };
 const props = { mode: 'safety', job: null, pending: false, ready: true, demo: false, onModeChange() {}, onStart() {}, onResume() {}, onPause() {} };
@@ -62,6 +62,7 @@ function appHarness(seed = {}, respond = () => ({})) {
     return null;
   }
   return { state, calls, effects, timers, tree, controls: () => find(tree(), VideoAnalysisControls).props,
+    flameScan: () => find(tree(), FlameScanSetting)?.props,
     html: () => renderToStaticMarkup(tree()), effect: text => { tree(); const effect = effects.find(fn => fn.toString().includes(text)); assert.ok(effect, `Missing effect: ${text}`); return effect; } };
 }
 const flush = () => new Promise(resolve => setImmediate(resolve));
@@ -76,6 +77,7 @@ test('Safety and objects have distinct controls and honest method descriptions',
   assert.match(objects, /开始物体追踪/);
   assert.match(objects, /使用 Qwen 分析物体与位置变化/);
   assert.match(objects, /带时间证据的踪迹/);
+  assert.doesNotMatch(objects, /小火苗识别/);
 });
 
 test('A queued or running task blocks both mode selectors and a new start, retaining pause', () => {
@@ -130,6 +132,19 @@ test('Both App start actions POST the selected mode and guard duplicate clicks',
     assert.equal(app.calls[0].init.method, 'POST');
     assert.equal(app.state.get('job').analysis_mode, mode);
   }
+});
+
+test('Small flame selection is visible above collapsed settings and switches to safety analysis', async () => {
+  const app = appHarness({ analysisMode: 'objects' }, () => ({ ...baseJob, analysis_mode: 'safety', flame_scan: 'small_flame', status: 'queued' }));
+  const html = app.html();
+  assert.match(html, /value="normal" selected="">正常扫描/);
+  assert.ok(html.indexOf('flame-scan-row') < html.indexOf('workspace-task-tray'));
+  app.flameScan().onChange('small_flame');
+  assert.equal(app.controls().mode, 'safety');
+  app.controls().onStart(); await flush();
+  assert.equal(app.calls[0].path, '/api/videos/v_test/analyze?mode=safety&flame_scan=small_flame');
+  assert.match(app.html(), /最近任务：安全分析 · 小火苗识别/);
+  assert.equal(app.flameScan().disabled, true);
 });
 
 test('App resumes latest job without changing mode and pauses without a mode override', async () => {

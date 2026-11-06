@@ -11,7 +11,7 @@ import { EventTimeline, timelineRows, type EventGroup } from './EventTimeline';
 import { LandingPage, type DemoVideo } from './LandingPage';
 import { DeleteVideoDialog } from './DeleteVideoDialog';
 import { SafetyPanel } from './SafetyPanel';
-import { VideoAnalysisControls, SafetyScanProgress, SafetyAnalysisPlan, analysisPath, planPath, jobMode, modeLabel, type AnalysisJob, type StartMode, type AnalysisMode } from './VideoAnalysis';
+import { FlameScanSetting, VideoAnalysisControls, SafetyScanProgress, SafetyAnalysisPlan, analysisPath, planPath, jobMode, modeLabel, type AnalysisJob, type StartMode, type AnalysisMode, type FlameScan } from './VideoAnalysis';
 import { eventClass, replayDescription } from './eventPresentation';
 import { HIGH_SCORE, MIN_SCORE, confidenceIndex, eventConfidence, confidenceLabel, displayClaim, isPriorityEvent, visibleText, type SourceClaim } from './confidence';
 import './theme.css';
@@ -97,6 +97,8 @@ function App() {
   const [analysisAction, setAnalysisAction] = useState(false);
   const analysisActionRef = useRef(false);
   const [analysisMode, setAnalysisMode] = useState<StartMode>('safety');
+  const [flameScan, setFlameScan] = useState<FlameScan>('normal');
+  const analysisSettings = useRef<HTMLDetailsElement>(null);
   const [planRevision, setPlanRevision] = useState(0);
   const [planError, setPlanError] = useState('');
   const [answer, setAnswer] = useState<Answer | null>(null);
@@ -197,6 +199,7 @@ function App() {
     setMemory(null); setAnswer(null); setJob(null); setActiveEvidence(null); setSeekMessage(''); setError(''); setEntityId(''); setReplay(null); setPlan(null); setHour('all'); setEventSearch(''); setEventKind('all'); setEventPage(1); setPlaybackTime(0); setJumpTime('00:00:00');
     setFoldEvents(true);
     setEventCategory('safety'); setPersonEventKind('important'); setAnalysisMode('safety');
+    setFlameScan('normal');
     if (!selected) return;
     let cancelled = false;
     api<Video & { latest_job: Job | null; metadata?: {case_type?: string} }>(`/api/videos/${selected}`).then(async detail => {
@@ -289,6 +292,15 @@ function App() {
     }
     finally { setBusy(false); uploadRequest.current = null; uploadController.current = null; }
   };
+  const changeAnalysisMode = (mode: StartMode) => {
+    setAnalysisMode(mode); setEventCategory(mode === 'objects' ? 'object' : 'safety');
+    setEntityId(''); setReplay(null); setAnswer(null); setEventKind('all'); setEventPage(1);
+  };
+  const chooseFlameScan = (scan: FlameScan) => {
+    setFlameScan(scan);
+    if (analysisMode !== 'safety') changeAnalysisMode('safety');
+    if (analysisSettings.current) analysisSettings.current.open = true;
+  };
   const analyze = async (mode: AnalysisMode, resume = false) => {
     if (!selected || running || analysisActionRef.current || !health?.analysis_ready) return;
     analysisActionRef.current = true;
@@ -296,7 +308,7 @@ function App() {
     setError(''); setAnswer(null); setAnalysisAction(true);
     try {
       const demo = !!currentVideo?.read_only_demo;
-      const next = await api<Job>(analysisPath(id, mode, resume, demo), { method: 'POST' });
+      const next = await api<Job>(analysisPath(id, mode, resume, demo, flameScan), { method: 'POST' });
       if (selectedRef.current === id) {
         if (demo) { await refresh(); setSelected(next.video_id); setNotice('已创建你的分析副本，正在重新识别视频。原展示成果保留；新分析计入每日调用上限。'); }
         else { setJob(next); setPlanRevision(value => value + 1); }
@@ -457,13 +469,14 @@ function App() {
           <div className="panel-head"><div className="video-panel-heading"><strong>视频回放</strong><span className="workspace-task-state" role="status" aria-label="当前分析任务状态">{job ? statusName[job.status] || job.status : selected ? '尚未分析' : '等待导入录像'}</span></div><div className="video-panel-actions">{selected && <button type="button" className="recording-import" disabled={busy} onClick={() => recordingInput.current?.click()}><Icon name="upload" size={16}/>{busy ? (uploadProgress < 100 ? `正在上传 ${uploadProgress}%` : '正在准备…') : '导入新录像'}</button>}</div></div>
       {busy && <div className="upload-progress" aria-live="polite"><div><strong>{uploadName}</strong><span>{uploadProgress < 100 ? `已上传 ${uploadProgress}%` : '文件传输完成，正在校验并准备播放。长录像可能需要一些时间。'}</span>{uploadProgress < 100 && <button className="text-button" onClick={() => { uploadController.current?.abort(); uploadRequest.current?.abort(); }}>取消上传</button>}</div><progress aria-label="上传进度" max={100} value={uploadProgress} /></div>}
           {videos.length > 0 && <div className="video-select"><label htmlFor="video-select">当前视频</label><select id="video-select" value={selected} onChange={e => setSelected(e.target.value)}><option value="">选择已上传视频</option>{videos.map(v => <option value={v.id} key={v.id}>{v.name} · {stamp(v.duration_ms)}</option>)}</select>{currentVideo && <button type="button" className="delete-video-button" disabled={running || deleting || busy || currentVideo.read_only_demo} onClick={() => requestDelete(currentVideo)}><Icon name="trash" size={14}/>删除视频</button>}</div>}
+          {currentVideo && !currentVideo.read_only_demo && <FlameScanSetting value={flameScan} onChange={chooseFlameScan} disabled={running || analysisAction} />}
           {selected ? <video key={`video-${selected}`} ref={videoRef} controls playsInline preload="metadata" onLoadedMetadata={e => setMediaDuration(e.currentTarget.duration)} onTimeUpdate={e => setPlaybackTime(e.currentTarget.currentTime)} src={`/media/videos/${selected}`} onError={() => setError('视频播放器加载失败，请检查本地媒体服务或重新上传。')}  /> : <button type="button" className={`empty-video upload-dropzone ${dragging ? 'is-dragging' : ''}`} disabled={busy} aria-label="导入居家录像" aria-busy={busy} onClick={() => recordingInput.current?.click()} onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = busy ? 'none' : 'copy'; if (!busy) setDragging(true); }} onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragging(false); }} onDrop={e => { e.preventDefault(); setDragging(false); void upload(e.dataTransfer.files[0]); }}><span className="empty-upload-icon"><Icon name="upload" size={26}/></span><strong>从一段居家录像开始</strong><span className="empty-upload-action">{busy ? (uploadProgress < 100 ? `正在上传 ${uploadProgress}%` : '正在准备录像…') : '导入居家录像'}</span><small>{dragging ? '松开即可导入录像' : `点击选择或拖入 MP4 · ${health ? health.limits.max_video_seconds === null ? '不设大小与时长上限' : `最长${durationLabel(health.limits.max_video_seconds*1000)}` : '正在读取上传设置…'}`}</small></button>}
           {currentVideo && <div className="recording-controls"><div className="playback-clock"><Icon name="clock" size={15} /><span>{stamp(playbackTime*1000)}</span><span>/ {stamp(currentVideo.duration_ms)}</span></div><div className="time-jump"><input aria-label="跳转录像时间" type="time" step="1" value={jumpTime} onChange={e => setJumpTime(e.target.value)} /><button onClick={jump}>跳转</button></div></div>}
 
           {currentVideo && <EvidenceTimebar durationSec={mediaDuration || currentVideo.duration_ms / 1000} timeSec={playbackTime} ranges={filteredEvents.flatMap(event => event.evidence_ids.flatMap(id => { const evidence = memory?.evidence.find(item => item.id === id); return evidence ? [{ id: `${event.id}:${id}`, startMs: evidence.start_ms, endMs: evidence.end_ms, label: visibleText(actionName[event.action] || event.action), selected: selectedEventId === event.id }] : []; }))} coverage={ranges} onSeek={time => { setActiveEvidence(null); setSelectedEventId(null); void seekTo(time * 1000); }} onSelect={id => { const event = filteredEvents.find(item => id.startsWith(`${item.id}:`)); if (event) { changeInspector('events'); selectEvent(event); } }} label="工作台视频时间定位"/>}
           <p className="workspace-seek-status" role="status">{seekMessage}</p>
-          {selected && <details className="workspace-task-tray"><summary><span>分析任务与设置</span><span>{job ? `${modeLabel(jobMode(job))} · ${statusName[job.status] || job.status}` : '选择模式并开始分析'}</span></summary>
-          {selected && <VideoAnalysisControls mode={analysisMode} onModeChange={mode => { setAnalysisMode(mode); setEventCategory(mode === 'objects' ? 'object' : 'safety'); setEntityId(''); setReplay(null); setAnswer(null); setEventKind('all'); setEventPage(1); }} job={job} pending={analysisAction} ready={!!health?.analysis_ready} demo={!!currentVideo?.read_only_demo} onStart={() => void analyze(analysisMode)} onResume={() => void analyze(jobMode(job), true)} onPause={() => void pauseAnalysis()} />}
+          {selected && <details className="workspace-task-tray" ref={analysisSettings}><summary><span>分析任务与设置</span><span>{job ? `${modeLabel(jobMode(job))} · ${statusName[job.status] || job.status}` : '选择模式并开始分析'}</span></summary>
+          {selected && <VideoAnalysisControls mode={analysisMode} onModeChange={changeAnalysisMode} job={job} pending={analysisAction} ready={!!health?.analysis_ready} demo={!!currentVideo?.read_only_demo} onStart={() => void analyze(analysisMode)} onResume={() => void analyze(jobMode(job), true)} onPause={() => void pauseAnalysis()} />}
           {job && jobMode(job) !== 'objects' && <SafetyScanProgress safety={job.safety} />}
           {currentVideo && job && !safetyOnlyJob && <div className="coverage"><div><span>{modeLabel(jobMode(job))}覆盖</span><strong>{job.status === 'completed' ? (staticRanges.length ? '处理完成 · 含静止过滤' : '全片已处理 · 采样分析') : `${job.completed_windows || 0} / ${job.total_windows || (analysisMode === 'objects' ? plan?.total_windows : undefined) || '…'} 个窗口`}</strong></div><div className="coverage-track" aria-label="已分析时间范围">{staticRanges.map(r => <span className="static-screened" key={`static-${r.start_ms}`} title={`静止筛查，未调用模型 ${stamp(r.start_ms)}–${stamp(r.end_ms)}`} style={{ left: `${r.start_ms/currentVideo.duration_ms*100}%`, width: `${(r.end_ms-r.start_ms)/currentVideo.duration_ms*100}%` }} />)}{job.status === 'completed' && !staticRanges.length ? <span style={{ left: 0, width: '100%' }} /> : ranges.map(r => <span key={r.start_ms} title={`${stamp(r.start_ms)}–${stamp(r.end_ms)}`} style={{ left: `${r.start_ms/currentVideo.duration_ms*100}%`, width: `${(r.end_ms-r.start_ms)/currentVideo.duration_ms*100}%` }} />)}</div><div className="coverage-labels"><span>00:00</span><span>{staticRanges.length ? '绿色：模型分析 · 灰色：静止过滤' : job.status === 'completed' ? '绿色为已处理范围' : ranges.length ? `${coverage.toFixed(1)}% 时段已处理，其他时段待分析` : '尚无可展示的已分析范围'} </span><span>{stamp(currentVideo.duration_ms)}</span></div></div>}
           {!safetyOnlyJob && job?.activity_filter && <details className="activity-summary"><summary>静止过滤：已跳过 {job.activity_filter.skipped_windows} 个窗口 · 模型分析 {job.activity_filter.model_analyzed_windows} 个窗口</summary><p>灰色时段仅做本地画面变化筛查，未调用视觉模型，不表示无人、物品未移动或没有危险。{job.activity_filter.risk_followup && '已出现风险候选，后续保持模型分析。'}</p>{staticRanges.length > 0 && <ul>{staticRanges.slice(0,20).map(r => <li key={r.start_ms}>{stamp(r.start_ms)}–{stamp(r.end_ms)} · 静止过滤</li>)}</ul>}{staticRanges.length > 20 && <p>另有 {staticRanges.length-20} 段，完整范围已保存。</p>}</details>}

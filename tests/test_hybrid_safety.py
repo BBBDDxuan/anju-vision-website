@@ -34,7 +34,7 @@ def candidate(tmp_path, count=3):
 
 def service(tmp_path, verdict=None, **overrides):
     requests = []
-    answer = verdict or dict(verdict='confirmed', event_type='help_requested', reason='双手持续举起且远离头部，非真实意图判断。', frame_ids=['f_0','f_1'])
+    answer = verdict or dict(verdict='confirmed', event_type='help_requested', reason='双手持续举起且远离头部，非真实意图判断。', frame_ids=['F01','F02'])
     def respond(request):
         requests.append(json.loads(request.content))
         return httpx.Response(200, json={'id':'mock-only','choices':[{'finish_reason':'stop','message':{'content':json.dumps(answer)}}],
@@ -50,6 +50,7 @@ def test_shared_review_uses_requested_model_budget_and_multiframe_evidence(tmp_p
     pipeline, requests = service(tmp_path)
     result = pipeline.review(candidate(tmp_path), 'v1', 'j1')
     assert result['verdict'] == 'confirmed'
+    assert result['frame_ids'] == ['f_0', 'f_1']
     assert requests[0]['model'] == 'qwen3.8-max'
     assert requests[0]['max_tokens'] == REVIEW_TOKENS
     assert len([x for x in requests[0]['messages'][0]['content'] if x['type']=='image_url']) == 3
@@ -58,20 +59,35 @@ def test_shared_review_uses_requested_model_budget_and_multiframe_evidence(tmp_p
 
 
 @pytest.mark.parametrize('answer', [
-    dict(verdict='confirmed',event_type='fire_detected',reason='wrong type',frame_ids=['f_0','f_1']),
-    dict(verdict='confirmed',event_type='help_requested',reason='forged frames',frame_ids=['made_up','f_1']),
-    dict(verdict='confirmed',event_type='help_requested',reason='single',frame_ids=['f_0']),
-    dict(verdict='confirmed',event_type='help_requested',reason='duplicates',frame_ids=['f_0','f_0']),
-    dict(verdict='approved',event_type='help_requested',reason='unsupported',frame_ids=['f_0','f_1'])])
+    dict(verdict='confirmed',event_type='fire_detected',reason='wrong type',frame_ids=['F01','F02']),
+    dict(verdict='confirmed',event_type='help_requested',reason='forged frames',frame_ids=['F01','F02','F04']),
+    dict(verdict='confirmed',event_type='help_requested',reason='single',frame_ids=['F01']),
+    dict(verdict='confirmed',event_type='help_requested',reason='duplicates',frame_ids=['F01','F01']),
+    dict(verdict='approved',event_type='help_requested',reason='unsupported',frame_ids=['F01','F02'])])
 def test_invalid_or_forged_review_never_confirms(tmp_path, answer):
     pipeline, _ = service(tmp_path, answer)
     with pytest.raises(AppError, match='安全复核响应无效'):
         pipeline.review(candidate(tmp_path), 'v1', 'j1')
 
 
+def test_fire_review_cites_short_labels_but_persists_original_frame_ids(tmp_path):
+    pipeline, requests = service(tmp_path, dict(verdict='confirmed', event_type='fire_detected',
+                                 reason='Two frames show visible flame.', frame_ids=['F02', 'F11']))
+    item = candidate(tmp_path, count=12)
+    item['event_type'] = 'fire_detected'
+    for i, frame in enumerate(item['frames']):
+        frame['id'] = f'sf_{i:030x}'
+    result = pipeline.review(item, 'v1', 'j1')
+    text = [part['text'] for part in requests[0]['messages'][0]['content'] if part['type'] == 'text']
+    assert text[1:] == [f"frame_id=F{i:02d}; pts_ms={frame['pts_ms']}" for i, frame in enumerate(item['frames'], 1)]
+    expected = [item['frames'][i]['id'] for i in (1, 10)]
+    assert result['frame_ids'] == expected
+    assert pipeline.extraction(item, result).events[0].frame_ids == expected
+
+
 @pytest.mark.parametrize('verdict', ['rejected','uncertain'])
 def test_negative_reviews_do_not_create_alarm_events(tmp_path, verdict):
-    pipeline, _ = service(tmp_path, dict(verdict=verdict,event_type='help_requested',reason='抱头或证据不足',frame_ids=['f_0','f_1']))
+    pipeline, _ = service(tmp_path, dict(verdict=verdict,event_type='help_requested',reason='抱头或证据不足',frame_ids=['F01','F02']))
     item=candidate(tmp_path)
     assert pipeline.extraction(item, pipeline.review(item, 'v1', 'j1')) is None
 
@@ -201,7 +217,7 @@ def test_live_configuration_status_does_not_misrepresent_network_disabled(tmp_pa
 def test_review_only_fall_candidate_cannot_bypass_visual_verdict(tmp_path,verdict):
     item=candidate(tmp_path)
     item.update(event_type='suspected_fall',details={'algorithm':'rapid_collapse_review_v1','review_required':True})
-    pipeline,requests=service(tmp_path,dict(verdict=verdict,event_type='suspected_fall',reason='缺少可靠倒地过程',frame_ids=['f_0','f_1']))
+    pipeline,requests=service(tmp_path,dict(verdict=verdict,event_type='suspected_fall',reason='缺少可靠倒地过程',frame_ids=['F01','F02']))
     result=pipeline.review(item,'v1','j1')
     assert result['verdict']==verdict
     assert pipeline.extraction(item,result) is None
@@ -228,7 +244,7 @@ def test_detector_source_change_invalidates_video_scan_signature(tmp_path,monkey
 
 def test_review_receives_explicit_missing_transition_evidence(tmp_path):
     pipeline, requests = service(tmp_path, dict(verdict='uncertain', event_type='suspected_fall',
-        reason='only lying posture, transition missing', frame_ids=['f_0', 'f_1']))
+        reason='only lying posture, transition missing', frame_ids=['F01', 'F02']))
     item = candidate(tmp_path)
     item['event_type'] = 'suspected_fall'
     item['details'] = {'candidate_reason': 'sustained_prone_without_observed_transition',
@@ -249,7 +265,7 @@ def test_review_receives_explicit_missing_transition_evidence(tmp_path):
 @pytest.mark.parametrize('verdict', ['rejected', 'uncertain'])
 def test_extra_review_candidates_forward_context_without_becoming_alarms(tmp_path, event_type, gesture, verdict):
     answer = dict(verdict=verdict, event_type=event_type,
-                  reason='候选视觉证据不足，离线复核测试', frame_ids=['f_0', 'f_1'])
+                  reason='候选视觉证据不足，离线复核测试', frame_ids=['F01', 'F02'])
     pipeline, requests = service(tmp_path, answer)
     item = candidate(tmp_path)
     item['event_type'] = event_type

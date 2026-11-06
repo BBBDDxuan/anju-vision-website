@@ -167,6 +167,36 @@ def test_confidence_threshold_tracks_config_and_has_quarter_floor():
     assert len(run(ReviewFireDetector(low_config), [[flame(confidence=0.25)]] * 9)) == 1
 
 
+def test_explicit_review_threshold_and_hold_stay_fixed_when_strict_gates_change():
+    config = FireConfig(confidence=0.50, review_confidence=0.39, strict_hold_seconds=0.8,
+                        confirmation_window_seconds=1.2)
+    assert run(ReviewFireDetector(config), [[flame(confidence=0.38)]] * 12) == []
+    t, signal = run(ReviewFireDetector(config), [[flame(confidence=0.39)]] * 12)[0]
+    assert t == 1.0
+    assert signal.details["confidence_threshold"] == 0.39
+
+
+@pytest.mark.parametrize("step", [0.1, 0.2])
+def test_strict_window_tolerates_one_missing_sample_and_small_region_motion(step):
+    config = FireConfig(confidence=0.50, strict_hold_seconds=0.8, confirmation_window_seconds=1.2,
+                        max_gap_seconds=0.75)
+    frames = [[] if i == 2 else [flame(x=10 + i * 2, confidence=0.55)]
+              for i in range(round(1.2 / step) + 1)]
+    t, signal = run(FireDetector(config), frames, step=step)[0]
+    assert t == pytest.approx(0.8 if step == 0.1 else 1.0)
+    assert signal.details["frames"] >= 5
+
+
+def test_strict_window_rejects_alternating_hits_and_obsolete_evidence():
+    config = FireConfig(confidence=0.50, strict_hold_seconds=0.8, confirmation_window_seconds=1.2)
+    hit = [flame(confidence=0.55)]
+    assert run(FireDetector(config), [hit, []] * 16, step=0.2) == []
+    detector = FireDetector(config)
+    assert run(detector, [hit] * 4, step=0.2) == []
+    assert run(detector, [hit] * 4, start=1.4, step=0.2) == []
+    assert len(detector.update(hit, 2.2)) == 1
+
+
 @pytest.mark.parametrize("box", [
     (0, 0, 0, 8), (0, 0, 4, 0), (4, 0, 0, 8), (0, 0, math.nan, 8),
     (0, 0, 4, math.inf), (0, 0, 4), (0, 0, 4, 8, 9), None,
