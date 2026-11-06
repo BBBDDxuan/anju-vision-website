@@ -1,38 +1,53 @@
-import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
+import { useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import { Arrow } from './Brand';
 import { Icon } from './ui';
 import { demoRegistry, fallDemo, fallEvidence, evidenceRange, relativeTime, reviewLabel, type DemoCase } from './demoRegistry';
 import { useDemoVideo } from './useDemoVideo';
-import { EvidenceInspectorPanel } from './EvidenceInspectorPanel';
+import { DetectionOverlay, FireDetectionOverlay, WaveDetectionOverlay } from './detection/DetectionOverlay';
+import { fallDetectionDemo } from './detection/fallDemoData';
+import { fireDetectionDemo } from './detection/fireDemoData';
+import { waveDetectionDemo } from './detection/waveDemoData';
+import './detection/fire-detection-overlay.css';
+import './detection/wave-detection-overlay.css';
 
 const icons = ['activity', 'help-gesture', 'flame'];
 
-function CapabilityVideoCard({ demo, index, evidenceOpen, onOpenEvidence, onCloseEvidence }: { demo: DemoCase; index: number; evidenceOpen: boolean; onOpenEvidence: (button: HTMLButtonElement) => void; onCloseEvidence: () => void }) {
+function CapabilityVideoCard({ demo, index }: { demo: DemoCase; index: number }) {
   const player = useDemoVideo();
   const [started, setStarted] = useState(false);
+  const waveStatus = useRef<HTMLParagraphElement>(null);
   const result = demo.modelResult;
+  const hasOverlay = demo.id === 'fall' || demo.id === 'fire' || demo.id === 'help';
+  const wave = result.status === 'pose_based_heuristic' ? result.result : null;
   const finished = player.currentTime >= (player.duration || demo.durationMs / 1000) - .03;
-  useEffect(() => { if (evidenceOpen) { player.pause(); player.ref.current?.load(); setStarted(false); } }, [evidenceOpen, player.pause]);
   const play = (replay = false) => {
-    if (evidenceOpen) onCloseEvidence();
     setStarted(true);
     const start = replay || !started || finished ? 0 : player.currentTime;
     void player.command({ start, play: true });
   };
-  return <article className="av-cap-card av-video-card av-reveal" data-case={demo.id} data-result-status={result.status} style={{ '--delay': `${index * 75}ms` } as CSSProperties} aria-labelledby={`cap-${demo.id}`}>
+  return <article className={`av-cap-card av-video-card av-reveal${demo.id === 'fall' ? ' av-fall-card' : demo.id === 'fire' ? ' av-fire-card' : ' av-wave-card'}`} data-case={demo.id} data-result-status={result.status} style={{ '--delay': `${index * 75}ms` } as CSSProperties} aria-labelledby={`cap-${demo.id}`}>
     <div className="av-card-media">
-      <video ref={player.ref} src={demo.videoSrc} poster={demo.posterSrc} preload="metadata" muted playsInline aria-label={`${demo.title}实景测试视频`} {...player.videoEvents}/>
-      <span className="av-real-footage">实景测试素材 · 静音</span>
-      {!player.playing && !player.error && <button className="av-media-play" aria-label={`${demo.title}：${finished ? '重播场景' : '播放场景'}`} disabled={player.busy} onClick={() => play()}><Icon name={finished ? 'replay' : 'play'} size={24}/><span>{player.busy ? '正在加载视频' : finished ? '重播场景' : '播放场景'}</span></button>}
+      <video ref={player.ref} src={demo.videoSrc} poster={demo.posterSrc} preload="metadata" muted playsInline loop={hasOverlay} aria-label={`${demo.title}实景测试视频`} {...player.videoEvents}/>
+      {demo.id === 'fall' && <DetectionOverlay videoRef={player.ref} sequence={fallDetectionDemo}/>}
+      {demo.id === 'fire' && <FireDetectionOverlay videoRef={player.ref} sequence={fireDetectionDemo}/>}
+      {demo.id === 'help' && <WaveDetectionOverlay videoRef={player.ref} sequence={waveDetectionDemo} statusRef={waveStatus}/>}
+      <span className="av-real-footage">{demo.id === 'help' ? '离线姿态分析 · 时序规则' : hasOverlay ? '离线演示 · 含核对标注' : '实景测试素材 · 静音'}</span>
+      {!player.playing && !player.error && <button className={`av-media-play${hasOverlay && started ? ' av-media-play-resume' : ''}`} aria-label={`${demo.title}：${finished ? '重播场景' : '播放场景'}`} disabled={player.busy} onClick={() => play()}><Icon name={finished ? 'replay' : 'play'} size={24}/><span>{player.busy ? '正在加载视频' : finished ? '重播场景' : '播放场景'}</span></button>}
+      {player.playing && !player.error && <button className="av-media-pause" aria-label={`${demo.title}：暂停场景`} disabled={player.busy} onClick={() => player.pause()}><Icon name="pause" size={22}/><span>暂停场景</span></button>}
       {player.error && <p className="av-media-error" role="alert">{player.error}</p>}
     </div>
+    {hasOverlay && <div className={demo.id === 'fall' ? 'av-fall-progress' : demo.id === 'help' ? 'av-wave-progress' : 'av-fire-progress'}><input type="range" min="0" max={demo.durationMs / 1000} step="0.01" value={Math.min(player.currentTime, demo.durationMs / 1000)} aria-label={demo.id === 'fall' ? '跌倒演示视频时间' : demo.id === 'help' ? '挥手演示视频时间' : '明火演示视频时间'} aria-valuetext={relativeTime(player.currentTime * 1000)} disabled={!!player.error} onInput={event => { setStarted(true); void player.command({ start: Number(event.currentTarget.value) }); }}/><time>{relativeTime(player.currentTime * 1000)} / {relativeTime(demo.durationMs)}</time></div>}
     <div className="av-cap-copy">
       <div className="av-card-title"><Icon name={icons[index]} size={24}/><span>0{index + 1}</span></div>
-      <h3 id={`cap-${demo.id}`}>{demo.id === 'fall' ? '跌倒 / 异常姿态识别' : demo.id === 'help' ? '举手动作识别' : '明火异常识别'}</h3>
-      <span className={`av-result-tag ${result.status === 'available' ? 'is-verified' : ''}`}>{result.status === 'available' ? '实景测试 · 已有模型复核' : '实景测试 · 识别结果待接入'}</span>
-      <p className="av-card-description">{demo.id === 'fall' ? '智能识别人体跌倒、异常躺卧等姿态，自动标记疑似风险事件。' : demo.id === 'help' ? '捕捉画面中的举手动作，标记疑似求助场景。' : '检测画面中的可见光火焰，提示疑似火情风险。'}</p>
-      <p className="av-card-caveat"><Icon name="help" size={14}/>{demo.id === 'fall' ? 'AI 仅提供疑似线索参考，最终情况请以原始画面确认为准。' : demo.id === 'help' ? '动作识别不代表真实求助，需结合实际画面判断。' : '当前样例为打火机火焰，不代表真实火情；仅识别火焰视觉特征，需结合场景确认。'}</p>
-      {result.status === 'available' && <div className="av-card-result"><p>已保存{result.result.title}候选；{reviewLabel(result.result)}，{result.result.humanConfirmed ? '已人工确认' : '未经人工确认'}，建议核对原片。</p>{demo.id === 'fall' && <button className="av-card-evidence-link" aria-expanded={evidenceOpen} aria-controls="fall-evidence-inspector" onClick={event => onOpenEvidence(event.currentTarget)}>查看 AI 分析依据<Arrow/></button>}</div>}
+      <h3 id={`cap-${demo.id}`}>{demo.id === 'fall' ? '跌倒 / 异常姿态识别' : demo.id === 'help' ? '挥手 / 求助行为识别' : '明火异常识别'}</h3>
+      <span className={`av-result-tag ${result.status !== 'pending_model_fix' ? 'is-verified' : ''}`}>{wave ? '姿态模型 + 往复运动规则' : result.status === 'available' ? (hasOverlay ? '模型复核支持' : '实景测试 · 已有模型复核') : '实景测试 · 识别结果待接入'}</span>
+      <p className="av-card-description">{demo.id === 'fall' ? '智能识别人体跌倒、异常躺卧等姿态，自动标记疑似风险事件。' : demo.id === 'help' ? '追踪上半身姿态与手腕轨迹，根据连续往复运动识别挥手动作。' : '智能捕捉居家环境中的可见火焰线索，及时标记潜在火灾风险。'}</p>
+      <p className="av-card-caveat"><Icon name="help" size={14}/>{demo.id === 'fall' ? 'AI 仅提供疑似线索参考，最终情况请以原始画面确认为准。' : demo.id === 'help' ? '动作识别不代表真实求助，需结合实际画面判断。' : '木制模型燃烧测试；AI 线索未经人工确认，请结合原片核对。'}</p>
+      {demo.id === 'fall' && <p className="av-detection-source">人体框经逐帧核对；骨架为补充离线模型结果，仅显示可靠点。非实时推理。</p>}
+      {demo.id === 'fire' && <p className="av-detection-source">结论来自已保存的模型复核；火焰框为逐帧核对标注，无分割数据。非实时推理。</p>}
+      {demo.id === 'help' && <p className="av-detection-source"><span ref={waveStatus} className="av-wave-status" role="status">正在追踪手部动作</span>。非训练动作分类模型。非实时推理。</p>}
+      {wave && <div className="av-card-result"><dl className="av-case-result"><div><dt>案例结果</dt><dd>{wave.events.length} 条挥手动作</dd></div>{wave.events.map(event => <div key={event.id}><dt>动作区间</dt><dd>{evidenceRange(event)}</dd></div>)}<div><dt>动作边界</dt><dd>片尾仍在挥手</dd></div></dl></div>}
+      {result.status === 'available' && <div className="av-card-result">{hasOverlay ? <dl className="av-case-result"><div><dt>案例结果</dt><dd>{demo.id === 'fall' ? '1 条疑似跌倒线索' : '1 条明火线索'}</dd></div><div><dt>{demo.id === 'fall' ? '证据区间' : '片段证据'}</dt><dd>{evidenceRange(result.result)}</dd></div><div><dt>人工核对</dt><dd>尚未确认</dd></div></dl> : <p>已保存{result.result.title}候选；{reviewLabel(result.result)}，{result.result.humanConfirmed ? '已人工确认' : '未经人工确认'}，建议核对原片。</p>}</div>}
       <div className="av-card-actions">
         <button className="av-text-link" disabled={player.busy || !!player.error} onClick={() => player.playing ? player.pause() : play()} aria-label={`${demo.title}：${player.playing ? '暂停场景' : finished ? '重播场景' : '播放场景'}`}><Icon name={player.playing ? 'pause' : finished ? 'replay' : 'play'} size={15}/>{player.playing ? '暂停场景' : finished ? '重播场景' : '播放场景'}</button>
         {started && <button className="av-card-replay" aria-label={`${demo.title}：从头重播`} disabled={player.busy || !!player.error} onClick={() => play(true)}><Icon name="replay" size={15}/>重播</button>}
@@ -41,43 +56,20 @@ function CapabilityVideoCard({ demo, index, evidenceOpen, onOpenEvidence, onClos
   </article>;
 }
 
+export function FallDetectionCard() {
+  return <CapabilityVideoCard demo={fallDemo} index={0}/>;
+}
+
+export function FireDetectionCard({ demo }: { demo: DemoCase }) {
+  return <CapabilityVideoCard demo={demo} index={2}/>;
+}
+
+export function WaveDetectionCard({ demo }: { demo: DemoCase }) {
+  return <CapabilityVideoCard demo={demo} index={1}/>;
+}
+
 export function CapabilityVideos() {
-  const [open, setOpen] = useState(false);
-  const [present, setPresent] = useState(false);
-  const trigger = useRef<HTMLButtonElement | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const scrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const close = () => {
-    document.dispatchEvent(new Event('av-demo-pause'));
-    if (timer.current) clearTimeout(timer.current);
-    if (scrollTimer.current) clearTimeout(scrollTimer.current);
-    setOpen(false);
-    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    timer.current = setTimeout(() => {
-      setPresent(false);
-      const button = trigger.current;
-      if (!button) return;
-      const rect = button.getBoundingClientRect();
-      if (rect.top < 90 || rect.bottom > innerHeight) button.scrollIntoView({ block: 'center', behavior: reduced ? 'instant' : 'smooth' });
-    }, reduced ? 0 : 240);
-    trigger.current?.focus({ preventScroll: true });
-  };
-  const show = (button: HTMLButtonElement) => {
-    document.dispatchEvent(new Event('av-demo-pause'));
-    if (timer.current) clearTimeout(timer.current);
-    if (scrollTimer.current) clearTimeout(scrollTimer.current);
-    trigger.current = button; setPresent(true); setOpen(true);
-    scrollTimer.current = setTimeout(() => {
-      const heading = document.getElementById('fall-evidence-title');
-      const panel = document.getElementById('fall-evidence-inspector');
-      if (!heading || !panel) return;
-      heading.focus({ preventScroll: true });
-      const navigationBottom = document.querySelector('.av-header')?.getBoundingClientRect().bottom || 0;
-      window.scrollTo({ top: window.scrollY + panel.getBoundingClientRect().top - navigationBottom - 16, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
-    }, matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 360);
-  };
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); if (scrollTimer.current) clearTimeout(scrollTimer.current); }, []);
-  return <><div className="av-capability-grid av-video-grid">{demoRegistry.map((demo, index) => <CapabilityVideoCard key={demo.id} demo={demo} index={index} evidenceOpen={open} onOpenEvidence={show} onCloseEvidence={close}/>)}</div><div className={`av-evidence-expander${open ? ' is-open' : ''}`} inert={!open} aria-hidden={!open}><div>{present && <EvidenceInspectorPanel onClose={close}/>}</div></div></>;
+  return <div className="av-capability-grid av-video-grid">{demoRegistry.map(demo => demo.id === 'fall' ? <FallDetectionCard key={demo.id}/> : demo.id === 'fire' ? <FireDetectionCard key={demo.id} demo={demo}/> : <WaveDetectionCard key={demo.id} demo={demo}/>)}</div>;
 }
 
 const stages = [
@@ -156,14 +148,14 @@ export function WorkflowDemo() {
         {stage === 1 && <>
           <p>{stages[stage].detail}</p>
           <div className="av-review-step"><span>LOCAL / 本地候选</span><strong>疑似跌倒</strong><p>候选触发于相对时间 {relativeTime(evidence.localCandidateTriggerSec * 1000)}，需要结合前后画面复核。</p></div>
-          <div className="av-review-step"><span>QWEN / 视觉模型复核</span><strong>{reviewLabel(evidence)}</strong><p>模型描述约 5.00 秒开始失去支撑、约 6.00 秒已躺卧；这是模型说明，并非人工精确动作标注。</p></div>
+          <div className="av-review-step"><span>QWEN / 视觉模型复核</span><strong>{reviewLabel(evidence)}</strong><p>最新复核引用 4.50、5.00、5.50、6.00 秒画面，描述站立、失去支撑、滑落至躺卧的连续变化；这是模型说明，并非人工精确动作标注。</p></div>
           <button className="av-demo-action" disabled={player.busy || !!player.error} onClick={() => void player.command({ start: startSec, end: endSec })}><Icon name="clock" size={16}/>{range} 证据区间<Arrow/></button>
-          <button className="av-secondary-action" disabled={player.busy || !!player.error} onClick={() => void player.command({ start: 5, end: endSec, play: true })}>查看约 5.00–6.30 秒的姿态变化<Arrow/></button>
+          <button className="av-secondary-action" disabled={player.busy || !!player.error} onClick={() => void player.command({ start: 5, end: endSec, play: true })}>查看约 5.00–{endSec.toFixed(2)} 秒的姿态变化<Arrow/></button>
           <p className="av-stage-note">未经人工确认；证据区间的起点不等于跌倒开始，也不能据此推断受伤。</p>
         </>}
         {stage === 2 && <>
           <p>{stages[stage].detail}</p>
-          <p>一条事件，五帧依据。模型结论实际引用的五张原始关键帧常驻在播放器下方，可随时定位核对。</p>
+          <p>一条事件，{evidence.frames.length} 帧依据。模型结论实际引用的原始关键帧常驻在播放器下方，可随时定位核对。</p>
           <div className="av-event-summary"><span>01 / {evidence.title}</span><strong>{range}</strong><p>模型复核支持跌倒过程，未经人工确认。区间包含事前站立与姿态变化，需结合原片判断。</p></div>
           <details className="av-model-reason"><summary>查看模型复核原文</summary><p>{evidence.reviewReason}</p></details>
         </>}

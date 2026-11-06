@@ -28,14 +28,14 @@ test('官网采用已批准文案并保持工作台入口去重', async ({ page 
   await expect(page.locator('#capabilities-title')).toHaveText('风险线索，精准捕捉。');
   await expect(page.locator('#capabilities .av-section-top > p')).toHaveText('自动筛查居家风险场景，省去逐帧翻找录像的麻烦。');
   await expect(page.locator('.av-video-card').nth(0).locator('h3')).toHaveText('跌倒 / 异常姿态识别');
-  await expect(page.locator('.av-video-card').nth(1).locator('h3')).toHaveText('举手动作识别');
+  await expect(page.locator('.av-video-card').nth(1).locator('h3')).toHaveText('挥手 / 求助行为识别');
   await expect(page.locator('.av-video-card').nth(2).locator('h3')).toHaveText('明火异常识别');
   await expect(page.locator('.av-video-card').nth(0).locator('.av-card-description')).toHaveText('智能识别人体跌倒、异常躺卧等姿态，自动标记疑似风险事件。');
   await expect(page.locator('.av-video-card').nth(0).locator('.av-card-caveat')).toContainText('AI 仅提供疑似线索参考，最终情况请以原始画面确认为准。');
-  await expect(page.locator('.av-video-card').nth(1).locator('.av-card-description')).toHaveText('捕捉画面中的举手动作，标记疑似求助场景。');
+  await expect(page.locator('.av-video-card').nth(1).locator('.av-card-description')).toHaveText('追踪上半身姿态与手腕轨迹，根据连续往复运动识别挥手动作。');
   await expect(page.locator('.av-video-card').nth(1).locator('.av-card-caveat')).toContainText('动作识别不代表真实求助，需结合实际画面判断。');
-  await expect(page.locator('.av-video-card').nth(2).locator('.av-card-description')).toHaveText('检测画面中的可见光火焰，提示疑似火情风险。');
-    await expect(page.locator('.av-video-card').nth(2).locator('.av-card-caveat')).toContainText('打火机火焰，不代表真实火情');
+  await expect(page.locator('.av-video-card').nth(2).locator('.av-card-description')).toHaveText('智能捕捉居家环境中的可见火焰线索，及时标记潜在火灾风险。');
+  await expect(page.locator('.av-video-card').nth(2).locator('.av-card-caveat')).toContainText('木制模型燃烧测试');
 
   await page.locator('#workflow').scrollIntoViewIfNeeded();
   await expect(page.locator('#workflow-title')).toHaveText('完整链路，还原始末。');
@@ -84,11 +84,11 @@ test('摄像头页在面板外展示标题与能力标签，指标仍由面板�
   await expect(page.locator('.live-camera-metrics')).toContainText('画面人数');
 });
 
-test('三段真实视频与公开资产可加载，模型结果只来自跌倒真实导出', async ({ page, request }) => {
+test('三段真实视频与公开资产可加载，跌倒与明火使用各自真实导出', async ({ page, request }) => {
   const expectedHashes: Record<string, string> = {
     fall: '24bc42907926bf3981bdedc2a4f54bc32454fa06a1228b7cf02ac181ba584938',
-    help: '4e2d01616a078617f18d33ac61444250e8ea3c227e61e945011817aef5e3fb3b',
-    fire: '8390088c4c5f5bde352dc5e68bbbc536cb707de0e235c2cadaee4bb9b7347c41',
+    help: 'f7f45b919cb03fb59fec122f92040cdc9a13e94d05f4c152bb60f092eb3c15a3',
+    fire: '3105463a9a3785c1ca38a6d42c7c4e7bed6bb5df59a9d1cf14efc007823d9444',
   };
   await page.goto('/#capabilities');
   await expect(page.locator('.av-video-card')).toHaveCount(3);
@@ -100,15 +100,16 @@ test('三段真实视频与公开资产可加载，模型结果只来自跌倒�
     const properties = await card(page, item.id).locator('video').evaluate((element: HTMLVideoElement) => ({ muted: element.muted, inline: element.playsInline, duration: element.duration }));
     expect(properties.muted).toBe(true); expect(properties.inline).toBe(true);
     expect(Math.abs(properties.duration * 1000 - item.durationMs)).toBeLessThan(60);
-    if (item.id !== 'fall') {
-      await expect(card(page, item.id)).toHaveAttribute('data-result-status', 'pending_model_fix');
-      await expect(card(page, item.id)).toContainText('识别结果待接入');
-      await expect(card(page, item.id).locator('.av-card-result')).toHaveCount(0);
-      expect(await card(page, item.id).innerText()).not.toMatch(/\d+%|00:\d|识别成功/);
+    if (item.id === 'help') {
+      await expect(card(page, item.id)).toHaveAttribute('data-result-status', 'pose_based_heuristic');
+      await expect(card(page, item.id)).toContainText('姿态模型 + 往复运动规则');
+      await expect(card(page, item.id)).toContainText('1 条挥手动作');
+      expect(await card(page, item.id).innerText()).not.toMatch(/\d+%|模型复核支持|识别成功/);
     }
   }
-  await expect(card(page, 'fire')).toContainText('打火机');
-  await expect(card(page, 'fall')).toContainText('未经人工确认');
+  await expect(card(page, 'fire')).toContainText('1 条明火线索');
+  await expect(card(page, 'fire')).toHaveAttribute('data-result-status', 'available');
+  await expect(card(page, 'fall')).toContainText('尚未确认');
   await expect(page.locator('.av-mini-target,.av-workflow-image,.av-demo-events,dialog')).toHaveCount(0);
   for (const frame of fall.event.referencedFrames) {
     expect((await request.get(frame.image)).ok()).toBe(true);
@@ -135,15 +136,38 @@ test('卡片原位播放互斥、暂停、重播，不改变锚点或页面位�
   expect(await time(card(page, 'fire').locator('video'))).toBeLessThan(.8);
 });
 
-test('卡片播放完整原片后结束，离屏时暂停，待接入状态仍可播放', async ({ page }) => {
+test('三个核心能力视频都有画面内暂停按钮，进度条使用统一绿色且挥手来源标签在左上角', async ({ page }) => {
+  await page.goto('/#capabilities');
+  const accents: string[] = [];
+  for (const id of ['fall', 'help', 'fire']) {
+    const current = card(page, id), media = current.locator('.av-card-media'), video = current.locator('video');
+    await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.readyState)).toBeGreaterThanOrEqual(1);
+    accents.push(await current.locator('input[type=range]').evaluate(element => getComputedStyle(element).accentColor));
+    await current.locator('.av-card-actions button').first().click();
+    await expect.poll(() => paused(video)).toBe(false);
+    await expect(current.locator('.av-media-pause')).toBeVisible();
+    await current.locator('.av-media-pause').click();
+    await expect.poll(() => paused(video)).toBe(true);
+    if (id === 'help') {
+      const label = await current.locator('.av-real-footage').boundingBox();
+      const bounds = await media.boundingBox();
+      expect(label).toBeTruthy();
+      expect(bounds).toBeTruthy();
+      expect(label!.y).toBeLessThan(bounds!.y + 45);
+    }
+  }
+  expect(new Set(accents).size).toBe(1);
+});
+
+test('关闭循环后卡片完整原片正常结束，重播与离屏暂停正常', async ({ page }) => {
   await page.goto('/#capabilities');
   await playCard(page, 'help');
   const help = card(page, 'help').locator('video');
   await expect.poll(() => paused(help)).toBe(false);
-  await help.evaluate((element: HTMLVideoElement) => { element.currentTime = element.duration - .15; });
+  await help.evaluate((element: HTMLVideoElement) => { element.loop = false; element.currentTime = element.duration - .15; });
   await expect.poll(() => paused(help)).toBe(true);
   expect(Math.abs(await time(help) - await help.evaluate((element: HTMLVideoElement) => element.duration))).toBeLessThan(.08);
-  await card(page, 'help').getByRole('button', { name: '举手动作线索：从头重播' }).click();
+  await card(page, 'help').getByRole('button', { name: '挥手动作线索：从头重播' }).click();
   await expect.poll(() => paused(help)).toBe(false);
   await page.locator('#devices').scrollIntoViewIfNeeded();
   await expect.poll(() => paused(help)).toBe(true);
@@ -158,10 +182,10 @@ test('工作流程四阶段手动切换，共用唯一视频并区分本地候�
   await stage(page, '智能分析复核').click();
   await expect(page.getByRole('tabpanel')).toContainText('视觉模型复核支持跌倒判断');
   await expect(page.getByRole('tabpanel')).toContainText('未经人工确认');
-  await page.getByRole('button', { name: /00:02.30–00:06.30 证据区间/ }).click();
-  await expect.poll(async () => Math.abs(await time(video(page)) - 2.3)).toBeLessThan(.06);
+  await page.getByRole('button', { name: /00:04.50–00:06.00 证据区间/ }).click();
+  await expect.poll(async () => Math.abs(await time(video(page)) - 4.5)).toBeLessThan(.06);
   await stage(page, '事件自动摘要').click();
-  await expect(page.getByRole('group', { name: '模型结论引用关键帧' }).getByRole('button')).toHaveCount(5);
+  await expect(page.getByRole('group', { name: '模型结论引用关键帧' }).getByRole('button')).toHaveCount(4);
   await stage(page, '证据定位回看').click();
   await expect(page.getByRole('tabpanel')).toContainText('证据窗口');
   await expect(video(page)).toHaveAttribute('data-persistent', 'yes');
@@ -172,7 +196,7 @@ test('工作流程四阶段手动切换，共用唯一视频并区分本地候�
   await expect(page.getByRole('button', { name: '下一阶段' })).toBeDisabled();
 });
 
-test('五张真实引用关键帧逐一精确定位，快速点击最后一次生效', async ({ page }) => {
+test('四张最新引用关键帧逐一精确定位，快速点击最后一次生效', async ({ page }) => {
   await page.goto('/#workflow');
   await stage(page, '事件自动摘要').click();
   const buttons = page.getByRole('group', { name: '模型结论引用关键帧' }).getByRole('button');
@@ -181,19 +205,19 @@ test('五张真实引用关键帧逐一精确定位，快速点击最后一次�
     await expect.poll(async () => Math.abs(await time(video(page)) - fall.event.referencedFrames[index].time_ms / 1000)).toBeLessThan(.06);
     await expect.poll(() => paused(video(page))).toBe(true);
   }
-  await buttons.evaluateAll(elements => { for (const index of [3, 0, 2, 4]) (elements[index] as HTMLButtonElement).click(); });
-  await expect.poll(async () => Math.abs(await time(video(page)) - 6.3)).toBeLessThan(.06);
+  await buttons.evaluateAll(elements => { for (const index of [2, 0, 1, 3]) (elements[index] as HTMLButtonElement).click(); });
+  await expect.poll(async () => Math.abs(await time(video(page)) - 6)).toBeLessThan(.06);
 });
 
-test('回看原片从2.3秒播放至6.3秒自动暂停，可重播和手动暂停', async ({ page }) => {
+test('回看原片从4.5秒播放至6.0秒自动暂停，可重播和手动暂停', async ({ page }) => {
   await page.goto('/#workflow');
   await stage(page, '证据定位回看').click();
   await page.getByRole('button', { name: '回看原片', exact: true }).click();
   await expect.poll(() => paused(video(page))).toBe(false);
-  expect(await time(video(page))).toBeGreaterThanOrEqual(2.3);
-  expect(await time(video(page))).toBeLessThan(3.1);
+  expect(await time(video(page))).toBeGreaterThanOrEqual(4.5);
+  expect(await time(video(page))).toBeLessThan(5.3);
   await expect.poll(() => paused(video(page)), { timeout: 8000 }).toBe(true);
-  expect(Math.abs(await time(video(page)) - 6.3)).toBeLessThan(.08);
+  expect(Math.abs(await time(video(page)) - 6)).toBeLessThan(.08);
   await page.getByRole('button', { name: '重播证据', exact: true }).click();
   await expect.poll(() => paused(video(page))).toBe(false);
   await page.getByRole('button', { name: '暂停案例视频' }).click();
@@ -218,26 +242,32 @@ test('首次媒体加载延迟时仍能定位；切换阶段取消尚未完成�
 });
 
 test('视频加载失败有可读错误，其他视频仍可播放', async ({ page }) => {
-  await page.route('**/demo/videos/help.mp4', route => route.abort());
+  await page.route('**/demo/videos/help.mp4*', route => route.abort());
   await page.goto('/#capabilities');
   await expect(card(page, 'help').getByRole('alert')).toContainText('视频加载失败');
   await playCard(page, 'fire');
   await expect.poll(() => paused(card(page, 'fire').locator('video'))).toBe(false);
 });
 
-test('问答仅引用真实跌倒证据，待接入问题无成功事件或证据卡', async ({ page }) => {
+test('问答沿用跌倒与明火证据，挥手时序规则不声称确认求助意图', async ({ page }) => {
   const posts: string[] = [];
   page.on('request', request => { if (request.method() === 'POST') posts.push(request.url()); });
   await page.goto('/#ai-qa');
   await expect(page.locator('.av-chat-demo')).toContainText('预设问答演示');
-  await expect(page.locator('.av-answer-bubble')).toContainText('00:02.30–00:06.30');
+  await expect(page.locator('.av-answer-bubble')).toContainText('00:04.50–00:06.00');
   await page.locator('.av-qa-evidence').click();
   await expect(page.getByRole('region', { name: '示例证据详情' })).toContainText('真实原片关键帧');
-  for (const name of ['有没有识别到求助动作？', '有没有识别到明火？']) {
+  for (const name of ['有没有识别到求助动作？']) {
     await page.getByRole('button', { name, exact: true }).click();
-    await expect(page.locator('.av-answer-bubble')).toContainText('不能判断“有”或“没有”');
+    await expect(page.locator('.av-answer-bubble')).toContainText('1 条挥手动作');
+    await expect(page.locator('.av-answer-bubble')).toContainText('不能据此确认求助意图');
     await expect(page.locator('.av-qa-evidence,#av-qa-evidence-detail img')).toHaveCount(0);
   }
+  await page.getByRole('button', { name: '有没有识别到明火？', exact: true }).click();
+  await expect(page.locator('.av-answer-bubble')).toContainText('1 条疑似明火线索');
+  await expect(page.locator('.av-answer-bubble')).toContainText('00:03.03–00:05.76');
+  await page.locator('.av-qa-evidence').click();
+  await expect(page.getByRole('region', { name: '示例证据详情' }).locator('img')).toHaveAttribute('src', fixture.cases[2].event.referencedFrames[0].image);
   await page.getByRole('button', { name: '帮我找到相关的视频片段。', exact: true }).click();
   await expect(page.locator('.av-qa-evidence')).toHaveAttribute('aria-expanded', 'false');
   expect(await page.locator('#ai-qa').innerText()).not.toMatch(/00:08|00:26|00:41|\d+%/);

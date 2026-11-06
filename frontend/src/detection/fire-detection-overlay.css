@@ -1,0 +1,27 @@
+.fire-box{fill:#ec9c410c;stroke:#ecb35d;stroke-width:1.5;stroke-opacity:.95}
+.fire-corners{stroke:#ffd18b;stroke-width:2}
+.fire-risk>rect{fill:#a95f28;fill-opacity:.92;stroke:#f6c27d}
+.fire-risk>path{stroke:#fff0d7;fill:#ffd59b33;stroke-width:1.4}
+.fire-risk>text{font-size:23px;fill:#fff6e7}
+.fire-detection-overlay .detection-hint rect{fill:#583d25;fill-opacity:.88}
+.detection-polygon{fill:#f5a54426;stroke:#ffc36c;stroke-width:1.4}
+.av-fire-card .av-real-footage{z-index:2}
+.av-fire-card .av-media-play{z-index:3}
+.av-fire-card .av-media-error{z-index:4}
+.av-fire-card .av-fire-progress{display:flex;align-items:center;gap:10px;padding:9px 14px;background:#f5f7f3;border-bottom:1px solid #e1e6dd}
+.av-fire-progress input{min-width:0;flex:1;accent-color:#567665;height:18px;cursor:pointer}
+.av-fire-progress time{white-space:nowrap;font:10px/1.4 Consolas,monospace;color:#647969}
+.av-video-card.av-fire-card .av-cap-copy{padding-block:20px}
+.av-video-card.av-fire-card .av-card-title{margin-bottom:8px}
+.av-video-card.av-fire-card .av-cap-copy h3{margin-bottom:8px}
+.av-video-card.av-fire-card .av-cap-copy .av-detection-source{font-size:10.5px;line-height:1.65;color:#74816f;margin:0 0 8px;min-height:0}
+.av-video-card.av-fire-card .av-cap-copy .av-card-caveat{min-height:0;margin-bottom:8px}
+.av-video-card.av-fire-card .av-cap-copy .av-card-description{margin-bottom:8px;line-height:1.8}
+.av-video-card.av-fire-card .av-cap-copy .av-card-result{padding-top:8px;margin-bottom:8px}
+.av-fire-card .av-case-result{display:grid;gap:3px;margin:0}
+.av-fire-card .av-case-result>div{display:flex;justify-content:space-between;gap:10px;font-size:11px;line-height:1.7}
+.av-fire-card .av-media-play-resume{inset:auto 10px 10px auto;gap:0;background:transparent}
+.av-fire-card .av-media-play-resume>svg{width:16px;height:16px;padding:8px}
+.av-fire-card .av-media-play-resume>span{display:none}
+@media(max-width:900px){.av-fire-progress{gap:5px!important;padding-inline:8px!important}.av-fire-progress time{font-size:8px}.av-fire-card .av-case-result>div{font-size:10px;flex-wrap:wrap;gap:0 7px}}
+@media(max-width:600px){.av-fire-progress time{font-size:10px}.av-fire-card .av-case-result>div{font-size:12px}}

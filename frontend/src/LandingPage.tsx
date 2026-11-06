@@ -31,8 +31,11 @@ export function LandingPage({ onEnter, onCamera, demos = [], onOpenDemo }: Props
   const qa = qaExamples[questionIndex];
   const qaCase = demoRegistry.find(item => item.id === qa.caseId)!;
   const evidence = qaCase.modelResult.status === 'available' ? qaCase.modelResult.result : null;
+  const waveResult = qaCase.modelResult.status === 'pose_based_heuristic' ? qaCase.modelResult.result : null;
   const evidenceFrame = evidence?.frames.find(frame => frame.ptsMs === 6000) || evidence?.frames[0];
-  const answer = evidence
+  const answer = waveResult
+    ? `离线姿态分析与手腕往复运动规则保留了 ${waveResult.events.length} 条挥手动作${waveResult.events.length ? `，区间为 ${waveResult.events.map(evidenceRange).join('、')}` : ''}。这不是训练动作分类模型的结论，不能据此确认求助意图；请结合原片判断。`
+    : evidence
     ? qa.evidenceQuestion
       ? `这 1 条${evidence.title}线索对应 ${evidenceRange(evidence)}。模型复核支持，但未经人工确认；请结合原片核实，不能推断受伤。下方可展开实际引用的关键帧，也可在工作流程中定位证据回看。`
       : `已有分析保留了 1 条${evidence.title}线索，证据区间为 ${evidenceRange(evidence)}。${evidence.reviewVerdict === 'confirmed' ? '视觉模型复核支持这一判断' : '视觉模型复核尚不支持确认'}，未经人工确认；请结合原片核对，不能据此推断受伤。`
@@ -148,7 +151,7 @@ export function LandingPage({ onEnter, onCamera, demos = [], onOpenDemo }: Props
         <div className="av-container">
           <div className="av-section-top av-reveal"><div><SectionLabel number="01 / CAPABILITIES">核心能力</SectionLabel><h2 id="capabilities-title">风险线索，<em>精准捕捉。</em></h2></div><p>自动筛查居家风险场景，省去逐帧翻找录像的麻烦。</p></div>
           <CapabilityVideos/>
-          <p className="av-subtle-note"><Icon name="help" size={15}/>跌倒示例已有模型复核；举手动作与明火示例仅展示原始视频，待接入对应识别结果。能力说明为设计目标，实际分析能力以模型配置及返回结果为准。</p>
+          <p className="av-subtle-note"><Icon name="help" size={15}/>跌倒与明火演示使用已保存的模型复核；挥手演示使用真实离线姿态与时序规则，不代表求助意图。实际分析能力以模型配置及返回结果为准。</p>
         </div>
       </section>
 
@@ -180,7 +183,7 @@ export function LandingPage({ onEnter, onCamera, demos = [], onOpenDemo }: Props
                   </>}
                 </div>
               </>}
-              <p className="av-answer-source"><Icon name="layers" size={12}/>{evidence ? '来源：真实模型导出 · 预先组织的示例文案' : '识别结果待接入 · 当前没有可引用的事件证据'}</p>
+              <p className="av-answer-source"><Icon name="layers" size={12}/>{waveResult ? '来源：本机姿态模型 + 时序规则 · 离线演示' : evidence ? '来源：真实模型导出 · 预先组织的示例文案' : '识别结果待接入 · 当前没有可引用的事件证据'}</p>
             </div></div></div>
             <p className="av-chat-note"><Icon name="chat" size={14}/><span>预设问答演示 · 基于既有模型分析结果，不发起在线推理</span></p>
           </div>

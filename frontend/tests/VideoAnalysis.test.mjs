@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import path from 'node:path';
 import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -12,7 +13,9 @@ function load(name, overrides = {}) {
   name = name.replace(/\.tsx?$/, '');
   if (cache.has(name) && !Object.keys(overrides).length) return cache.get(name);
   const tsx = new URL(`../src/${name}.tsx`, import.meta.url);
-  let source = readFileSync(existsSync(tsx) ? tsx : new URL(`../src/${name}.ts`, import.meta.url), 'utf8');
+  const file = existsSync(tsx) ? tsx : new URL(`../src/${name}.ts`, import.meta.url);
+  const moduleRequire = createRequire(file);
+  let source = readFileSync(file, 'utf8');
   // This offline CJS harness has no Vite transform. Provide its root BASE_URL
   // while loading the real landing-page dependencies; keep every App assertion.
   source = source.replace(/import\.meta/g, '({ env: { BASE_URL: "/" } })');
@@ -21,9 +24,9 @@ function load(name, overrides = {}) {
   const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 } });
   new Function('require', 'module', 'exports', ...Object.keys(overrides), outputText)(id => {
     if (id.endsWith('.css')) return {};
-    if (id.endsWith('.json')) return { default: require(id) };
+    if (id.endsWith('.json')) return { default: moduleRequire(id) };
     if (id === 'react' && overrides.hooks) return overrides.hooks;
-    if (id.startsWith('./')) return load(id.slice(2));
+    if (id.startsWith('.')) return load(path.posix.normalize(path.posix.join(path.posix.dirname(name), id)));
     return require(id);
   }, module, module.exports, ...Object.values(overrides));
   if (!Object.keys(overrides).length) cache.set(name, module.exports);

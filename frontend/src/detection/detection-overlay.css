@@ -1,0 +1,34 @@
+.detection-overlay{position:absolute;inset:0;width:100%;height:100%;overflow:hidden;pointer-events:none;z-index:1}
+.detection-box{fill:none;stroke:#91c8b2;stroke-width:1.4;stroke-opacity:.85}
+.detection-corners{fill:none;stroke:#b4e2ca;stroke-width:2;stroke-linecap:round}
+.detection-skeleton line{stroke:#99d6be;stroke-opacity:.75;stroke-width:1.35}
+.detection-skeleton circle{fill:#b9ead1;fill-opacity:.9}
+.detection-risk>rect{fill:#bf7b3b;fill-opacity:.9;stroke:#f3c893;stroke-opacity:.65}
+.detection-risk>path{fill:none;stroke:#fff2db;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.detection-risk>text{fill:#fff6e9;font-size:21px;font-weight:600;font-family:inherit;letter-spacing:.2px}
+.detection-hint rect{fill:#20392f;fill-opacity:.8}
+.detection-hint text{fill:#f3f5ec;font-size:20px;font-family:inherit}
+/* Opacity and geometry are driven by media time, including the fade envelope.
+   CSS transitions/animations would keep moving during pause or reverse seeks. */
+.detection-overlay *{animation:none!important;transition:none!important}
+.av-fall-card .av-real-footage{z-index:2}
+.av-fall-card .av-media-play{z-index:3}
+.av-fall-card .av-media-error{z-index:4}
+.av-fall-card .av-fall-progress{display:flex;align-items:center;gap:10px;padding:9px 14px;background:#f5f7f3;border-bottom:1px solid #e1e6dd}
+.av-fall-progress input{min-width:0;flex:1;accent-color:#567665;height:18px;cursor:pointer}
+.av-fall-progress time{white-space:nowrap;font:10px/1.4 Consolas,monospace;color:#647969}
+.av-video-card.av-fall-card .av-cap-copy{padding-block:20px}
+.av-video-card.av-fall-card .av-card-title{margin-bottom:8px}
+.av-video-card.av-fall-card .av-cap-copy h3{margin-bottom:8px}
+.av-video-card.av-fall-card .av-cap-copy .av-detection-source{font-size:10.5px;line-height:1.65;color:#74816f;margin:0 0 8px;min-height:0}
+.av-video-card.av-fall-card .av-cap-copy .av-card-caveat{min-height:0;margin-bottom:8px}
+.av-video-card.av-fall-card .av-cap-copy .av-card-description{margin-bottom:8px;line-height:1.8}
+.av-video-card.av-fall-card .av-cap-copy .av-card-result{padding-top:8px;margin-bottom:8px}
+.av-fall-card .av-case-result{display:grid;gap:3px;margin:0}
+.av-fall-card .av-case-result>div{display:flex;justify-content:space-between;gap:10px;font-size:11px;line-height:1.7}
+.av-case-result dt{color:#83917e}.av-case-result dd{margin:0;text-align:right}
+.av-fall-card .av-media-play-resume{inset:auto 10px 10px auto;gap:0;background:transparent}
+.av-fall-card .av-media-play-resume>svg{width:16px;height:16px;padding:8px}
+.av-fall-card .av-media-play-resume>span{display:none}
+@media(max-width:900px){.av-fall-progress{gap:5px!important;padding-inline:8px!important}.av-fall-progress time{font-size:8px}.av-fall-card .av-case-result>div{font-size:10px;flex-wrap:wrap;gap:0 7px}}
+@media(max-width:600px){.av-fall-progress time{font-size:10px}.av-fall-card .av-case-result>div{font-size:12px}}

@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 1,
+  "video": {
+    "file": "挥手视频.mp4",
+    "sha256": "f7f45b919cb03fb59fec122f92040cdc9a13e94d05f4c152bb60f092eb3c15a3",
+    "width": 720,
+    "height": 1280,
+    "durationMs": 3882.854,
+    "videoDurationMs": 3866.333,
+    "nominalFrameRate": "30/1",
+    "averageFrameRate": "348000/11599",
+    "codec": "h264",
+    "frames": 116,
+    "rotation": 0
+  },
+  "model": {
+    "name": "yolo11n-pose.pt",
+    "sha256": "869e83fcdffdc7371fa4e34cd8e51c838cc729571d1635e5141e3075e9319dc0",
+    "device": "cuda:0",
+    "gpu": "NVIDIA GeForce RTX 4060 Laptop GPU",
+    "ultralytics": "8.4.118",
+    "torch": "2.13.0+cu126",
+    "poseMaxWidth": 640,
+    "imgsz": 640,
+    "keypointFormat": "COCO17 x,y,score in source pixels",
+    "rotatedPoseRecovery": false,
+    "trainedWaveClassifier": false
+  },
+  "method": {
+    "name": "pose-based heuristic",
+    "version": "shoulder-relative-reciprocal-v1",
+    "minimumKeypointConfidence": 0.65,
+    "minimumShoulderWidthPx": 8,
+    "wristAboveShoulderWidths": 0.1,
+    "maximumElbowBelowShoulderWidths": 0.3,
+    "maximumGapMs": 100,
+    "medianSamples": 3,
+    "minimumSweepShoulderWidths": 0.35,
+    "minimumAlternatingSweeps": 3,
+    "minimumDurationMs": 650,
+    "maximumSweepDurationMs": 900,
+    "trailWindowMs": 600
+  },
+  "source": {
+    "kind": "demo",
+    "basis": "offline_pose_with_temporal_heuristic",
+    "notice": "Local YOLO pose output + retrospective temporal heuristic; no trained action classifier or help-intent inference. Not live inference.",
+    "model": "yolo11n-pose.pt",
+    "modelSha256": "869e83fcdffdc7371fa4e34cd8e51c838cc729571d1635e5141e3075e9319dc0",
+    "videoSha256": "f7f45b919cb03fb59fec122f92040cdc9a13e94d05f4c152bb60f092eb3c15a3",
+    "poseExportSha256": "366ba90f7a97fc764a349a6a4d79babb3ee0b49f37e4c9fb9248847b3cd6559e",
+    "method": "pose-based heuristic",
+    "ruleVersion": "shoulder-relative-reciprocal-v1",
+    "exportedAt": "2026-11-06T13:47:07.588716+00:00",
+    "coordinateReview": "visually_checked",
+    "trainedWaveClassifier": false,
+    "helpIntentEstablished": false
+  },
+  "events": [
+    {
+      "id": "wave-1",
+      "type": "wave",
+      "trackId": "person-1",
+      "startMs": 733.333,
+      "endMs": 3866.333,
+      "confirmedAtMs": 1900.0,
+      "sideIntervals": [
+        {
+          "startMs": 733.333,
+          "endMs": 3733.333,
+          "confirmedAtMs": 1900.0,
+          "sweepCount": 8,
+          "trackId": "person-1",
+          "side": "right"
+        },
+        {
+          "startMs": 800.0,
+          "endMs": 3866.333,
+          "confirmedAtMs": 1900.0,
+          "sweepCount": 9,
+          "trackId": "person-1",
+          "side": "left"
+        }
+      ],
+      "method": "pose-based heuristic",
+      "helpIntentEstablished": false
+    }
+  ],
+  "eventCount": 1,
+  "newCloudCalls": 0,
+  "keypointNames": {
+    "0": "nose",
+    "5": "leftShoulder",
+    "6": "rightShoulder",
+    "7": "leftElbow",
+    "8": "rightElbow",
+    "9": "leftWrist",
+    "10": "rightWrist"
+  },
+  "inspection": {
+    "peoplePerFrame": [
+      1
+    ],
+    "trackIds": [
+      "person-1"
+    ],
+    "fullBodyVisible": true,
+    "wristsVisible": true,
+    "encodedBlackBorders": false,
+    "note": "Portrait room recording; full body and both raised arms visible. Contact sheet checked against model coordinates; no manual coordinate replacement."
+  },
+  "limitations": [
+    "Pose scores are only model-provided detection/keypoint confidence; no action probability.",
+    "Offline retrospective event onset precedes confirmedAtMs; not a real-time latency guarantee.",
+    "Video ends during the gesture; final event boundary is the end of available video frames, not an observed gesture termination.",
+    "Thresholds are evaluated on this short single-person demonstration; no general accuracy claim.",
+    "Waving may mean greeting, exercise or help; intent cannot be established.",
+    "Only COCO body keypoints; no hand/finger model or trained wave classifier."
+  ]
+}

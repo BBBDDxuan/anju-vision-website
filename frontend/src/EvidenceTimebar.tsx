@@ -1,3 +1,4 @@
+import './evidence-inspector.css';
 import type { CSSProperties } from 'react';
 
 export type TimeRange = { id: string; startMs: number; endMs: number; label: string; selected?: boolean };

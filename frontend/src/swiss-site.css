@@ -107,7 +107,6 @@ body { background: var(--color-paper); color: var(--color-ink); }
 .av-video-card .av-cap-copy .av-card-description { font-size: 13px; color: #687563; line-height: 1.95; margin-bottom: 16px; }
 .av-video-card .av-cap-copy .av-card-result { color: var(--sw-sage); border-color: var(--sw-line); padding-top: 13px; margin-bottom: 16px; }
 .av-video-card .av-card-result > p { font-size: 12px; }
-.av-card-evidence-link { color: #3f594b; padding-top: 9px; min-height: 36px; font-size: 12px !important; }
 .av-card-actions { border-top: 1px solid #edf0e8; padding-top: 12px; }
 .av-card-actions button { color: var(--sw-sage); min-height: 36px; font-size: 12px !important; }
 .av-card-actions .av-card-replay { color: var(--sw-muted); }

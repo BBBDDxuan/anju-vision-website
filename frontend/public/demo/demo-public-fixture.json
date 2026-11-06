@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0",
-  "notice": "Offline demonstration using actual exported model analysis for fall only; help and fire videos have no recognized model results.",
+  "notice": "Offline demonstrations; fall/fire use saved model review, wave uses real local pose output plus a temporal heuristic. Each overlay declares its provenance.",
   "cases": [
     {
       "id": "fall",
@@ -14,39 +14,34 @@
       "event": {
         "title": "疑似跌倒",
         "type": "suspected_fall",
-        "startMs": 2300,
-        "endMs": 6300,
+        "startMs": 4500,
+        "endMs": 6000,
         "localCandidateTriggerSec": 6.3,
         "modelReviewVerdict": "confirmed",
         "humanConfirmed": false,
         "modelScore": null,
         "originalReviewStatus": "model_unreviewed",
-        "modelReviewReason": "在pts_ms=2300至4500期间主体保持站立，随后在5000ms处可见身体快速失去支撑并下降，至6000ms已完全躺卧于地面，符合跌倒的视觉过程定义。",
+        "modelReviewReason": "连续帧清晰显示主体从站立倚靠桌边（F01-F05）失去支撑，经下蹲/滑落过程（F06-F07）最终完全躺卧于地面（F08-F12），且后续保持低位姿态未起身，符合跌倒的视觉特征，排除了正常主动坐卧。",
         "referencedFrames": [
           {
-            "time_ms": 2300,
-            "image": "/demo/keyframes/sf_0fba6898a98b9cdfe8cb7c3a5bc567e4.jpg",
-            "frame_id": "sf_0fba6898a98b9cdfe8cb7c3a5bc567e4"
-          },
-          {
             "time_ms": 4500,
-            "image": "/demo/keyframes/sf_28b04f43ea6d39cbd5a819f805e94931.jpg",
-            "frame_id": "sf_28b04f43ea6d39cbd5a819f805e94931"
+            "image": "/demo/keyframes/sf_a755ddf03dbc7c5717922743dca2a315.jpg",
+            "frame_id": "sf_a755ddf03dbc7c5717922743dca2a315"
           },
           {
             "time_ms": 5000,
-            "image": "/demo/keyframes/sf_8755f97dff6b2eda841de6bb6fe8eda8.jpg",
-            "frame_id": "sf_8755f97dff6b2eda841de6bb6fe8eda8"
+            "image": "/demo/keyframes/sf_41d4618f64a1d72fb7d36593f826a794.jpg",
+            "frame_id": "sf_41d4618f64a1d72fb7d36593f826a794"
+          },
+          {
+            "time_ms": 5500,
+            "image": "/demo/keyframes/sf_1c0a72e17ca9bc6113e11195c545b7d1.jpg",
+            "frame_id": "sf_1c0a72e17ca9bc6113e11195c545b7d1"
           },
           {
             "time_ms": 6000,
-            "image": "/demo/keyframes/sf_d6607d255cff2a57c6d2f4daba295073.jpg",
-            "frame_id": "sf_d6607d255cff2a57c6d2f4daba295073"
-          },
-          {
-            "time_ms": 6300,
-            "image": "/demo/keyframes/sf_6e3c66e5f4b39d8cc59f11f2c47cafc5.jpg",
-            "frame_id": "sf_6e3c66e5f4b39d8cc59f11f2c47cafc5"
+            "image": "/demo/keyframes/sf_2f52aa041e840e1384d884fd8384d842.jpg",
+            "frame_id": "sf_2f52aa041e840e1384d884fd8384d842"
           }
         ],
         "subjectBboxHint": {
@@ -64,27 +59,133 @@
     },
     {
       "id": "help",
-      "title": "举手动作线索",
-      "videoSrc": "/demo/videos/help.mp4",
-      "posterSrc": "/demo/posters/help.jpg",
-      "durationMs": 12076,
-      "previewStartSec": 2.0,
-      "previewEndSec": 9.0,
-      "resultStatus": "pending_model_fix",
+      "title": "挥手动作线索",
+      "videoSrc": "/demo/videos/help.mp4?v=f7f45b919cb03fb5",
+      "posterSrc": "/demo/posters/help.jpg?v=3333e641d3033de0",
+      "durationMs": 3882.854,
+      "previewStartSec": 0.733333,
+      "previewEndSec": 3.866333,
+      "resultStatus": "pose_based_heuristic",
       "event": null,
-      "disclaimer": "仅展示举手动作场景，未取得模型求助识别结果，不代表真实求助。"
+      "disclaimer": "姿态模型与手腕往复运动规则识别挥手，不代表真实求助。非实时推理。",
+      "actionSummary": {
+        "method": "pose-based heuristic",
+        "events": [
+          {
+            "id": "wave-1",
+            "type": "wave",
+            "trackId": "person-1",
+            "startMs": 733.333,
+            "endMs": 3866.333,
+            "confirmedAtMs": 1900.0,
+            "sideIntervals": [
+              {
+                "startMs": 733.333,
+                "endMs": 3733.333,
+                "confirmedAtMs": 1900.0,
+                "sweepCount": 8,
+                "trackId": "person-1",
+                "side": "right"
+              },
+              {
+                "startMs": 800.0,
+                "endMs": 3866.333,
+                "confirmedAtMs": 1900.0,
+                "sweepCount": 9,
+                "trackId": "person-1",
+                "side": "left"
+              }
+            ],
+            "method": "pose-based heuristic",
+            "helpIntentEstablished": false
+          }
+        ]
+      }
     },
     {
       "id": "fire",
       "title": "可见火焰场景",
-      "videoSrc": "/demo/videos/fire.mp4",
-      "posterSrc": "/demo/posters/fire.jpg",
-      "durationMs": 8927,
-      "previewStartSec": 1.0,
-      "previewEndSec": 7.0,
-      "resultStatus": "pending_model_fix",
-      "event": null,
-      "disclaimer": "仅展示打火机火焰场景，未取得模型明火识别结果，不代表厨房火灾。"
+      "videoSrc": "/demo/videos/fire.mp4?v=3105463a9a3785c1",
+      "posterSrc": "/demo/posters/fire.jpg?v=5d16e014c6037d6c",
+      "durationMs": 6621,
+      "previewStartSec": 3.0344830000000003,
+      "previewEndSec": 5.758621,
+      "resultStatus": "verified_model_export",
+      "event": {
+        "title": "疑似明火",
+        "type": "fire_detected",
+        "startMs": 3034.483,
+        "endMs": 5758.621,
+        "localCandidateTriggerSec": 4.896536314250578,
+        "modelReviewVerdict": "confirmed",
+        "humanConfirmed": false,
+        "modelScore": null,
+        "originalReviewStatus": "model_unreviewed",
+        "modelReviewReason": "在提供的多帧序列（pts_ms 16283至19019）中，左侧木制模型屋顶处持续可见明显的橙黄色明火，火焰形态随时间变化且伴有燃烧特征，非反光或屏幕光斑。虽然后续帧右侧出现人手操作，但左侧明火事实清晰确凿，符合可见明火的复核标准。",
+        "referencedFrames": [
+          {
+            "time_ms": 3034.483,
+            "image": "/demo/keyframes/sf_dc8712965d2d320e0fcdc86859f843f7.jpg",
+            "frame_id": "sf_dc8712965d2d320e0fcdc86859f843f7"
+          },
+          {
+            "time_ms": 3310.345,
+            "image": "/demo/keyframes/sf_6f220116cdaf42f46dc045e814fafd14.jpg",
+            "frame_id": "sf_6f220116cdaf42f46dc045e814fafd14"
+          },
+          {
+            "time_ms": 3482.759,
+            "image": "/demo/keyframes/sf_12b0ac4570fa55f91140445a3e9ca5f6.jpg",
+            "frame_id": "sf_12b0ac4570fa55f91140445a3e9ca5f6"
+          },
+          {
+            "time_ms": 3758.621,
+            "image": "/demo/keyframes/sf_477c8a18b3da328839f6cb210c9abed2.jpg",
+            "frame_id": "sf_477c8a18b3da328839f6cb210c9abed2"
+          },
+          {
+            "time_ms": 4034.483,
+            "image": "/demo/keyframes/sf_a200e5b087bc063cab809c1e31d8b7b5.jpg",
+            "frame_id": "sf_a200e5b087bc063cab809c1e31d8b7b5"
+          },
+          {
+            "time_ms": 4310.345,
+            "image": "/demo/keyframes/sf_14ff59a2fc69577e41249967f6135123.jpg",
+            "frame_id": "sf_14ff59a2fc69577e41249967f6135123"
+          },
+          {
+            "time_ms": 4482.759,
+            "image": "/demo/keyframes/sf_fe564b0d2a35541e258fac30b2e1218d.jpg",
+            "frame_id": "sf_fe564b0d2a35541e258fac30b2e1218d"
+          },
+          {
+            "time_ms": 4758.621,
+            "image": "/demo/keyframes/sf_d43c1b209e5d7ab12e2266d736544f04.jpg",
+            "frame_id": "sf_d43c1b209e5d7ab12e2266d736544f04"
+          },
+          {
+            "time_ms": 5034.483,
+            "image": "/demo/keyframes/sf_6f03e560e89c9fee3947a5f95e68fc82.jpg",
+            "frame_id": "sf_6f03e560e89c9fee3947a5f95e68fc82"
+          },
+          {
+            "time_ms": 5310.345,
+            "image": "/demo/keyframes/sf_68eeb142015be59b1444822b90b230dd.jpg",
+            "frame_id": "sf_68eeb142015be59b1444822b90b230dd"
+          },
+          {
+            "time_ms": 5482.759,
+            "image": "/demo/keyframes/sf_93921ae58ed71adbfcfb56b004a5e18a.jpg",
+            "frame_id": "sf_93921ae58ed71adbfcfb56b004a5e18a"
+          },
+          {
+            "time_ms": 5758.621,
+            "image": "/demo/keyframes/sf_c2637ea8e6a74b629eed0e87d96daa3e.jpg",
+            "frame_id": "sf_c2637ea8e6a74b629eed0e87d96daa3e"
+          }
+        ]
+      },
+      "disclaimer": "木制模型燃烧实景测试；模型复核支持明火线索，未经人工确认，不代表已确认居家火灾。"
     }
   ]
 }

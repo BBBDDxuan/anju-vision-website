@@ -9,7 +9,9 @@ export async function installWorkspaceFixture(page, options = {}) {
   const calls = [];
   const ids = ['v_inspector_fixture', 'v_inspector_other'];
   const frames = source.cases[0].event.referencedFrames.map((frame, i) => ({ id: `fixture_frame_${i}`, pts_ms: frame.time_ms, url: frame.image }));
-  const evidence = [{ id: 'fixture_evidence_fall', start_ms: 2300, end_ms: 6300, frame_ids: [frames[0].id, frames[4].id] }, { id: 'fixture_evidence_second', start_ms: 4500, end_ms: 6300, frame_ids: [frames[3].id, frames[4].id] }];
+  // These intervals/events intentionally simulate UI state; media references
+  // may change when the authoritative public model example is refreshed.
+  const evidence = [{ id: 'fixture_evidence_fall', start_ms: 2300, end_ms: 6300, frame_ids: [frames[0].id, frames.at(-1).id] }, { id: 'fixture_evidence_second', start_ms: 4500, end_ms: 6300, frame_ids: [frames.at(-2).id, frames.at(-1).id] }];
   const events = [{ id: 'fixture_event_fall', start_ms: 2300, end_ms: 6300, subject_id: 'fixture_person', target_id: null, action: 'fall', epistemic_type: 'observed', evidence_ids: ['fixture_evidence_fall'], uncertainty_reasons: [], review_status: 'unreviewed', model_score: .86 }, { id: 'fixture_event_second', start_ms: 4500, end_ms: 6300, subject_id: 'fixture_person', target_id: null, action: 'help_gesture', epistemic_type: 'observed', evidence_ids: ['fixture_evidence_second'], uncertainty_reasons: [], review_status: 'unreviewed', model_score: .84 }];
   if (state.sharedEvidence) { events[1].evidence_ids = [evidence[0].id]; events[1].start_ms = 2300; }
   const entities = [{ id: 'fixture_person', label: '测试人物', entity_type: 'person', aliases: [], appearance: '仅供界面回归的测试对象', identity_status: 'confirmed' }];
