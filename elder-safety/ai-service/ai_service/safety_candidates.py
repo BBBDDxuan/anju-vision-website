@@ -1,7 +1,7 @@
 """Local-only small-model candidates; no recording, delivery or model calls.
 
 Evidence uses a 4fps ring. Normal candidates use [trigger - 2, trigger + 1);
-posture recovery uses four pre-seconds and slow descent uses six pre-seconds.
+arm-motion proposals use three pre-seconds, posture recovery four and slow descent six.
 Early seated/progression proposals collect until motion settles, at most five
 post-seconds. All requests still contain at most twelve real frames.
 Only real sampled frames are retained; sparse input is never padded. ``reset``
@@ -29,6 +29,7 @@ from .types import Sample
 EVENT_TYPES = frozenset({"suspected_fall", "help_requested", "fire_detected"})
 _INTERVAL = 0.25
 _PRE_SECONDS = 2.0
+_HELP_MOTION_PRE_SECONDS = 3.0
 _RECOVERY_PRE_SECONDS = 4.0
 _SLOW_PRE_SECONDS = 6.0
 _POST_SECONDS = 1.0
@@ -256,9 +257,12 @@ class SafetyCandidateCollector:
             recovery = signal.event_type == "suspected_fall" and details.get("fall_transition_observed") is False
             slow = (signal.event_type == "suspected_fall"
                     and details.get("algorithm") in {"slow_descent_low_posture_review_v1", _CORE_FALL_ALGORITHM})
-            pre = _SLOW_PRE_SECONDS if slow else _RECOVERY_PRE_SECONDS if recovery else _PRE_SECONDS
+            motion_help = (signal.event_type == "help_requested" and
+                           details.get("algorithm") == "body_relative_repeated_arm_motion_review_v2")
+            pre = (_SLOW_PRE_SECONDS if slow else _RECOVERY_PRE_SECONDS if recovery
+                   else _HELP_MOTION_PRE_SECONDS if motion_help else _PRE_SECONDS)
             history = [f for f in self._ring if t - pre - _EPS <= f.t < t - _EPS]
-            if (recovery or slow) and len(history) > 8:
+            if (recovery or slow or motion_help) and len(history) > 8:
                 # Include both oldest and newest pre-frames; no fabricated ticks.
                 history = [history[round(i * (len(history) - 1) / 7)] for i in range(8)]
             else:

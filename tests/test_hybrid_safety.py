@@ -63,6 +63,21 @@ def test_shared_review_uses_requested_model_budget_and_multiframe_evidence(tmp_p
     assert pipeline.extraction(candidate(tmp_path), result).events[0].action == 'help_gesture'
 
 
+def test_single_arm_motion_candidate_uses_updated_multiframe_review_prompt(tmp_path):
+    pipeline, requests = service(tmp_path)
+    item = candidate(tmp_path)
+    item['details'] = dict(algorithm='body_relative_repeated_arm_motion_review_v2',
+                           review_required=True, active_hands=['right'])
+    result = pipeline.review(item, 'v1', 'j1')
+    assert result['verdict'] == 'confirmed'  # Mock response, not Qwen accuracy evidence.
+    prompt = requests[0]['messages'][0]['content'][0]['text']
+    assert '单手/双手' in prompt
+    assert '不要求双手同时举起' in prompt
+    assert '躺地姿态' in prompt
+    assert '伸懒腰' in prompt and '打招呼' in prompt
+    assert '必须看见双手举起的连续动作' not in prompt
+
+
 @pytest.mark.parametrize('answer', [
     dict(verdict='confirmed',event_type='fire_detected',reason='wrong type',frame_ids=['F01','F02']),
     dict(verdict='confirmed',event_type='help_requested',reason='forged frames',frame_ids=['F01','F02','F04']),

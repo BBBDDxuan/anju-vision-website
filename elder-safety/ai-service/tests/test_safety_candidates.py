@@ -102,6 +102,23 @@ def test_same_engine_and_unchanged_config_every_frame(tmp_path, monkeypatch):
     assert_published(actual[0], tmp_path)
 
 
+def test_help_motion_evidence_covers_three_second_history_with_twelve_frame_limit(tmp_path, monkeypatch):
+    collector = SafetyCandidateCollector(Config(), tmp_path)
+    signal = fire_signal(event_type='help_requested', details={
+        'algorithm': 'body_relative_repeated_arm_motion_review_v2', 'review_required': True})
+    inject(collector, monkeypatch, lambda s: [signal] if s.t == 3 else [])
+    ready = []
+    for i in range(41):
+        ready.extend(collector.process(sample(i / 10)))
+    assert len(ready) == 1
+    frames = ready[0]['frames']
+    assert len(frames) == 12
+    assert frames[0]['pts_ms'] == 0
+    assert frames[-1]['pts_ms'] >= 3700
+    assert len({f['pts_ms'] for f in frames}) == 12
+    assert_published(ready[0], tmp_path)
+
+
 def test_two_second_pre_one_second_post_max_twelve(tmp_path, monkeypatch):
     collector = SafetyCandidateCollector(Config(), tmp_path)
     inject(collector, monkeypatch, lambda s: [fire_signal()] if s.t == 2 else [])
