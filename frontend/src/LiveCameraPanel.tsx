@@ -11,17 +11,32 @@ const recordingStateName: Record<string,string> = { disabled:'未启用', starti
 const eventName: Record<string,string> = { help_requested:'双手举高 · 疑似求助', suspected_fall:'疑似跌倒', fire_detected:'疑似明火' };
 const fallStateName: Record<string,string> = { keypoints_unreliable:'肩膀或髋部关键点不清晰，请调整视角', observing_standing:'正在观察站立姿态', ready:'已观察到站立，持续监测中', need_standing:'尚未观察到连续站立，暂不能确认跌倒过程', observing_descent:'正在观察下降过程', confirming_posture:'已观察到下降，等待倒地姿态', confirming_hold:'正在确认倒地持续时间', cooldown:'处于报警冷却期', alert:'已产生疑似跌倒报警' };
 type Props = { ready?: boolean; configurationError?: string; onRetry?: () => void };
+const PREVIEW_STALE_MS = 3000;
 export function LiveCameraPanel({ ready = true, configurationError = '', onRetry }: Props) {
-  const [status,setStatus] = useState<CameraStatus | null>(null);
+  type PreviewStatus = CameraStatus & { source_fps?: number; preview_fps?: number; pose_enabled?: boolean; pose_sample_gap_ms?: number };
+  const [status,setStatus] = useState<PreviewStatus | null>(null);
   const [error,setError] = useState('');
   const [busy,setBusy] = useState(false);
-  const [image,setImage] = useState('');
+  const [hasFrame,setHasFrame] = useState(false);
   const [pollError,setPollError] = useState('');
   const [frameError,setFrameError] = useState('');
-  const objectUrl = useRef('');
-  const latestStatus = useRef<CameraStatus | null>(null);
+  const [previewFps,setPreviewFps] = useState<number | null>(null);
+  const previewCanvas = useRef<HTMLCanvasElement>(null);
+  const frameExpiry = useRef(0);
+  const frameTag = useRef<string | null>(null);
+  const frameTimes = useRef<number[]>([]);
+  const latestStatus = useRef<PreviewStatus | null>(null);
   const previewVersion = useRef(0);
   const commandPending = useRef(false);
+  function clearFrame(resetTag = true) {
+    window.clearTimeout(frameExpiry.current);
+    setHasFrame(false);
+    const canvas = previewCanvas.current;
+    canvas?.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
+    if (resetTag) frameTag.current = null;
+    frameTimes.current = [];
+    setPreviewFps(null);
+  }
   useEffect(() => {
     if (!ready) return;
     let active = true;
@@ -29,18 +44,14 @@ export function LiveCameraPanel({ ready = true, configurationError = '', onRetry
     let frameFetching = false;
     let frameTimer = 0;
     const requests = new Set<AbortController>();
-    function clearFrame() {
-      setImage('');
-      if (objectUrl.current) URL.revokeObjectURL(objectUrl.current);
-      objectUrl.current = '';
-    }
-    async function request<T>(path: string, read: (response: Response) => Promise<T>, message: string) {
+    async function request<T>(path: string, read: (response: Response) => Promise<T>, message: string, etag?: string | null) {
       const controller = new AbortController();
       requests.add(controller);
       const timeout = window.setTimeout(() => controller.abort(),5000);
       try {
-        const response = await fetch(path,{cache:'no-store',signal:controller.signal});
-        if (!response.ok) throw new Error(`${message}（HTTP ${response.status}），正在重试。`);
+        const headers = etag ? {'If-None-Match': etag} : undefined;
+        const response = await fetch(path,{cache:'no-store',signal:controller.signal,headers});
+        if (!response.ok && !(etag && response.status === 304)) throw new Error(`${message}（HTTP ${response.status}），正在重试。`);
         return await read(response);
       } catch (e) {
         if (controller.signal.aborted) throw new Error(`${message}超时，正在重试。`);
@@ -55,7 +66,7 @@ export function LiveCameraPanel({ ready = true, configurationError = '', onRetry
       statusFetching = true;
       const version = previewVersion.current;
       try {
-        const next = await request<CameraStatus>('/api/camera/status',r => r.json(),'摄像头状态读取失败');
+        const next = await request<PreviewStatus>('/api/camera/status',r => r.json(),'摄像头状态读取失败');
         if (!active || commandPending.current || version !== previewVersion.current) return;
         // Keep status polling independent of JPEG retrieval.
         if (latestStatus.current?.state !== next.state) previewVersion.current++;
@@ -63,15 +74,18 @@ export function LiveCameraPanel({ ready = true, configurationError = '', onRetry
         setStatus(next);
         setPollError('');
         if (next.state !== 'running') {
-          clearFrame();
+          if (next.state !== 'connecting' && next.state !== 'reconnecting') clearFrame();
           setFrameError('');
+        } else {
+          const cutoff = performance.now() - 2000;
+          const times = frameTimes.current.filter(time => time >= cutoff);
+          setPreviewFps(times.length > 1 ? 1000*(times.length-1)/(times[times.length-1]-times[0]) : null);
         }
       } catch (e) {
         if (active && version === previewVersion.current) {
           previewVersion.current++;
           latestStatus.current = null;
           setPollError((e as Error).message);
-          clearFrame();
         }
       } finally { statusFetching = false; }
     }
@@ -83,11 +97,11 @@ export function LiveCameraPanel({ ready = true, configurationError = '', onRetry
       let candidateUrl = '';
       try {
         if (!commandPending.current && latestStatus.current?.state === 'running') {
-          const blob = await request('/api/camera/frame.jpg',r => r.blob(),'预览画面暂不可用');
-          if (!active || version !== previewVersion.current) return;
-          candidateUrl = URL.createObjectURL(blob);
-          // Decode before replacing the visible frame, so a partial/invalid JPEG
-          // cannot replace a valid frame or expose a revoked object URL.
+          const frame = await request('/api/camera/frame.jpg',async r => r.status === 304 ? null :
+            { blob: await r.blob(), tag: r.headers?.get('ETag') ?? null },'预览画面暂不可用',frameTag.current);
+          if (!active || version !== previewVersion.current || !frame) return;
+          candidateUrl = URL.createObjectURL(frame.blob);
+          // Draw only after decode. Keep the same canvas and its pixels between frames.
           const decoded = new Image();
           decoded.src = candidateUrl;
           let decodeTimer = 0;
@@ -97,15 +111,28 @@ export function LiveCameraPanel({ ready = true, configurationError = '', onRetry
             })]);
           } finally { window.clearTimeout(decodeTimer); }
           if (!active || version !== previewVersion.current) return;
-          const old = objectUrl.current;
-          objectUrl.current = candidateUrl;
-          setImage(candidateUrl);
-          candidateUrl = '';
+          const canvas = previewCanvas.current;
+          const context = canvas?.getContext('2d');
+          if (!canvas || !context) throw new Error('预览画布不可用。');
+          if (canvas.width !== decoded.naturalWidth) canvas.width = decoded.naturalWidth;
+          if (canvas.height !== decoded.naturalHeight) canvas.height = decoded.naturalHeight;
+          context.drawImage(decoded, 0, 0);
+          frameTag.current = frame.tag;
+          const times = frameTimes.current;
+          if (times.length === 40) times.shift();
+          times.push(performance.now());
+          setHasFrame(true);
           setFrameError('');
-          if (old) URL.revokeObjectURL(old);
+          window.clearTimeout(frameExpiry.current);
+          frameExpiry.current = window.setTimeout(() => {
+            clearFrame(false);
+            setFrameError('预览画面超过 3 秒未更新，正在重试。');
+          }, PREVIEW_STALE_MS);
         }
       } catch (e) {
-        if (active && version === previewVersion.current) { clearFrame(); setFrameError((e as Error).message); }
+        if (active && version === previewVersion.current && frameTimes.current.length === 0) {
+          setFrameError((e as Error).message);
+        }
       } finally {
         if (candidateUrl) URL.revokeObjectURL(candidateUrl);
         frameFetching = false;
@@ -128,8 +155,7 @@ export function LiveCameraPanel({ ready = true, configurationError = '', onRetry
       window.clearTimeout(frameTimer);
       window.removeEventListener('focus',resume);
       document.removeEventListener('visibilitychange',resume);
-      if (objectUrl.current) URL.revokeObjectURL(objectUrl.current);
-      objectUrl.current='';
+      clearFrame();
     };
   },[ready]);
   async function command(action: 'start' | 'stop') {
@@ -146,10 +172,8 @@ export function LiveCameraPanel({ ready = true, configurationError = '', onRetry
       setStatus(data);
       setPollError('');
       if (action === 'stop') {
-        setImage('');
+        clearFrame();
         setFrameError('');
-        if (objectUrl.current) URL.revokeObjectURL(objectUrl.current);
-        objectUrl.current='';
       }
     } catch (e) {setError((e as Error).message);}
     finally {commandPending.current=false; setBusy(false);}
@@ -160,6 +184,8 @@ export function LiveCameraPanel({ ready = true, configurationError = '', onRetry
   const state = configurationError ? 'error' : loading ? 'loading' : pollError ? 'unavailable' : status?.state || 'unavailable';
   const stateLabel = configurationError ? '运行环境读取失败' : pollError ? '状态更新中断' : loading ? loadingLabel : stateName[state] || '未知状态';
   const current = ready && !configurationError && !pollError && status?.state === 'running';
+  const showPreview = ready && !configurationError && hasFrame &&
+    (current || state === 'connecting' || state === 'reconnecting' || !!pollError);
   const previewTitle = configurationError ? '运行环境读取失败' : pollError ? '暂时无法更新摄像头状态' : loading ? loadingLabel : frameError ? '暂时无法获取预览画面' : state === 'stopped' ? '等待开启本地摄像头' : state === 'running' ? '正在获取最新画面…' : stateName[state] || '摄像头状态待确认';
   const previewHint = configurationError || pollError ? '请检查本机服务；连接恢复后会自动更新状态。' : loading ? '正在读取摄像头状态…' : frameError ? '正在重试获取画面，检测状态见右侧。' : state === 'stopped' ? '点击“开启摄像头”，查看实时画面。' : state === 'error' ? '请检查摄像头配置后重新开启。' : state === 'stale' || state === 'reconnecting' ? '恢复连接后，最新画面会出现在这里。' : '请稍候，画面会在连接就绪后显示。';
   const recordingStatus = status?.recording_status;
@@ -172,18 +198,22 @@ export function LiveCameraPanel({ ready = true, configurationError = '', onRetry
     </div>
     {configurationError && <p className="error" role="alert">{configurationError}{onRetry && <button className="text-button" onClick={onRetry}>重新读取</button>}</p>}
     {error && <p className="error" role="alert">{error}</p>}
-    {pollError && <p className="error" role="alert">{pollError}</p>}
-    {!pollError && frameError && <p className="error" role="alert">{frameError}</p>}
     <div className="live-camera-viewport"><div className="live-camera-grid">
       <div className="live-camera-main">
-        <div className="live-camera-screen"><span className="live-camera-screen-label">本机摄像头 · 16:9</span>{image && current && !frameError ? <img src={image} alt="摄像头实时画面，含本地人体框与姿态关键点" width={status?.preview_width || 1280} height={status?.preview_height || 720}/> : <div className="live-camera-placeholder"><Icon name="video" size={48} className="camera-placeholder-icon"/><strong>{previewTitle}</strong><span>{previewHint}</span></div>}</div>
+        <div className="live-camera-screen">
+          <span className="live-camera-screen-label">本机摄像头 · 16:9</span>
+          <canvas ref={previewCanvas} hidden={!showPreview} role="img" aria-label="摄像头预览，含本地检测结果"/>
+          {!showPreview && <div className="live-camera-placeholder"><Icon name="video" size={48} className="camera-placeholder-icon"/><strong>{previewTitle}</strong><span>{!pollError && frameError ? frameError : previewHint}</span></div>}
+        </div>
       </div>
       <div className="live-camera-detail" aria-label="实时状态滚动区域" tabIndex={0}>
         <h3>实时状态</h3>
+        {pollError && <p className="error" role="alert">{pollError}</p>}
         <dl className="live-camera-metrics">
           <div><dt>画面人数</dt><dd>{current ? status.persons ?? '—' : '—'}</dd></div>
           <div><dt>火焰候选</dt><dd>{current ? status.fire_candidates ?? '—' : '—'}</dd></div>
-          <div><dt>姿态处理</dt><dd>{current ? status.fps ?? '—' : '—'} FPS</dd></div>
+          <div><dt>预览更新</dt><dd>{current ? previewFps?.toFixed(1) ?? '—' : '—'} FPS</dd></div>
+          <div><dt>姿态处理</dt><dd>{current && status.pose_enabled === false ? '未启用骨架模型' : `${current ? status.fps ?? '—' : '—'} FPS`}</dd></div>
           <div><dt>火焰扫描</dt><dd>{!current ? '— FPS' : status.fire_state === 'error' ? '检测异常' : status.fire_state === 'stale' ? '检测结果已过期' : `${status.fire_fps ?? '—'} FPS`}</dd></div>
         </dl>
         <dl className="live-camera-summary">
@@ -216,9 +246,12 @@ export function LiveCameraPanel({ ready = true, configurationError = '', onRetry
           <div><dt>复核模型</dt><dd>{status?.review_model || '未下发'}</dd></div>
           <div><dt>云端复核配置</dt><dd>{typeof status?.cloud_calls !== 'boolean' ? '未下发' : status.cloud_calls ? '已配置' : '未配置'}</dd></div>
           <div><dt>姿态推理</dt><dd>{status?.inference_ms ?? '—'} ms</dd></div>
+          <div><dt>近期姿态采样最大间隔</dt><dd>{current ? status.pose_sample_gap_ms ?? '—' : '—'} ms</dd></div>
           <div><dt>火焰推理</dt><dd>{status?.fire_inference_ms ?? '—'} ms</dd></div>
           <div><dt>源画面分辨率</dt><dd>{status?.width ? `${status.width} × ${status.height}` : '—'}</dd></div>
           <div><dt>预览分辨率</dt><dd>{status?.preview_width ? `${status.preview_width} × ${status.preview_height}` : '—'}</dd></div>
+          <div><dt>取流解码</dt><dd>{current ? status.source_fps ?? '—' : '—'} FPS</dd></div>
+          <div><dt>预览生成</dt><dd>{current ? status.preview_fps ?? '—' : '—'} FPS</dd></div>
           <div><dt>运行设备</dt><dd>{status?.device || '待加载'}</dd></div>
           <div><dt>火焰扫描方式</dt><dd>{loading ? '读取中' : status?.flame_tiling_enabled ? '全画面 + 高清重叠切片' : '全画面'}</dd></div>
         </dl>
