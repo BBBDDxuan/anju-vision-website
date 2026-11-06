@@ -300,10 +300,11 @@ def create_app(settings: Settings | None = None, provider: VisionProvider | None
         return result
 
     @app.post("/api/videos/{video_id}/analyze", status_code=202)
-    def analyze(video_id: str, auto_continue: bool = True, mode: Literal['safety', 'objects', 'all'] = 'all'):
+    def analyze(video_id: str, auto_continue: bool = True, mode: Literal['safety', 'objects', 'all'] = 'all',
+                flame_scan: Literal['normal', 'small_flame'] = 'normal'):
         with reviewer.lock:
             reviewer.assert_idle(video_id)
-            return manager.start(video_id, auto_continue=auto_continue, mode=mode)
+            return manager.start(video_id, auto_continue=auto_continue, mode=mode, flame_scan=flame_scan)
 
     @app.post('/api/videos/{video_id}/reanalyze', status_code=202)
     def reanalyze_demo(video_id: str, request: Request):

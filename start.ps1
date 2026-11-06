@@ -45,6 +45,6 @@ try {
         } finally { Pop-Location }
     }
     Write-Host "Anju Vision: http://127.0.0.1:$Port (Ctrl+C to stop)"
-    & $Python -m uvicorn backend.main:create_app --factory --host 127.0.0.1 --port $Port
+    & $Python -m backend.local_server --port $Port
     if ($LASTEXITCODE -ne 0) { throw 'Server stopped with an error. Check the message above.' }
 } finally { Pop-Location }

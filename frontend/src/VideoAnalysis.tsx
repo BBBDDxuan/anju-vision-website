@@ -1,8 +1,10 @@
 export type AnalysisMode = 'safety' | 'objects' | 'all';
 export type StartMode = Exclude<AnalysisMode, 'all'>;
+export type FlameScan = 'normal' | 'small_flame';
 export type SafetyScan = Partial<Record<'processed_frames' | 'total_frames' | 'scan_progress' | 'candidate_count' | 'reviewed' | 'confirmed' | 'rejected' | 'uncertain' | 'unavailable', number | null>> & { candidates?: unknown[] | number | null };
 export type AnalysisJob = {
   analysis_mode?: AnalysisMode;
+  flame_scan?: FlameScan;
   status: string;
   stage: string;
   progress: number;
@@ -15,16 +17,32 @@ export type AnalysisJob = {
 export const modeLabel = (mode: AnalysisMode) => ({ safety: '安全分析', objects: '物体追踪', all: '安全与物体联合分析' })[mode];
 export const jobMode = (job: Pick<AnalysisJob, 'analysis_mode'> | null): AnalysisMode => job?.analysis_mode || 'all';
 export const planPath = (videoId: string, mode: AnalysisMode) => `/api/videos/${encodeURIComponent(videoId)}/analysis-plan?mode=${mode}`;
-export function analysisPath(videoId: string, mode: AnalysisMode, resume = false, demo = false) {
+export function analysisPath(videoId: string, mode: AnalysisMode, resume = false, demo = false, flameScan: FlameScan = 'normal') {
   const base = `/api/videos/${encodeURIComponent(videoId)}`;
   // Resume always addresses the latest job; choosing a new tab must not change its mode.
-  return resume ? `${base}/resume` : demo ? `${base}/reanalyze` : `${base}/analyze?mode=${mode}`;
+  const scan = mode !== 'objects' && flameScan === 'small_flame' ? '&flame_scan=small_flame' : '';
+  return resume ? `${base}/resume` : demo ? `${base}/reanalyze` : `${base}/analyze?mode=${mode}${scan}`;
 }
 export const isAnalysisRunning = (job: AnalysisJob | null) => !!job && ['queued', 'running'].includes(job.status);
 const percent = (value: number | null | undefined) => typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : undefined;
 const count = (value: number | null | undefined) => typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined;
 const statusLabel: Record<string, string> = { queued: '等待分析', running: '分析中', paused: '已保存进度', completed: '分析完成', partial: '部分完成', failed: '分析失败', interrupted: '分析中断' };
 const stageLabel: Record<string, string> = { safety_scan: '本地小模型扫描', scanning: '本地小模型扫描', safety_review: 'Qwen 候选复核', reviewing: 'Qwen 候选复核', object_analysis: 'Qwen 物体分析', completed: '处理结束', queued: '等待执行' };
+
+export function FlameScanSetting({ value, onChange, disabled }: {
+  value: FlameScan; onChange: (scan: FlameScan) => void; disabled: boolean;
+}) {
+  return <div className="flame-scan-row">
+    <label className="flame-scan-setting">火焰扫描
+      <select value={value} onChange={e => onChange(e.target.value as FlameScan)}
+        disabled={disabled} aria-describedby="flame-scan-note">
+        <option value="normal">正常扫描</option>
+        <option value="small_flame">小火苗识别</option>
+      </select>
+    </label>
+    <p id="flame-scan-note">用于安全分析。疑似漏掉小火苗时可切换，扫描可能更久。</p>
+  </div>;
+}
 
 export function VideoAnalysisControls({ mode, onModeChange, job, pending, ready, demo, onStart, onResume, onPause }: {
   mode: StartMode; onModeChange: (mode: StartMode) => void; job: AnalysisJob | null;
@@ -48,7 +66,7 @@ export function VideoAnalysisControls({ mode, onModeChange, job, pending, ready,
     </div>
     <p className="analysis-task-note">同一视频一次只能运行一个任务。开始所选分析会新建任务；继续上次任务保留其原分析模式。</p>
     {demo && <p className="analysis-task-note">重新识别将创建你的分析副本；云端调用计入每日额度，原展示成果保留。</p>}
-    <div className="analysis-job-status" role="status">{job ? `最近任务：${modeLabel(jobMode(job))} · ${statusLabel[job.status] || job.status}${job.stage ? ` · ${stageLabel[job.stage] || job.stage}` : ''}` : demo ? '内置案例已就绪，可回看证据或重新分析副本。' : '上传完成，选择一种分析后开始。'}</div>
+    <div className="analysis-job-status" role="status">{job ? `最近任务：${modeLabel(jobMode(job))}${job.flame_scan === 'small_flame' ? ' · 小火苗识别' : ''} · ${statusLabel[job.status] || job.status}${job.stage ? ` · ${stageLabel[job.stage] || job.stage}` : ''}` : demo ? '内置案例已就绪，可回看证据或重新分析副本。' : '上传完成，选择一种分析后开始。'}</div>
     {job?.retained_analysis && <p className="analysis-task-note">保留历史分析：{modeLabel(job.retained_analysis.analysis_mode || 'all')}{job.retained_analysis.event_ids && ` · ${job.retained_analysis.event_ids.length} 条事件`}{job.retained_analysis.run_id && ` · 来源任务 ${job.retained_analysis.run_id}`}。这些保留事件未由本次任务重新识别或复核。</p>}
     {job && (running || job.resumable) && <div className="analysis-job-progress"><span>{modeLabel(jobMode(job))} · 总体进度{percent(job.progress) === undefined ? '待上报' : ` ${percent(job.progress)?.toFixed(1)}%`}</span><progress aria-label={`${modeLabel(jobMode(job))}总体进度`} max={100} value={percent(job.progress)} /></div>}
   </section>;

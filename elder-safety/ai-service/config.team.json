@@ -40,9 +40,11 @@
     "cooldown_seconds": 15.0
   },
   "fire": {
-    "confidence": 0.6,
+    "confidence": 0.5,
+    "review_confidence": 0.39,
     "region_iou": 0.3,
     "hold_seconds": 1.0,
+    "confirmation_window_seconds": 1.2,
     "min_frames": 5,
     "max_gap_seconds": 0.75,
     "cooldown_seconds": 15.0

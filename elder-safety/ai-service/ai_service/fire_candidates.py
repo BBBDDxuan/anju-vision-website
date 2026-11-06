@@ -37,7 +37,7 @@ def _box(value) -> Box | None:
         return None
 
 
-def _match(a: Box, b: Box, region_iou: float) -> float | None:
+def match_flame_region(a: Box, b: Box, region_iou: float) -> float | None:
     """Prefer IoU; allow a bounded, similar-size center move for tiny flames."""
     overlap = iou(a, b)
     if overlap > 0 and overlap >= region_iou:
@@ -109,7 +109,7 @@ class ReviewFireDetector:
     def _matching_alert(self, box: Box) -> _Alert | None:
         latest = None
         for alert in self.recent_alerts:
-            if (_match(alert.box, box, self.config.region_iou) is not None
+            if (match_flame_region(alert.box, box, self.config.region_iou) is not None
                     and (latest is None or alert.t > latest.t)):
                 latest = alert
         return latest
@@ -120,7 +120,7 @@ class ReviewFireDetector:
         alert = _Alert(box, t)
         self.recent_alerts.append(alert)
         for state in self.states.values():
-            if _match(state.box, box, self.config.region_iou) is not None:
+            if match_flame_region(state.box, box, self.config.region_iou) is not None:
                 state.alert = alert
         return True
 
@@ -143,7 +143,7 @@ class ReviewFireDetector:
             return []
         self._last_update_t = t
         c = self.config
-        threshold = max(0.25, c.confidence * 0.65)
+        threshold = c.review_confidence if c.review_confidence is not None else max(0.25, c.confidence * 0.65)
         valid = []
         for detection in detections:
             box = _box(detection.bbox)
@@ -163,7 +163,7 @@ class ReviewFireDetector:
         edges = []
         for key, state in self.states.items():
             for index, detection in enumerate(valid):
-                score = _match(state.box, detection.bbox, c.region_iou)
+                score = match_flame_region(state.box, detection.bbox, c.region_iou)
                 if score is not None:
                     edges.append((score, detection.confidence, key, index))
         assigned = {}

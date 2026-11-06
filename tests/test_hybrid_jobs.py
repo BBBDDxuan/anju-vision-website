@@ -52,7 +52,7 @@ class StubSafety:
     def __init__(self, settings, db, provider, specs, trace):
         self.settings, self.db, self.specs, self.trace = settings, db, specs, trace
         self.enabled = settings.hybrid_safety_enabled and not provider.is_mock
-        self.reviews, self.scans = [], 0
+        self.reviews, self.scans, self.flame_scans = [], 0, []
         self.on_scan = self.on_review = None
         self.scan_error = None
         self.fail_review = {}
@@ -61,8 +61,9 @@ class StubSafety:
         config = Path(self.settings.safety_model_config)
         return ['offline-scan-v1', config.read_text() if config.is_file() else '', self.settings.review_model]
 
-    def scan_video(self, video, run_dir, check_control, on_progress=None, on_candidate=None):
+    def scan_video(self, video, run_dir, check_control, on_progress=None, on_candidate=None, *, flame_scan='normal'):
         self.scans += 1
+        self.flame_scans.append(flame_scan)
         self.trace.append(('scan',))
         check_control()
         if self.on_scan:
@@ -469,12 +470,25 @@ def test_invalid_mode_rejected_before_scan_or_cloud(harness):
     assert not trace
 
 
+def test_small_flame_scan_sticks_to_the_original_job_after_pause(harness):
+    manager, safety, provider, db, trace = harness()
+    with pytest.raises(AppError, match='小火苗识别仅适用于安全分析'):
+        manager.start('v_offline', mode='objects', flame_scan='small_flame')
+    safety.on_scan = lambda: manager.pause_requests['v_offline'].set()
+    paused = finished(manager, manager.start('v_offline', mode='safety', flame_scan='small_flame'))
+    assert paused['status'] == 'paused' and paused['flame_scan'] == 'small_flame'
+    safety.on_scan = None
+    done = finished(manager, manager.start('v_offline', resume=True))
+    assert done['status'] == 'completed' and done['id'] == paused['id']
+    assert done['flame_scan'] == 'small_flame' and safety.flame_scans == ['small_flame', 'small_flame']
+
+
 def test_streamed_candidate_review_is_visible_before_eof(harness):
     manager, safety, provider, db, trace = harness([{}])
     scan = safety.scan_video
     observed = []
-    def streaming(video, run_dir, check_control, on_progress, on_candidate):
-        candidates = scan(video, run_dir, check_control)
+    def streaming(video, run_dir, check_control, on_progress, on_candidate, *, flame_scan):
+        candidates = scan(video, run_dir, check_control, flame_scan=flame_scan)
         on_progress({'frames': 60, 'total_frames': 120, 'progress': 50})
         on_candidate(candidates[0])
         job = db.latest_job(video['id'])

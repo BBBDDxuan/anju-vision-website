@@ -56,7 +56,7 @@ export function LiveCameraPanel({ ready = true, configurationError = '', onRetry
       try {
         const next = await request<CameraStatus>('/api/camera/status',r => r.json(),'摄像头状态读取失败');
         if (!active || commandPending.current || version !== previewVersion.current) return;
-        // Status polling is also the worker heartbeat; never wait for a JPEG here.
+        // Keep status polling independent of JPEG retrieval.
         if (latestStatus.current?.state !== next.state) previewVersion.current++;
         latestStatus.current = next;
         setStatus(next);

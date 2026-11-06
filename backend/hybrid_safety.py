@@ -27,7 +27,7 @@ from .errors import AppError
 from .events import Extraction
 from .providers.qwen import QwenProvider
 
-VERSION = 'local-candidates-qwen-review-v1'
+VERSION = 'local-candidates-qwen-review-v2'
 SAFETY_ACTIONS = {'fall', 'help_gesture', 'flame', 'sparks', 'smoke'}
 EVENT_ACTIONS = {'suspected_fall': 'fall', 'help_requested': 'help_gesture', 'fire_detected': 'flame'}
 REVIEW_TOKENS = 1024
@@ -41,8 +41,9 @@ REVIEW_PROMPT = '''你是居家监护的视觉复核器。只复核小模型提�
 如果有多个人，按候选时间和subject_bbox_hint定位对应主体；无法唯一定位时必须uncertain。
 fire_detected只复核可见明火，不将光斑、屏幕或反光当火，不把明火模型称为火花模型。
 必须观察至少两个不同时刻的真实图片。被遮挡、不清晰或缺少过程时回答uncertain。
+每张图片前有唯一的短编号（例如 F01）。frame_ids 只填写实际支持结论的图片短编号，原样引用；confirmed 至少引用两个不同编号。
 返回且仅返回JSON: {"verdict":"confirmed|rejected|uncertain", "event_type":"原候选类型",
-"reason":"简短中文视觉依据及局限", "frame_ids":["实际引用的输入帧ID"]}。
+"reason":"简短中文视觉依据及局限", "frame_ids":["实际引用的图片短编号"]}。
 confirmed只代表所述视觉候选获支持，不代表真实危险、受伤或紧急救助意图已确诊。'''
 
 
@@ -75,6 +76,9 @@ def detector_environment(python):
         if home:
             env['PATH'] = os.pathsep.join([home, str(Path(home)/'Library/bin'), str(Path(home)/'Scripts'), env.get('PATH', '')])
     return env
+
+
+FLAME_SCAN_SIZES = {'normal': 640, 'small_flame': 1280}
 
 
 class HybridSafety:
@@ -113,7 +117,7 @@ class HybridSafety:
             raise AppError('SAFETY_REVIEW_DISABLED', '安全复核链路未启用，候选不会作为已确认报警发送。', 503)
         self.reviewer.ready()
 
-    def scan_video(self, video, run_dir, check_control=lambda: None, on_progress=None, on_candidate=None):
+    def scan_video(self, video, run_dir, check_control=lambda: None, on_progress=None, on_candidate=None, *, flame_scan='normal'):
         """Stream committed candidates while the offline subprocess keeps scanning.
 
         Callbacks are synchronous and may raise control/budget exceptions. Published
@@ -122,6 +126,7 @@ class HybridSafety:
         their existing persisted review cache keyed by candidate ID.
         """
         check_control()
+        flame_size = FLAME_SCAN_SIZES[flame_scan]
         output = Path(run_dir) / 'safety'
         report = output / 'scan.json'
         full_signature = self.signature()
@@ -130,7 +135,7 @@ class HybridSafety:
             for chunk in iter(lambda: stream.read(1024 * 1024), b''):
                 source_digest.update(chunk)
         # Local model scan caching is independent of the cloud reviewer model.
-        signature = [full_signature[1], full_signature[2], full_signature[-1], source_digest.hexdigest()]
+        signature = [full_signature[1], full_signature[2], full_signature[-1], source_digest.hexdigest(), flame_size]
         fingerprint = output / 'pipeline.json'
         delivered = {}
         last_payload = None
@@ -209,7 +214,7 @@ class HybridSafety:
         atomic_json(fingerprint, signature)
         command = [str(python), '-u', str(script), '--source', video['original_path'],
                    '--config', str(self.settings.safety_model_config), '--output', str(output),
-                   '--scan-fps', '10', '--resume']
+                   '--scan-fps', '10', '--flame-imgsz', str(flame_size), '--resume']
         process = subprocess.Popen(command, cwd=ROOT, env=detector_environment(python), stdout=subprocess.DEVNULL,
                                    stderr=subprocess.DEVNULL, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
         started = time.monotonic()
@@ -321,8 +326,9 @@ class HybridSafety:
             'event_type': candidate['event_type'], 't': candidate['t'], 'confidence': candidate['confidence'],
             'subject_bbox_hint': candidate.get('subject_bbox_hint'),
             'local_evidence': evidence_metadata})}]
-        for frame in frames:
-            content += [{'type': 'text', 'text': f"frame_id={frame['id']}; pts_ms={frame['pts_ms']}"},
+        frame_refs = {f'F{index:02d}': frame for index, frame in enumerate(frames, start=1)}
+        for ref, frame in frame_refs.items():
+            content += [{'type': 'text', 'text': f"frame_id={ref}; pts_ms={frame['pts_ms']}"},
                         {'type': 'image_url', 'image_url': {'url': 'data:image/jpeg;base64,' +
                             base64.b64encode(Path(frame['path']).read_bytes()).decode('ascii')}, 'max_pixels': 960*960}]
         reviewer = self.reviewer
@@ -341,12 +347,13 @@ class HybridSafety:
         try:
             verdict = SafetyVerdict.model_validate_json(raw)
             if (verdict.event_type != candidate['event_type'] or len(set(verdict.frame_ids)) != len(verdict.frame_ids)
-                    or not set(verdict.frame_ids).issubset({f['id'] for f in frames})
+                    or not set(verdict.frame_ids).issubset(frame_refs)
                     or (verdict.verdict == 'confirmed' and len(verdict.frame_ids) < 2)):
                 raise ValueError
         except (ValidationError, ValueError):
             raise AppError('SAFETY_REVIEW_INVALID', '安全复核响应无效，候选未确认为报警。', 422) from None
-        result = {**verdict.model_dump(), 'candidate_id': candidate['id'], 'model': self.model,
+        result = {**verdict.model_dump(), 'frame_ids': [frame_refs[ref]['id'] for ref in verdict.frame_ids],
+                  'candidate_id': candidate['id'], 'model': self.model,
                   'reviewed_at': datetime.now(timezone.utc).isoformat(), 'usage': usage, 'cloud_images': True}
         if verdict.verdict == 'confirmed':
             result['face_identity'] = self.faces.associate_candidate(candidate)

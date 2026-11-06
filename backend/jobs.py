@@ -19,7 +19,7 @@ from .providers.base import VisionProvider, ProviderResult
 from .providers.qwen import QwenProvider
 from .prompting import load_event_prompt
 from .activity import ActivityGate, FILTER_VERSION
-from .hybrid_safety import HybridSafety, REVIEW_TOKENS
+from .hybrid_safety import FLAME_SCAN_SIZES, HybridSafety, REVIEW_TOKENS
 from .safety import RULES as SAFETY_RULES
 
 PIPELINE_VERSION = 'uploaded-hybrid-safety-v1'
@@ -48,7 +48,7 @@ class JobManager:
                            window_seconds=window, window_stride_seconds=min(window, self.settings.window_stride_seconds, self.settings.safety_window_stride_seconds))
         return self.settings
 
-    def signature(self, video, mode='all'):
+    def signature(self, video, mode='all', flame_scan='normal'):
         profile = self.profile(video, mode)
         signature = [profile.sampling_fps, profile.window_seconds, profile.window_stride_seconds, self.provider.name, self.provider.model]
         if self.filter_enabled(video):
@@ -57,6 +57,8 @@ class JobManager:
         signature.append([PIPELINE_VERSION, bool(enabled), self.safety.signature() if enabled else None])
         if mode != 'all':
             signature.append(['analysis_mode', mode])
+        if flame_scan != 'normal':
+            signature.append(['flame_scan', flame_scan])
         return signature
 
     def filter_enabled(self, video):
@@ -117,7 +119,7 @@ class JobManager:
             self.pause_requests[video_id].set()
             return {**job, 'pause_requested': True, 'stage': '正在暂停，等待当前处理完成并保存进度'}
 
-    def start(self, video_id, resume=False, call_limit=None, auto_continue=True, mode='all'):
+    def start(self, video_id, resume=False, call_limit=None, auto_continue=True, mode='all', flame_scan='normal'):
         if self.stopping.is_set():
             raise AppError("SHUTTING_DOWN", "服务正在关闭，请重新启动后分析。", 503)
         if mode not in {'all', 'safety', 'objects'}:
@@ -125,6 +127,11 @@ class JobManager:
         previous = self.db.latest_job(video_id) if resume else None
         if previous:
             mode = previous.get('analysis_mode', 'all')
+            flame_scan = previous.get('flame_scan', 'normal')
+        if flame_scan not in FLAME_SCAN_SIZES or (mode == 'objects' and flame_scan != 'normal'):
+            raise AppError('FLAME_SCAN_MODE', '小火苗识别仅适用于安全分析。', 400)
+        if flame_scan != 'normal' and not self.safety.enabled:
+            raise AppError('SAFETY_REVIEW_DISABLED', '小火苗识别需要启用本地小模型与大模型复核。', 503)
         if mode == 'safety' and not self.safety.enabled:
             raise AppError('SAFETY_REVIEW_DISABLED', '安全检测需要启用本地小模型与大模型复核。', 503)
         self.provider.ready()
@@ -146,7 +153,7 @@ class JobManager:
                 if not checkpoint.exists():
                     raise AppError('NO_CHECKPOINT', '此旧任务没有分窗检查点，请重新分析。', 409)
                 saved = json.loads(checkpoint.read_text(encoding='utf8'))
-                if saved['signature'] != self.signature(video, mode) or saved['video_sha256'] != video['sha256']:
+                if saved['signature'] != self.signature(video, mode, flame_scan) or saved['video_sha256'] != video['sha256']:
                     raise AppError('CHECKPOINT_CONFIG', '模型或抽帧设置已改变，请恢复原配置继续，或重新分析。', 409)
                 if saved.get('prompt_sha256') != self.prompt.sha256:
                     raise AppError('CHECKPOINT_CONFIG', '提示词已改变或旧任务缺少提示词指纹。请从头分析，避免把不同提示词的结果静默混用。', 409)
@@ -159,6 +166,7 @@ class JobManager:
                    'usage': {'prompt_tokens': 0, 'completion_tokens': 0}, 'retries': 0,
                    'prompt_version': self.prompt.version, 'prompt_sha256': self.prompt.sha256}
             job['analysis_mode'] = mode
+            job['flame_scan'] = flame_scan
             job.update(batch_calls=0, batch_frame_references=0, batch_output_budget=0, resumable=False,
                        batch_call_limit=min(self.settings.max_calls, call_limit or self.settings.max_calls),
                        auto_continue=auto_continue and call_limit is None, pause_requested=False, pause_reason=None)
@@ -178,11 +186,12 @@ class JobManager:
         run_dir = self.settings.data_dir / 'runs' / job['id']
         checkpoint = run_dir / 'checkpoint.json'
         mode = job.get('analysis_mode', 'all')
+        flame_scan = job.get('flame_scan', 'normal')
         safety_enabled = self.safety.enabled and mode != 'objects'
         objects_enabled = mode != 'safety'
         profile = self.profile(video, mode)
         try:
-            signature = self.signature(video, mode)
+            signature = self.signature(video, mode, flame_scan)
             run_dir.mkdir(parents=True, exist_ok=True)
             job.update(status="running", stage="读取原始时间戳并抽取关键帧")
             self.db.save_job(job)
@@ -436,7 +445,8 @@ class JobManager:
                         persist()
 
                     candidates = self.safety.scan_video(video, run_dir, check_control=check_control,
-                                                         on_progress=scan_progress, on_candidate=process_candidate)
+                                                         on_progress=scan_progress, on_candidate=process_candidate,
+                                                         flame_scan=flame_scan)
                     if len({c['id'] for c in candidates}) != len(candidates):
                         raise AppError('SAFETY_CANDIDATE_INVALID', '安全候选ID重复，未写入。', 422)
                     known = {candidate['id'] for candidate in safety_state['candidates']}

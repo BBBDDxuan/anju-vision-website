@@ -54,6 +54,10 @@ html{scroll-behavior:smooth;scroll-padding-top:88px}body{min-width:320px}button,
 .analysis-method,.analysis-task-note,.analysis-job-status{font-size:12px;line-height:1.8;overflow-wrap:anywhere;margin:10px 0 0;color:#597363}
 .video-analysis .analysis-bar{padding:12px 0 0;gap:12px}
 .video-analysis .analysis-bar button{min-height:44px;font-size:12px;white-space:normal}
+.flame-scan-row{display:flex;align-items:center;flex-wrap:wrap;gap:4px 12px;padding:8px 16px;border-bottom:1px solid var(--line,#e2e9e1);color:var(--muted,#597363)}
+.flame-scan-row p{margin:0;font-size:11px;line-height:1.6}
+.flame-scan-setting{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;font-size:12px}
+.flame-scan-setting select{min-height:36px;max-width:100%;padding:4px 8px;border:1px solid var(--line);border-radius:7px}
 .analysis-task-note{color:#718275;font-size:11px}
 .analysis-job-status{border-top:1px solid #e2e9e1;padding-top:10px}
 .analysis-job-progress{margin-top:10px;font-size:12px;color:#597363}

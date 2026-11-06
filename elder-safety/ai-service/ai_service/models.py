@@ -118,7 +118,7 @@ class LocalModels:
         height, width = image.shape[:2]
         if self.flame is not None:
             # Keep full-frame detection to retain context for larger fires.
-            result = self.flame.predict(image, device=self.config.device, verbose=False)[0]
+            result = self.flame.predict(image, imgsz=self.config.flame_imgsz, device=self.config.device, verbose=False)[0]
             flames.extend(self._flames(result, 0, 0, width, height))
             if self.config.flame_tiling_enabled:
                 views = flame_views(image, self.config.flame_tile_size,

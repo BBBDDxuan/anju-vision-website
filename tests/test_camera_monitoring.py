@@ -144,6 +144,8 @@ def test_backend_heartbeat_does_not_require_any_http_status_requests(tmp_path):
         messages.append(message)
         stopped.set()
     camera._send = send
+    camera.status()
+    assert messages == []
     camera._keep_alive(worker, stopped)
     assert messages == [b'ping']
     camera.process = None
