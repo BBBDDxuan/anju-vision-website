@@ -60,7 +60,11 @@ def assert_published(candidate, output):
     times = [f["pts_ms"] for f in candidate["frames"]]
     assert times == sorted(set(times))
     for frame in candidate["frames"]:
-        assert set(frame) == {"id", "pts_ms", "path"}
+        assert set(frame) == {"id", "pts_ms", "path", "person_bboxes"}
+        assert isinstance(frame['person_bboxes'], dict)
+        for box in frame['person_bboxes'].values():
+            assert len(box) == 4 and all(0 <= value <= 1 for value in box)
+            assert box[0] < box[2] and box[1] < box[3]
         path = Path(frame["path"])
         assert path.is_absolute() and path.parent == directory
         image = cv2.imdecode(np.frombuffer(path.read_bytes(), np.uint8), cv2.IMREAD_COLOR)
@@ -540,3 +544,24 @@ def test_recovered_posture_keeps_earlier_descent_without_extra_cloud_images(tmp_
     times = [f['pts_ms'] for f in frames]
     assert times == [0, 500, 1000, 1500, 2250, 2750, 3250, 3750, 4000, 4250, 4500, 4750]
     assert_published(ready[0], tmp_path)
+
+
+def test_candidate_boxes_are_per_frame_normalized_and_never_stale(tmp_path, monkeypatch):
+    from ai_service.types import Pose
+    collector = SafetyCandidateCollector(Config(), tmp_path)
+    inject(collector, monkeypatch, lambda s: [Signal('help_requested', 'person-1', .9, {})] if s.t == .5 else [])
+    for i in range(6):
+        s = sample(i*.25)
+        if i != 4:
+            x = 8 + i
+            s.poses = [Pose((x, 4, x+24, 40), np.zeros((17,3), dtype=float))]
+        collector.process(s)
+    result = collector.finish()[0]
+    frames = {frame['pts_ms']:frame for frame in result['frames']}
+    assert frames[0]['person_bboxes']['person-1'] == [8/64,4/48,32/64,40/48]
+    assert frames[500]['person_bboxes']['person-1'] == [10/64,4/48,34/64,40/48]
+    assert frames[1000]['person_bboxes'] == {}  # Tracker retains the ID, but it was not observed.
+    # The .5-second gap exceeds the existing .3-second expiry: a new ID is correct.
+    assert 'person-1' not in frames[1250]['person_bboxes']
+    assert frames[1250]['person_bboxes']['person-2'][0] == 13/64
+    assert_published(result, tmp_path)

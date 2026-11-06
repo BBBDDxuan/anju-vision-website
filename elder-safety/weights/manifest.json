@@ -23,6 +23,21 @@
       "path": "./luminous-fire-yolov8n.pt",
       "downloaded_sha256": "ac0a10257b2bc1f20c9d957f8adeeb61dd6140322fc19d0b4a116cb491776d16",
       "integrity": "pinned SHA256"
+    },
+    {
+      "file": "indoor-dfire-yolov8n.pt",
+      "name": "Indoor Fire Smoke + D-Fire fine-tuned YOLOv8n",
+      "license": "AGPL-3.0",
+      "source": "https://github.com/luminous0219/fire-and-smoke-detection-yolov8",
+      "base_weights": "luminous-fire-yolov8n.pt",
+      "training_data": {
+        "Indoor Fire Smoke": "https://doi.org/10.5281/zenodo.15826133",
+        "D-Fire": "https://github.com/gaia-solutions-on-demand/DFireDataset"
+      },
+      "bytes": 6228714,
+      "sha256": "517ded23621666c842516212f4cace9680149efb1f17bc4a8db80938b0d94180",
+      "path": "./indoor-dfire-yolov8n.pt",
+      "integrity": "SHA256 recorded from the local training checkpoint"
     }
   ],
   "usage_review": "Local prototype only. Preserve AGPL notices; review obligations before distribution. No spark class."

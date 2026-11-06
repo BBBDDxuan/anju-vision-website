@@ -28,12 +28,13 @@ function CapabilityVideoCard({ demo, index, evidenceOpen, onOpenEvidence, onClos
     </div>
     <div className="av-cap-copy">
       <div className="av-card-title"><Icon name={icons[index]} size={24}/><span>0{index + 1}</span></div>
-      <h3 id={`cap-${demo.id}`}>{demo.title}</h3>
+      <h3 id={`cap-${demo.id}`}>{demo.id === 'fall' ? '跌倒 / 异常姿态识别' : demo.id === 'help' ? '举手动作识别' : '明火异常识别'}</h3>
       <span className={`av-result-tag ${result.status === 'available' ? 'is-verified' : ''}`}>{result.status === 'available' ? '实景测试 · 已有模型复核' : '实景测试 · 识别结果待接入'}</span>
-      <p className="av-card-description">{demo.disclaimer}</p>
-      {result.status === 'available' && <div className="av-card-result"><p>已保存{result.result.title}候选；{reviewLabel(result.result)}，建议核对原片。</p>{demo.id === 'fall' && <button className="av-card-evidence-link" aria-expanded={evidenceOpen} aria-controls="fall-evidence-inspector" onClick={event => onOpenEvidence(event.currentTarget)}>查看 AI 分析依据<Arrow/></button>}</div>}
+      <p className="av-card-description">{demo.id === 'fall' ? '智能识别人体跌倒、异常躺卧等姿态，自动标记疑似风险事件。' : demo.id === 'help' ? '捕捉画面中的举手动作，标记疑似求助场景。' : '检测画面中的可见光火焰，提示疑似火情风险。'}</p>
+      <p className="av-card-caveat"><Icon name="help" size={14}/>{demo.id === 'fall' ? 'AI 仅提供疑似线索参考，最终情况请以原始画面确认为准。' : demo.id === 'help' ? '动作识别不代表真实求助，需结合实际画面判断。' : '当前样例为打火机火焰，不代表真实火情；仅识别火焰视觉特征，需结合场景确认。'}</p>
+      {result.status === 'available' && <div className="av-card-result"><p>已保存{result.result.title}候选；{reviewLabel(result.result)}，{result.result.humanConfirmed ? '已人工确认' : '未经人工确认'}，建议核对原片。</p>{demo.id === 'fall' && <button className="av-card-evidence-link" aria-expanded={evidenceOpen} aria-controls="fall-evidence-inspector" onClick={event => onOpenEvidence(event.currentTarget)}>查看 AI 分析依据<Arrow/></button>}</div>}
       <div className="av-card-actions">
-        <button className="av-text-link" disabled={player.busy || !!player.error} onClick={() => player.playing ? player.pause() : play()} aria-label={`${demo.title}：${player.playing ? '暂停场景' : finished ? '重播场景' : '播放场景'}`}><Icon name={player.playing ? 'video' : finished ? 'replay' : 'play'} size={15}/>{player.playing ? '暂停场景' : finished ? '重播场景' : '播放场景'}</button>
+        <button className="av-text-link" disabled={player.busy || !!player.error} onClick={() => player.playing ? player.pause() : play()} aria-label={`${demo.title}：${player.playing ? '暂停场景' : finished ? '重播场景' : '播放场景'}`}><Icon name={player.playing ? 'pause' : finished ? 'replay' : 'play'} size={15}/>{player.playing ? '暂停场景' : finished ? '重播场景' : '播放场景'}</button>
         {started && <button className="av-card-replay" aria-label={`${demo.title}：从头重播`} disabled={player.busy || !!player.error} onClick={() => play(true)}><Icon name="replay" size={15}/>重播</button>}
       </div>
     </div>
@@ -80,10 +81,10 @@ export function CapabilityVideos() {
 }
 
 const stages = [
-  { icon: 'video', title: '原始视频', detail: '从完整原片开始，保留前后文。' },
-  { icon: 'chip', title: '风险候选与复核', detail: '区分本地候选与视觉模型判断。' },
-  { icon: 'document', title: '事件摘要', detail: '沿实际引用关键帧，了解经过。' },
-  { icon: 'play', title: '证据回看', detail: '回到原片，核对这条事件依据。' },
+  { icon: 'video', title: '原始视频留存', detail: '完整保留原始录像，锁定事件前后的完整画面。' },
+  { icon: 'chip', title: '智能分析复核', detail: 'AI 模型初步筛查，提取风险候选，支持人工复核校验。' },
+  { icon: 'document', title: '事件自动摘要', detail: '按时间线梳理关键事件，清晰呈现异常的来龙去脉。' },
+  { icon: 'play', title: '证据定位回看', detail: '一键跳转对应视频片段，结合原片核实真实情况。' },
 ];
 
 export function WorkflowDemo() {
@@ -125,28 +126,35 @@ export function WorkflowDemo() {
     </div>
     <div className="av-workflow-panel" id="workflow-stage-panel" role="tabpanel" aria-labelledby={`workflow-tab-${stage}`} tabIndex={0}>
       <div className="av-workflow-player">
+        <div className="av-workflow-panel-heading"><div><h3>先看原片，再做判断。</h3><p>完整保留事件前后原始录像，可自由播放、拖动时间轴，直观查看事件全过程。</p></div><span>真实模型分析导出</span></div>
         <div className="av-workflow-screen">
           <video ref={player.ref} src={fallDemo.videoSrc} poster={fallDemo.posterSrc} preload="metadata" controls muted playsInline aria-label="跌倒案例完整原始视频" {...player.videoEvents}/>
           <span className="av-real-footage">实景测试 · 原始录像</span>
           {player.error && <p className="av-media-error" role="alert">{player.error}</p>}
         </div>
         <div className="av-workflow-controls">
-          <button onClick={toggle} disabled={player.busy || !!player.error} aria-label={player.playing ? '暂停案例视频' : '播放案例视频'}><Icon name={player.playing ? 'video' : 'play'} size={17}/>{player.playing ? '暂停' : '播放'}</button>
+          <button onClick={toggle} disabled={player.busy || !!player.error} aria-label={player.playing ? '暂停案例视频' : '播放案例视频'}><Icon name={player.playing ? 'pause' : 'play'} size={17}/>{player.playing ? '暂停' : '播放'}</button>
           <button onClick={replay} disabled={player.busy || !!player.error}><Icon name="replay" size={15}/>重播{stage === 0 ? '原片' : '证据'}</button>
           <time aria-label="视频相对时间">{relativeTime(player.currentTime * 1000)} <span>/ {relativeTime(fallDemo.durationMs)}</span></time>
         </div>
         <p className="av-player-note">{player.busy ? '正在加载 / 定位视频…' : '视频相对时间 · 静音播放 · 已保存的分析案例'}</p>
+        <div className="av-workflow-evidence"><h4>模型引用关键帧 · 点击定位原片</h4><div className="av-keyframe-strip" role="group" aria-label="模型结论引用关键帧">{evidence.frames.map((frame, index) => <button key={frame.id} style={{ '--frame-delay': `${index * 70}ms` } as CSSProperties} aria-label={`定位到 ${relativeTime(frame.ptsMs)} 关键帧`} aria-pressed={selectedFrame === frame.id} onClick={() => { setSelectedFrame(frame.id); void player.command({ start: frame.ptsMs / 1000 }); }}><img src={frame.image} alt={`原片相对时间 ${relativeTime(frame.ptsMs)}`} loading="lazy"/><time>{relativeTime(frame.ptsMs)}</time></button>)}</div></div>
       </div>
       <div className="av-stage-content" key={stage}>
         <p className="av-stage-eyebrow">CASE 01 <span>/ STAGE 0{stage + 1}</span></p>
+        <h3>{stage === 0 ? '原始视频留存' : stages[stage].title}</h3>
         {stage === 0 && <>
-          <h3>先看原片，再看判断。</h3>
-          <p>完整保留这段 {durationSec.toFixed(2)} 秒的摄像原片。播放、暂停或拖动时间条，观察人物姿态的前后变化。</p>
-          <dl className="av-case-facts"><div><dt>案例</dt><dd>人物跌倒实景测试</dd></div><div><dt>原片时长</dt><dd>{durationSec.toFixed(2)} 秒</dd></div><div><dt>分析来源</dt><dd>已完成的模型分析导出</dd></div><div><dt>事件数量</dt><dd>1 条疑似跌倒线索</dd></div></dl>
+          <p>完整保留事件前后原始录像，可自由播放、拖动时间轴，直观查看事件全过程。</p>
+          <dl className="av-case-facts">
+            <div><dt>案例</dt><dd>人物跌倒实景测试</dd></div>
+            <div><dt>原片时长</dt><dd>{durationSec.toFixed(2)} 秒</dd></div>
+            <div><dt>分析来源</dt><dd>AI 模型分析导出</dd></div>
+            <div><dt>事件数量</dt><dd>1 条疑似跌倒线索</dd></div>
+          </dl>
           <p className="av-stage-note">此处回放已有结果，不在官网发起实时模型推理。</p>
         </>}
         {stage === 1 && <>
-          <h3>候选与复核，分开说明。</h3>
+          <p>{stages[stage].detail}</p>
           <div className="av-review-step"><span>LOCAL / 本地候选</span><strong>疑似跌倒</strong><p>候选触发于相对时间 {relativeTime(evidence.localCandidateTriggerSec * 1000)}，需要结合前后画面复核。</p></div>
           <div className="av-review-step"><span>QWEN / 视觉模型复核</span><strong>{reviewLabel(evidence)}</strong><p>模型描述约 5.00 秒开始失去支撑、约 6.00 秒已躺卧；这是模型说明，并非人工精确动作标注。</p></div>
           <button className="av-demo-action" disabled={player.busy || !!player.error} onClick={() => void player.command({ start: startSec, end: endSec })}><Icon name="clock" size={16}/>{range} 证据区间<Arrow/></button>
@@ -154,14 +162,14 @@ export function WorkflowDemo() {
           <p className="av-stage-note">未经人工确认；证据区间的起点不等于跌倒开始，也不能据此推断受伤。</p>
         </>}
         {stage === 2 && <>
-          <h3>一条事件，五帧依据。</h3>
-          <p>模型结论实际引用了下列五张原始关键帧。点击任意一帧，将左侧原片定位到对应时刻。</p>
-          <div className="av-keyframe-strip" role="group" aria-label="模型结论引用关键帧">{evidence.frames.map((frame, index) => <button key={frame.id} style={{ '--frame-delay': `${index * 70}ms` } as CSSProperties} aria-label={`定位到 ${relativeTime(frame.ptsMs)} 关键帧`} aria-pressed={selectedFrame === frame.id} onClick={() => { setSelectedFrame(frame.id); void player.command({ start: frame.ptsMs / 1000 }); }}><img src={frame.image} alt={`原片相对时间 ${relativeTime(frame.ptsMs)}`} loading="lazy"/><time>{relativeTime(frame.ptsMs)}</time></button>)}</div>
+          <p>{stages[stage].detail}</p>
+          <p>一条事件，五帧依据。模型结论实际引用的五张原始关键帧常驻在播放器下方，可随时定位核对。</p>
           <div className="av-event-summary"><span>01 / {evidence.title}</span><strong>{range}</strong><p>模型复核支持跌倒过程，未经人工确认。区间包含事前站立与姿态变化，需结合原片判断。</p></div>
           <details className="av-model-reason"><summary>查看模型复核原文</summary><p>{evidence.reviewReason}</p></details>
         </>}
         {stage === 3 && <>
-          <h3>让判断回到原片。</h3>
+          <p>{stages[stage].detail}</p>
+          <button className="av-demo-action" disabled={player.busy || !!player.error} onClick={() => void player.command({ start: startSec, end: endSec, play: true })}><Icon name="play" size={17}/>回看原片<Arrow/></button>
           <p>沿完整 {durationSec.toFixed(2)} 秒时间轴，回看这一条事件引用的证据窗口。</p>
           <div className="av-evidence-timeline" style={{ '--evidence-start': `${startSec / durationSec * 100}%`, '--evidence-width': `${(endSec - startSec) / durationSec * 100}%`, '--playhead': `${Math.min(100, player.currentTime / durationSec * 100)}%` } as CSSProperties}>
             <div className="av-time-track"><span className="av-evidence-window"/><span className="av-time-cursor"/></div>
@@ -170,7 +178,6 @@ export function WorkflowDemo() {
             <div className="av-time-labels"><time>00:00.00</time><span>证据窗口</span><time>{relativeTime(fallDemo.durationMs)}</time></div>
           </div>
           <div className="av-event-summary"><span>01 / 疑似跌倒</span><strong>{range}</strong><p>{reviewLabel(evidence)} · 未经人工确认</p></div>
-          <button className="av-demo-action" disabled={player.busy || !!player.error} onClick={() => void player.command({ start: startSec, end: endSec, play: true })}><Icon name="play" size={17}/>回看原片<Arrow/></button>
           <p className="av-stage-note">从证据区间起点播放，到区间末尾自动暂停；可随时暂停或重播。</p>
         </>}
       </div>

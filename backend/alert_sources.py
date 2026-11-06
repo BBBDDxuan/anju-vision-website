@@ -24,9 +24,16 @@ def utc(value):
 
 
 class AlertSources:
-    def __init__(self, center, db, safety):
+    def __init__(self, center, db, safety, faces=None):
         self.center, self.db, self.safety = center, db, safety
+        self.faces = faces
         self.status = {}
+
+    def face_fields(self, candidate_ids):
+        if self.faces is None:
+            return {}
+        identity = self.faces.event_identity(candidate_ids)
+        return {'member_id': identity['member_id'], 'face_identity': identity}
 
     def sync(self):
         for source, operation in [('live_camera', self.live), ('uploaded_recording', self.videos)]:
@@ -80,6 +87,7 @@ class AlertSources:
                     'review_reason': str(details.get('review_reason', ''))[:800],
                     'evidence': evidence, 'evidence_status': 'available' if evidence else 'pending_or_unavailable',
                     'playback_url': None,
+                    **self.face_fields([details['candidate_id']] if details.get('candidate_id') else []),
                     'source_acknowledged': item['acknowledgement_status'] == 'acknowledged',
                     'source_resolved': item['state'] == 'resolved',
                 }, historical=historical)
@@ -166,6 +174,7 @@ class AlertSources:
                     'evidence': evidence, 'evidence_status': 'available' if evidence else 'pending_or_unavailable',
                     'playback_offset_ms': evidence[0]['video_offset_ms'] if evidence else item['start_ms'],
                     'playback_url': f"/media/videos/{quote(video['id'], safe='')}",
+                    **self.face_fields([proof['candidate_id'] for proof in matching]),
                     'source_acknowledged': item['acknowledged'], 'source_resolved': False,
                 }, historical=historical)
                 if saved_item['handling_status'] != 'unacknowledged' and not item['acknowledged']:

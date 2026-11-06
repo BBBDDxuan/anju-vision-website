@@ -22,6 +22,7 @@ from uuid import uuid4
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from .config import ROOT
+from .face_recognition import FaceRecognition
 from .errors import AppError
 from .events import Extraction
 from .providers.qwen import QwenProvider
@@ -81,6 +82,7 @@ class HybridSafety:
         self.settings, self.db, self.provider = settings, db, provider
         self.enabled = settings.hybrid_safety_enabled and not provider.is_mock
         self.model = settings.review_model
+        self.faces = FaceRecognition(settings)
         # Keep injectable mock transports for tests. Real provider uses the SAME ledger.
         s = replace(settings, model=self.model)
         if settings.billing_mode == 'priced' and self.model != settings.model:
@@ -344,8 +346,11 @@ class HybridSafety:
                 raise ValueError
         except (ValidationError, ValueError):
             raise AppError('SAFETY_REVIEW_INVALID', '安全复核响应无效，候选未确认为报警。', 422) from None
-        return {**verdict.model_dump(), 'candidate_id': candidate['id'], 'model': self.model,
-                'reviewed_at': datetime.now(timezone.utc).isoformat(), 'usage': usage, 'cloud_images': True}
+        result = {**verdict.model_dump(), 'candidate_id': candidate['id'], 'model': self.model,
+                  'reviewed_at': datetime.now(timezone.utc).isoformat(), 'usage': usage, 'cloud_images': True}
+        if verdict.verdict == 'confirmed':
+            result['face_identity'] = self.faces.associate_candidate(candidate)
+        return result
 
     @staticmethod
     def extraction(candidate, result):

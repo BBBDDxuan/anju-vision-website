@@ -190,14 +190,19 @@ Node.js 仅在需要修改前端时安装。仓库已提交构建后的 `fronten
 | 文件 | 作用 |
 |---|---|
 | `elder-safety/weights/yolo11n-pose.pt` | 姿态检测，供跌倒及求助规则使用 |
-| `elder-safety/weights/luminous-fire-yolov8n.pt` | 当前明火检测 |
+| `elder-safety/weights/indoor-dfire-yolov8n.pt` | 当前明火检测，使用 Indoor Fire Smoke 和 D-Fire 微调 |
+| `elder-safety/weights/luminous-fire-yolov8n.pt` | 微调前的原始权重，供对照和回退 |
 | `elder-safety/weights/fire-smoke-yolov8n.pt` | 保留的备选权重，默认不启用 |
+| `models/face-recognition/face_detection_yunet_2026may.onnx` | 本地家庭成员人脸检测 |
+| `models/face-recognition/face_recognition_sface_2021dec.onnx` | 本地家庭成员特征提取与比对 |
 | `elder-safety/tools/ffmpeg/ffmpeg.exe` | 视频转码、取帧、录像 |
 | `elder-safety/tools/ffmpeg/ffprobe.exe` | 视频元数据 |
 
 工具二进制沿用原电脑实际使用的文件，版本和 SHA256 见 `provenance.json` 与 `repro-assets.json`。
 这两份 FFmpeg 工具来自不同年代的构建，本次不偷偷替换；媒体和扫描功能需按自检结果确认。
 来源、许可文本及分发说明见 `THIRD_PARTY_NOTICES.md`。
+
+website 后端已接入本地 YuNet + SFace：支持成员照片录入、身份比对和告警身份关联。云部署关闭人脸接口；API、配置、存储与验证边界见 [人脸识别接入说明](docs/FACE_RECOGNITION.md)。
 
 ## 七、手机告警与可选 Firebase 通知
 
@@ -209,7 +214,7 @@ App 的地址和令牌见启动后生成的 `runtime/手机连接参数.txt`。�
 
 ## 八、提交前检查
 
-本仓库提交两份 `.env.example`、三个模型、两份媒体工具；真实 `.env` 保留在本机并被 Git 忽略。
+本仓库包含两份 `.env.example`、三个检测模型和两份媒体工具；两个人脸模型由 `scripts/prepare_face_models.py` 在本地准备，命令见人脸接入说明。真实 `.env` 保留在本机并被 Git 忽略。
 忽略所有 `.venv*` 虚拟环境、下载缓存、数据库、录像、推理运行记录及所有视频/分片。
 `setup-team.ps1` 创建这些可重建环境，避免把原电脑绝对路径与旧数据库误当成队友的运行前提。
 

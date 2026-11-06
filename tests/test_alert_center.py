@@ -374,3 +374,27 @@ def test_evidence_auth_snapshot_and_upstream_failure_are_isolated(settings, safe
         assert failed.status_code == 503
         assert 'private exception' not in failed.text
         assert phone.get('/api/alerts', headers=headers).status_code == 200
+
+
+def test_live_face_identity_is_projected_and_member_deletion_revokes_it(tmp_path, safety, monkeypatch):
+    from backend.config import Settings
+    from backend.face_recognition import FaceRecognition, MODEL_VERSION
+    faces = FaceRecognition(Settings(data_dir=tmp_path/'faces'))
+    feature = np.zeros(128,dtype='<f4');feature[0]=1
+    monkeypatch.setattr(faces, '_features', lambda data: [{'feature':feature}])
+    faces.enroll('member-1','Synthetic',True,b'synthetic-feature-not-photo')
+    monkeypatch.setattr(faces, '_candidate_identity', lambda value: {'status':'matched','member_id':'member-1',
+        'similarity':.8,'reason':'consistent_tracked_faces','model':MODEL_VERSION})
+    faces.associate_candidate({'id':'sc_test'})
+    event = live(safety, candidate_id='sc_test')
+    center = AlertCenter(tmp_path/'center')
+    sources = AlertSources(center, None, safety, faces=faces)
+    sources.live(True)
+    item = center.listing()['alerts'][0]
+    assert item['member_id'] == 'member-1'
+    assert item['face_identity']['status'] == 'matched'
+    assert item['source_event_id'] == event['event_id']
+    faces.delete('member-1')
+    sources.live(False)
+    refreshed = center.get(item['id'])
+    assert refreshed['member_id'] is None and refreshed['face_identity']['reason'] == 'member_deleted'

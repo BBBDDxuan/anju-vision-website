@@ -29,6 +29,12 @@ class Settings:
     hybrid_safety_enabled: bool = True
     safety_model_config: Path = ROOT / "elder-safety/ai-service/config.camera-gpu.json"
     safety_python: Path = ROOT / "elder-safety/.venv-gpu/Scripts/python.exe"
+    face_recognition_enabled: bool = True
+    face_model_dir: Path = ROOT / "models/face-recognition"
+    face_match_threshold: float = .363
+    face_match_margin: float = .08
+    face_min_pixels: int = 32
+    face_max_side: int = 1280
     review_input_price: float = 0
     review_output_price: float = 0
     review_cost_confirmed: bool = False
@@ -93,6 +99,10 @@ class Settings:
                 or not 1 <= self.activity_filter_person_review_seconds <= self.activity_filter_review_seconds <= 3600
                 or not 0 <= self.activity_filter_postroll_seconds <= 300):
             raise ValueError('静止过滤的采样率、变化阈值或抽查间隔无效。')
+        if (not all(math.isfinite(v) for v in (self.face_match_threshold, self.face_match_margin))
+                or not 0 < self.face_match_threshold <= 1 or not 0 <= self.face_match_margin <= 1
+                or not 16 <= self.face_min_pixels <= 256 or not 320 <= self.face_max_side <= 1920):
+            raise ValueError('人脸识别阈值、差值或图像尺寸配置无效。')
         if self.absence_alert_seconds < 60:
             raise ValueError('长时间未出现提醒阈值不得低于60秒。')
         if any(not math.isfinite(v) or v < 0 for v in [self.input_price, self.output_price, self.review_input_price, self.review_output_price, self.max_video_cost, self.max_daily_cost]):
@@ -142,6 +152,12 @@ class Settings:
             hybrid_safety_enabled=os.getenv("HYBRID_SAFETY_ENABLED", "true").lower() == "true",
             safety_model_config=project_path(os.getenv("SAFETY_MODEL_CONFIG", "runtime/team-camera.json")),
             safety_python=project_path(os.getenv("SAFETY_PYTHON", "elder-safety/.venv-gpu/Scripts/python.exe")),
+            face_recognition_enabled=os.getenv('FACE_RECOGNITION_ENABLED', 'true').lower() == 'true',
+            face_model_dir=project_path(os.getenv('FACE_MODEL_DIR', 'models/face-recognition')),
+            face_match_threshold=float(os.getenv('FACE_MATCH_THRESHOLD', '.363')),
+            face_match_margin=float(os.getenv('FACE_MATCH_MARGIN', '.08')),
+            face_min_pixels=int(os.getenv('FACE_MIN_PIXELS', '32')),
+            face_max_side=int(os.getenv('FACE_MAX_SIDE', '1280')),
             review_input_price=float(os.getenv('VLM_REVIEW_INPUT_RMB_PER_MILLION', '0')),
             review_output_price=float(os.getenv('VLM_REVIEW_OUTPUT_RMB_PER_MILLION', '0')),
             review_cost_confirmed=flag('VLM_REVIEW_COST_CONFIRMED'),

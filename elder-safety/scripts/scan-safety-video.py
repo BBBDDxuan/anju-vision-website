@@ -166,7 +166,8 @@ def scan_video(source: Path, config, output: Path, max_frames: int | None = None
                 if path.is_symlink():
                     raise ValueError("Invalid evidence path")
                 _atomic_bytes(path, frame.jpeg)
-                frames.append({"id": identifier, "pts_ms": round(frame.t * 1000), "path": str(path)})
+                frames.append({"id": identifier, "pts_ms": round(frame.t * 1000), "path": str(path),
+                               "person_bboxes": frame.people})
             candidate["frames"] = frames
             atomic_json(manifest, candidate)
             return candidate

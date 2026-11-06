@@ -76,3 +76,7 @@ config.camera-gpu.json
 # Private local APK updater: APKs, signer pin and generated manifest stay on this PC.
 /runtime/app-updates/
 *.apk
+
+# Face weights are prepared locally with scripts/prepare_face_models.py.
+/models/face-recognition/*.onnx
+/.pytest-contact*/

@@ -72,7 +72,7 @@ export function SafetyPanel({ videoId, running, onSeek, visible = true, mode = '
           <div className="safety-alert-heading"><strong>{alert.is_mock ? '模拟测试 · ' : ''}{alert.title}</strong><span>{alert.acknowledged ? '已知悉' : alert.severity === 'urgent' ? '优先关注' : '注意观察'}</span></div>
           <p>{alert.subject_label || alert.person_label} · 视频 {stamp(alert.start_ms)}–{stamp(alert.end_ms)}{alert.epistemic_type === 'inferred' ? ' · 推测/规则提醒' : ''}</p>
           {!!alert.reasons?.length && <details className="safety-reason"><summary>查看事件依据</summary><small className="reason">{alert.reasons.join('；')}</small></details>}
-          <div className="safety-actions"><button className="reference" onClick={() => { onSeek(alert.start_ms); setExpanded(expanded === alert.id ? '' : alert.id); }}>查看视频证据 ↗</button>{!readOnly && !alert.acknowledged && <button className="text-button" disabled={pending === alert.id} onClick={() => void acknowledge(alert)}>标记已知悉</button>}</div>
+          <div className="safety-actions"><button className="reference" onClick={() => { onSeek(alert.start_ms); setExpanded(expanded === alert.id ? '' : alert.id); }}>查看视频证据 <Icon name="arrow-up-right" size={13}/></button>{!readOnly && !alert.acknowledged && <button className="text-button" disabled={pending === alert.id} onClick={() => void acknowledge(alert)}>标记已知悉</button>}</div>
           {expanded === alert.id && <div className="safety-frames">{frames.map(frame => <figure key={frame.id}><img src={frame.url} loading="lazy" alt={`事件证据 ${stamp(frame.pts_ms)}`}/><figcaption>{stamp(frame.pts_ms)}</figcaption></figure>)}</div>}
         </article>;
       })}</div>}

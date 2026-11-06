@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
 
-export function Icon({ name, size = 20 }: { name: string; size?: number }) {
+export function Icon({ name, size = 20, className }: { name: string; size?: number; className?: string }) {
   const paths: Record<string, ReactNode> = {
     monitor: <><rect x="3" y="3" width="18" height="13" rx="2"/><path d="M12 16v5m-5 0h10"/></>,
     play: <path d="m9 5 11 7-11 7Z"/>,
+    pause: <><path d="M8 5v14M16 5v14"/></>,
     user: <><circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></>,
     warning: <><path d="m10.3 4.4-8 14A1.8 1.8 0 0 0 4 21h16a1.8 1.8 0 0 0 1.6-2.6l-8-14a1.8 1.8 0 0 0-3.3 0Z"/><path d="M12 9v4m0 4h.01"/></>,
     activity: <><circle cx="15" cy="4" r="2"/><path d="m4 10 5-3 5 4 5 1 2-3M4 20l5-5 5 1 2 5M9 15l3-5M5 6l-2 1"/></>,
@@ -22,13 +23,16 @@ export function Icon({ name, size = 20 }: { name: string; size?: number }) {
     shield: <><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6Z" /><path d="m8 12 3 3 5-6" /></>,
     search: <><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 5 5" /></>,
     arrow: <path d="M5 12h14m-5-5 5 5-5 5" />,
+    'arrow-up-right': <path d="M6 18 18 6M6 6h12v12" />,
+    'chevron-up': <path d="m6 15 6-6 6 6" />,
+    'chevron-down': <path d="m6 9 6 6 6-6" />,
     replay: <path d="M3 11a9 9 0 1 1 2.7 6.4M3 4v7h7" />,
     menu: <path d="M4 6h16M4 12h16M4 18h16" />,
     close: <path d="m6 6 12 12M6 18 18 6" />,
     trash: <><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7" /></>,
     help: <><circle cx="12" cy="12" r="9" /><path d="M9.5 8.5a2.5 2.5 0 1 1 4 2c-1 .6-1.5 1-1.5 2.5M12 17h.01" /></>,
   };
-  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name] || paths.video}</svg>;
+  return <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">{paths[name] || paths.video}</svg>;
 }
 
 export function stamp(ms: number) {

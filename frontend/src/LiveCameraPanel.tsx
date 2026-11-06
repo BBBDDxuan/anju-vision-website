@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Icon } from './ui';
 import './live-camera.css';
 
 type ReviewStatus = 'pending' | 'confirmed' | 'rejected' | 'uncertain' | 'unavailable';
@@ -163,9 +164,9 @@ export function LiveCameraPanel({ ready = true, configurationError = '', onRetry
   const recordingStatus = status?.recording_status;
   const confirmedEvents = (status?.events || []).filter(event =>
     event.review_status === 'confirmed' && typeof event.review_model === 'string' && event.review_model.trim().length > 0 && Object.hasOwn(eventName, event.event_type));
-  return <section id="camera" className="live-camera-panel" aria-label="实时摄像头" aria-busy={loading && !configurationError}>
+  return <div className="live-camera-workspace" aria-busy={loading && !configurationError}>
+    <section id="camera" className="live-camera-panel" aria-label="实时摄像头">
     <div className="live-camera-heading">
-      <div><h2>实时摄像头</h2><p>摔倒 · 举手求助 · 可见明火</p></div>
       <div className="live-camera-controls"><span className="live-camera-state" data-state={state} role="status"><i aria-hidden="true"/>{stateLabel}</span><button disabled={busy || !status || !ready || !!configurationError} aria-busy={busy} onClick={() => void command(running ? 'stop' : 'start')}>{busy ? '处理中…' : running ? '停止预览' : '开启摄像头'}</button></div>
     </div>
     {configurationError && <p className="error" role="alert">{configurationError}{onRetry && <button className="text-button" onClick={onRetry}>重新读取</button>}</p>}
@@ -174,16 +175,7 @@ export function LiveCameraPanel({ ready = true, configurationError = '', onRetry
     {!pollError && frameError && <p className="error" role="alert">{frameError}</p>}
     <div className="live-camera-viewport"><div className="live-camera-grid">
       <div className="live-camera-main">
-        <div className="live-camera-screen"><span className="live-camera-screen-label">本机摄像头 · 16:9</span>{image && current && !frameError ? <img src={image} alt="摄像头实时画面，含本地人体框与姿态关键点" width={status?.preview_width || 1280} height={status?.preview_height || 720}/> : <div className="live-camera-placeholder"><svg className="camera-placeholder-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden="true"><rect x="3" y="5" width="13" height="14" rx="3"/><path d="m16 10 5-3v10l-5-3"/></svg><strong>{previewTitle}</strong><span>{previewHint}</span></div>}</div>
-        <div className="live-camera-session"><h3>本次会话事件</h3>{!confirmedEvents.length ? <p className="muted">暂无 Qwen 复核确认的危险事件</p> : <ul className="live-camera-events" aria-label="本次会话事件列表" tabIndex={0}>{confirmedEvents.map((event,i) => <li key={event.candidate_id || event.event_id || `${event.occurred_at}-${i}`}>
-          <div className="live-camera-event-content">
-            <strong>{eventName[event.event_type] || event.event_type}</strong>
-            <span className="live-camera-event-review" data-review={event.review_status}>Qwen 已复核确认</span>
-            {event.review_reason && <p>复核说明：{event.review_reason}</p>}
-            {event.review_model && <p>复核模型：{event.review_model}</p>}
-          </div>
-          <time dateTime={event.occurred_at}>{new Date(event.occurred_at).toLocaleTimeString()}</time>
-        </li>)}</ul>}</div>
+        <div className="live-camera-screen"><span className="live-camera-screen-label">本机摄像头 · 16:9</span>{image && current && !frameError ? <img src={image} alt="摄像头实时画面，含本地人体框与姿态关键点" width={status?.preview_width || 1280} height={status?.preview_height || 720}/> : <div className="live-camera-placeholder"><Icon name="video" size={48} className="camera-placeholder-icon"/><strong>{previewTitle}</strong><span>{previewHint}</span></div>}</div>
       </div>
       <div className="live-camera-detail" aria-label="实时状态滚动区域" tabIndex={0}>
         <h3>实时状态</h3>
@@ -204,8 +196,18 @@ export function LiveCameraPanel({ ready = true, configurationError = '', onRetry
         <p className="muted">请确保人物全身入镜，保持腿部和地面可见。</p>
       </div>
     </div></div>
+    </section>
     <div className="live-camera-options">
-      <details><summary>检测详情</summary><div className="live-camera-option-content">
+      <details className="live-camera-session"><summary><Icon name="document" size={17}/>本次会话事件</summary><div className="live-camera-option-content">{!confirmedEvents.length ? <p className="muted">暂无 Qwen 复核确认的危险事件</p> : <ul className="live-camera-events" aria-label="本次会话事件列表" tabIndex={0}>{confirmedEvents.map((event,i) => <li key={event.candidate_id || event.event_id || `${event.occurred_at}-${i}`}>
+        <div className="live-camera-event-content">
+          <strong>{eventName[event.event_type] || event.event_type}</strong>
+          <span className="live-camera-event-review" data-review={event.review_status}>Qwen 已复核确认</span>
+          {event.review_reason && <p>复核说明：{event.review_reason}</p>}
+          {event.review_model && <p>复核模型：{event.review_model}</p>}
+        </div>
+        <time dateTime={event.occurred_at}>{new Date(event.occurred_at).toLocaleTimeString()}</time>
+      </li>)}</ul>}</div></details>
+      <details><summary><Icon name="activity" size={17}/>检测详情</summary><div className="live-camera-option-content">
         {pollError && <p>连接已中断，以下为最近一次读取的检测信息。</p>}
         <dl>
           <div><dt>安全流程</dt><dd>{status?.safety_pipeline === 'small_models_then_qwen' ? '小模型候选 → Qwen 复核' : status?.safety_pipeline ? '未知流程' : '未下发'}</dd></div>
@@ -223,7 +225,7 @@ export function LiveCameraPanel({ ready = true, configurationError = '', onRetry
           <div><h3>跌倒识别</h3>{status?.fall_diagnostics?.length ? <ul>{status.fall_diagnostics.map(item => <li key={item.track_id}>{item.track_id}：{fallStateName[item.state] || '正在观察姿态'}</li>)}</ul> : <p>暂无跟踪人物</p>}</div>
         </div>
       </div></details>
-      <details><summary>录像与存储</summary><div className="live-camera-option-content">
+      <details><summary><Icon name="layers" size={17}/>录像与存储</summary><div className="live-camera-option-content">
         {pollError && <p>连接已中断，以下为最近一次读取的录像与存储信息。</p>}
         <p>启用录像后，随后端监护开始和停止；关闭工作台后继续录像。保存原始视频，无音频。</p>
         {!recordingStatus ? <p>开启摄像头后读取存储配置。</p> : <dl>
@@ -241,5 +243,5 @@ export function LiveCameraPanel({ ready = true, configurationError = '', onRetry
       </div></details>
     </div>
     <p className="live-camera-privacy">云端复核使用候选证据画面；关闭工作台后继续监测，点击停止或关闭后端服务后结束。</p>
-  </section>;
+  </div>;
 }

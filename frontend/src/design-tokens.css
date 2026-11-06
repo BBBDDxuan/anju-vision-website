@@ -1,0 +1,18 @@
+:root {
+  color-scheme: light;
+  --color-paper: #f7f8f4;
+  --color-surface: #ffffff;
+  --color-ink: #253a33;
+  --color-evergreen: #3f594b;
+  --color-sage: #5b7468;
+  --color-muted: #687563;
+  --color-line: #e0e5dc;
+  --color-soft: #edf1e9;
+  --color-warning: #a07748;
+  --color-danger: #a55c51;
+  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection { background: #d9e4d8; color: var(--color-ink); }

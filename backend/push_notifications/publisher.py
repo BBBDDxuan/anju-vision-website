@@ -51,13 +51,21 @@ class AcceptanceLedger:
         c.execute("PRAGMA busy_timeout=1000")
         return c
 
-    def accepted(self, identifier, recipient):
+    def accepted(self, identifier, recipient, *, contact_stage=None):
+        # The base receipt also honors old ledgers and suppresses the same device
+        # if it is registered under both roles (or moved between roles).
+        stage_key = identifier + ':' + contact_stage if contact_stage else identifier
         with self.connect() as c:
-            return c.execute("SELECT 1 FROM acceptance WHERE alert_id=? AND recipient=?", (identifier, recipient)).fetchone() is not None
+            return c.execute("SELECT 1 FROM acceptance WHERE alert_id IN (?,?) AND recipient=?",
+                             (identifier, stage_key, recipient)).fetchone() is not None
 
-    def record(self, identifier, recipient):
+    def record(self, identifier, recipient, *, contact_stage=None):
         with self.connect() as c:
-            c.execute("INSERT OR IGNORE INTO acceptance VALUES(?,?,?)", (identifier, recipient, time.time()))
+            now = time.time()
+            c.execute("INSERT OR IGNORE INTO acceptance VALUES(?,?,?)", (identifier, recipient, now))
+            if contact_stage:
+                c.execute("INSERT OR IGNORE INTO acceptance VALUES(?,?,?)",
+                          (identifier + ':' + contact_stage, recipient, now))
 
 
 class SafetyRecipients:
@@ -66,14 +74,16 @@ class SafetyRecipients:
     def __init__(self, repository):
         self.repository = repository
 
-    def snapshot(self):
+    def snapshot(self, contact_stage='primary'):
+        if contact_stage not in {'primary', 'backup'}:
+            raise PushError('INVALID_CONTACT_STAGE')
         prefs = self.repository.get_preferences()
         if prefs.get("notifications_enabled") is not True:
             return False, []
         result = {}
         for contact in prefs.get("contacts", []):
             name = contact.get("contact_id")
-            if name not in {"primary", "backup"}:
+            if name != contact_stage:
                 continue
             for row in self.repository.contact_tokens(name):
                 if row.get("platform") not in {"android", "ios"}:
@@ -146,7 +156,8 @@ class FcmTransport:
                 "token": recipient.token,
                 "notification": {"title": "居家安全提醒", "body": "有新的已复核安全事件，请打开应用查看。"},
                 "data": {"anju_type": "unified_alert", "alert_id": identifier,
-                         "event_id": identifier, "source": alert["source"], "household": "default", "scope": self.scope},
+                         "event_id": identifier, "source": alert["source"], "household": "default", "scope": self.scope,
+                         "contact_stage": alert.get("contact_stage", "primary")},
                 "android": {"priority": "HIGH", "ttl": "300s", "notification": {
                     "channel_id": CHANNEL, "tag": identifier, "sound": "default",
                     "visibility": "PRIVATE", "default_vibrate_timings": True}},
@@ -181,12 +192,19 @@ class AlertPublisher:
                 or alert.get("source") not in {"live_camera", "uploaded_recording"}
                 or alert.get("review_status") != "confirmed"
                 or alert.get("handling_status") != "unacknowledged"
-                or alert.get("notification_status") in {"skipped_history", "cancelled"}):
+                or alert.get("notification_status") in {"skipped_history", "cancelled"}
+                or alert.get("contact_stage", "primary") not in {"primary", "backup"}):
             raise PushError("ALERT_NOT_ELIGIBLE")
         try:
             # This is below A's 10-second plugin deadline. Cancellation propagates.
             async with asyncio.timeout(self.attempt_timeout), self.lock:
-                enabled, recipients = await asyncio.to_thread(self.recipients.snapshot)
+                stage = alert.get("contact_stage", "primary")
+                # Old standalone recipient adapters have a no-argument snapshot.
+                # Unified dispatch always supplies a stage to the real adapter.
+                if "contact_stage" in alert:
+                    enabled, recipients = await asyncio.to_thread(self.recipients.snapshot, stage)
+                else:
+                    enabled, recipients = await asyncio.to_thread(self.recipients.snapshot)
                 if not enabled:
                     raise PushError("NOTIFICATIONS_DISABLED")
                 if not recipients:
@@ -195,14 +213,15 @@ class AlertPublisher:
 
                 async def send(recipient):
                     async with semaphore:
-                        if await asyncio.to_thread(self.ledger.accepted, alert["id"], recipient.key):
+                        if await asyncio.to_thread(self.ledger.accepted, alert["id"], recipient.key, contact_stage=stage):
+                            await asyncio.to_thread(self.ledger.record, alert["id"], recipient.key, contact_stage=stage)
                             return True
                         try:
                             async with asyncio.timeout(self.send_timeout):
                                 await self.transport.send(recipient, alert)
                                 # A cancellation after acceptance but before local commit can
                                 # repeat a request. Tag + client ledger mitigate, not exactly-once.
-                                await asyncio.to_thread(self.ledger.record, alert["id"], recipient.key)
+                                await asyncio.to_thread(self.ledger.record, alert["id"], recipient.key, contact_stage=stage)
                             return True
                         except asyncio.CancelledError:
                             raise

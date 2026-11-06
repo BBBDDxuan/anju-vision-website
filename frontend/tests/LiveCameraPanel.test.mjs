@@ -7,6 +7,12 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import ts from 'typescript';
 
 const require = createRequire(import.meta.url);
+const uiSource = readFileSync(new URL('../src/ui.tsx', import.meta.url), 'utf8');
+const uiOutput = ts.transpileModule(uiSource, {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 },
+}).outputText;
+const uiModule = { exports: {} };
+new Function('require', 'module', 'exports', uiOutput)(require, uiModule, uiModule.exports);
 const source = readFileSync(new URL('../src/LiveCameraPanel.tsx', import.meta.url), 'utf8');
 const { outputText } = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 },
@@ -21,6 +27,7 @@ function render(status, props = {}) {
   const forbidSideEffect = () => { throw new Error('Side effects are forbidden in this offline test'); };
   loadPanel(id => {
     if (id === './live-camera.css') return {};
+    if (id === './ui') return uiModule.exports;
     if (id === 'react') return {
       ...React,
       useState: initial => [stateIndex++ === 0 ? status : initial, forbidSideEffect],
@@ -43,6 +50,28 @@ function eventMarkup(event) {
   const html = render({ ...baseStatus, events: [event] });
   return html.match(/<ul class="live-camera-events"[^>]*>([\s\S]*?)<\/ul>/)?.[1] ?? assert.fail('Event list missing');
 }
+
+test('Panel keeps compact status controls while camera title and capabilities stay in the main page header', () => {
+  const html = render({ ...baseStatus, state: 'stopped' });
+  const section = html.match(/<section id="camera"[\s\S]*?<\/section>/)?.[0] ?? assert.fail('Camera section missing');
+  assert.match(section, /class="live-camera-controls"/);
+  assert.match(section, /开启摄像头/);
+  assert.doesNotMatch(section, /<h[1-3][^>]*>实时摄像头<\/h[1-3]>/);
+  assert.doesNotMatch(section, /跌倒|举手求助|可见明火/);
+  assert.match(html, /<div class="live-camera-options">/);
+  assert.match(html, /<details class="live-camera-session"><summary>[\s\S]*?本次会话事件/);
+  assert.match(html, /<details><summary>[\s\S]*?检测详情/);
+  assert.match(html, /<details><summary>[\s\S]*?录像与存储/);
+  assert.equal((html.match(/<details/g) || []).length, 3);
+  assert.doesNotMatch(section, /本次会话事件|检测详情|录像与存储/);
+});
+test('Closing the workspace keeps backend monitoring and recording active until explicitly stopped', () => {
+  const html = render({ ...baseStatus, recording_status: { enabled: true, state: 'recording' } });
+  assert.match(html, /关闭工作台后继续录像/);
+  assert.match(html, /关闭工作台后继续监测，点击停止或关闭后端服务后结束/);
+  assert.doesNotMatch(html, /关闭工作台约 30 秒后停止/);
+});
+
 test('Only confirmed danger events with a per-event review model are listed', () => {
   const events = ['suspected_fall', 'help_requested', 'fire_detected'].map((event_type, i) => ({
     ...candidate, candidate_id: `confirmed-${i}`, event_type, review_status: 'confirmed', review_model: 'qwen-review-test',
@@ -97,7 +126,7 @@ test('Pipeline, availability, supported tasks and review errors are explicit', (
   assert.match(html, /候选复核<\/dt><dd>已启用/);
   assert.match(html, /云端复核配置<\/dt><dd>已配置/);
   assert.doesNotMatch(html, /候选不等于|不代表|不构成诊断/);
-  assert.match(html, /摔倒 · 举手求助 · 可见明火/);
+  assert.doesNotMatch(html, /摔倒 · 举手求助 · 可见明火/);
   assert.doesNotMatch(html, /烟雾|电火花/);
   assert.match(html, /role="alert">复核异常：review_timeout/);
   assert.match(html, /云端复核使用候选证据画面/);
@@ -116,9 +145,7 @@ test('Disabled or missing review configuration never implies confirmation or loc
     assert.doesNotMatch(html, /无云上传|不上传画面|不调用云|已复核确认/);
     assert.match(html, /暂无 Qwen 复核确认的危险事件/);
   }
-  for (const sparks_enabled of [undefined, true]) {
-    assert.match(render({ ...baseStatus, sparks_enabled }), /摔倒 · 举手求助 · 可见明火/);
-  }
+  for (const sparks_enabled of [undefined, true]) assert.doesNotMatch(render({ ...baseStatus, sparks_enabled }), /摔倒 · 举手求助 · 可见明火/);
   assert.match(render({ ...baseStatus, safety_pipeline: 'future_pipeline' }), /未知流程/);
 });
 

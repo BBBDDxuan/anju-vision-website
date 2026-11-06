@@ -16,6 +16,8 @@ from pydantic import BaseModel, Field
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .live_camera import LiveCamera, camera_router
+from .face_api import face_router
+from .face_recognition import FaceRecognition
 from .lan_access import authorize_lan
 from .record_qa import RecordQuestionAnswerer
 from .config import ROOT, Settings
@@ -56,6 +58,7 @@ def create_app(settings: Settings | None = None, provider: VisionProvider | None
     cloud = CloudAccess(settings, db) if settings.cloud_mode else None
     chunks = ChunkUploads(settings, db, cloud)
 
+    faces = getattr(manager.safety, "faces", None) or FaceRecognition(settings)
     camera = LiveCamera(safety=manager.safety)
 
     @asynccontextmanager
@@ -73,12 +76,14 @@ def create_app(settings: Settings | None = None, provider: VisionProvider | None
     app = FastAPI(title="居家摄像头系统", version="0.2.0", lifespan=lifespan)
     app.state.db, app.state.manager, app.state.settings = db, manager, settings
     app.state.live_camera = camera
+    app.state.face_recognition = faces
+    app.include_router(face_router(faces, settings))
     app.include_router(camera_router(camera, settings.cloud_mode))
     app.state.reviewer = reviewer
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=list(settings.allowed_hosts))
     if cloud and settings.trusted_proxy_cidrs:
         app.add_middleware(TrustedProxyHostMiddleware, cidrs=settings.trusted_proxy_cidrs, allowed_hosts=settings.allowed_hosts)
-    app.add_middleware(CORSMiddleware, allow_origins=list(settings.allowed_origins), allow_methods=["GET", "POST", "DELETE"], allow_headers=["Content-Type", "X-Video-Name"])
+    app.add_middleware(CORSMiddleware, allow_origins=list(settings.allowed_origins), allow_methods=["GET", "POST", "PUT", "DELETE"], allow_headers=["Content-Type", "X-Video-Name"])
 
     @app.middleware("http")
     async def local_origin(request, call_next):
@@ -373,7 +378,13 @@ def create_app(settings: Settings | None = None, provider: VisionProvider | None
         video = db.video(video_id)
         evidence, frames = [], []
         if video['active_run']:
-            document, _ = db.raw_memory(video_id)
+            document, analyzed_job = db.raw_memory(video_id)
+            for alert in alerts:
+                candidates = [review['candidate_id'] for review in analyzed_job.get('safety', {}).get('reviews', {}).values()
+                              if review.get('verdict') == 'confirmed' and review.get('candidate_id')
+                              and set(alert['event_ids']).intersection(review.get('event_ids', []))]
+                identity = faces.event_identity(candidates)
+                alert.update(member_id=identity['member_id'], face_identity=identity)
             refs = {ref for alert in alerts for ref in alert['evidence_ids']}
             evidence = [e for e in document['evidence'] if e['id'] in refs]
             fids = {fid for ref in evidence for fid in ref['frame_ids']}

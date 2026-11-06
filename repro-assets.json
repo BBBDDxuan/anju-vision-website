@@ -12,6 +12,11 @@
       "sha256": "ac0a10257b2bc1f20c9d957f8adeeb61dd6140322fc19d0b4a116cb491776d16"
     },
     {
+      "path": "elder-safety/weights/indoor-dfire-yolov8n.pt",
+      "bytes": 6228714,
+      "sha256": "517ded23621666c842516212f4cace9680149efb1f17bc4a8db80938b0d94180"
+    },
+    {
       "path": "elder-safety/weights/fire-smoke-yolov8n.pt",
       "bytes": 6229802,
       "sha256": "b91633799ceb052c814b4f8b77a37efc9a40f002d528df97d74463585fa4f28f"
