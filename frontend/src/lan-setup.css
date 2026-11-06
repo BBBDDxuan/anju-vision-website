@@ -1,0 +1,28 @@
+.lan-setup { margin: 0 0 16px; color: #304c3e; }
+.lan-setup-actions, .lan-setup-results { display: flex; gap: 8px; flex-wrap: wrap; }
+.lan-setup button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 42px; padding: 8px 15px; border: 1px solid #c8ddcd;
+  border-radius: 12px; background: #e9f3eb; color: #274a38; font: inherit;
+  font-size: 14px; font-weight: 650; cursor: pointer;
+}
+.lan-setup button:hover:not(:disabled), .lan-setup button[aria-expanded="true"] {
+  background: #d7eadb; border-color: #9fbea7;
+}
+.lan-setup button:disabled { cursor: wait; opacity: .62; }
+.lan-setup :is(button, input):focus-visible { outline: 2px solid #4f795f; outline-offset: 2px; }
+.lan-setup svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; stroke-linecap: round; }
+.lan-setup-panel { margin-top: 10px; padding: 16px; background: #f3f8f3; border: 1px solid #dbe9de; border-radius: 14px; }
+.lan-setup-panel p, .lan-setup-status { margin: 0 0 10px; font-size: 13px; line-height: 1.6; }
+.lan-setup-status { margin: 8px 0 0; }
+.lan-setup-qr { display: block; margin-top: 12px; max-width: 100%; height: auto; border: 1px solid #dbe9de; border-radius: 12px; }
+.lan-setup-results { list-style: none; padding: 0; margin: 10px 0 0; }
+.lan-setup fieldset {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr));
+  gap: 10px; align-items: end; padding: 0; border: 0; margin: 14px 0 0; min-width: 0;
+}
+.lan-setup label { display: grid; gap: 5px; font-size: 13px; }
+.lan-setup input {
+  width: 100%; min-width: 0; min-height: 42px; box-sizing: border-box; padding: 8px;
+  border: 1px solid #c8ddcd; border-radius: 9px; background: #fff; color: inherit; font: inherit;
+}

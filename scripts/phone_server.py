@@ -48,6 +48,8 @@ def main():
         raise ValueError('Run scripts/configure_phone.py first.')
     env = os.environ.copy()
     env['APP_LAN_TOKEN'] = token
+    env['ANJU_PHONE_ADDRESS'] = address
+    env['ANJU_PHONE_PORT'] = str(args.port)
     hosts = set(env.get('APP_ALLOWED_HOSTS', '127.0.0.1,localhost,[::1]').split(','))
     env['APP_ALLOWED_HOSTS'] = ','.join(sorted(hosts | {address} | additional_addresses))
     env['PYTHONUTF8'] = '1'

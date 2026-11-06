@@ -47,7 +47,7 @@ class UploadStart(BaseModel):
     size: int = Field(gt=0)
 
 
-def create_app(settings: Settings | None = None, provider: VisionProvider | None = None):
+def create_app(settings: Settings | None = None, provider: VisionProvider | None = None, *, phone_gateway=False):
     settings = settings or Settings.from_env()
     db = Database(settings.data_dir, journal_mode='DELETE' if settings.cloud_mode else 'WAL')
     provider = provider or QwenProvider(settings, db)
@@ -85,13 +85,18 @@ def create_app(settings: Settings | None = None, provider: VisionProvider | None
         app.add_middleware(TrustedProxyHostMiddleware, cidrs=settings.trusted_proxy_cidrs, allowed_hosts=settings.allowed_hosts)
     app.add_middleware(CORSMiddleware, allow_origins=list(settings.allowed_origins), allow_methods=["GET", "POST", "PUT", "DELETE"], allow_headers=["Content-Type", "X-Video-Name"])
 
+    from .lan_setup import PAIR_EXCHANGE, lan_router
+    if not cloud:
+        app.include_router(lan_router(settings.lan_token, pairing=phone_gateway))
+
     @app.middleware("http")
     async def local_origin(request, call_next):
         visitor = cloud.session(request) if cloud else None
         request.state.visitor_id = visitor
         ticket = None
         try:
-            authorize_lan(request, settings.lan_token)
+            if not (phone_gateway and request.method == "POST" and request.url.path == PAIR_EXCHANGE):
+                authorize_lan(request, settings.lan_token)
             origin = request.headers.get('origin')
             same_host = (origin and urlsplit(origin).scheme in {'http', 'https'}
                          and urlsplit(origin).netloc.lower() == request.url.netloc.lower())

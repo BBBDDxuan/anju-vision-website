@@ -89,15 +89,15 @@ def inspect_apk(apk, tools):
     tree = run_tool([aapt, 'dump', 'xmltree', apk, '--file', 'AndroidManifest.xml'])
 
     def integer_attribute(name, required=False):
-        lines = [line for line in tree.splitlines() if re.search(r'\bA: android:' + name + r'\(', line)]
+        lines = [line for line in tree.splitlines() if re.search(r'^\s*A: (?:android:|http://schemas\.android\.com/apk/res/android:)' + name + r'\(', line)]
         if not lines and not required:
             return 0
         if len(lines) != 1:
             raise InvalidUpdate(f'Missing or ambiguous Android {name}')
-        match = re.search(r'=\(type 0x1[01]\)0x([0-9a-fA-F]+)\b', lines[0])
+        match = re.search(r'=(?:\(type 0x1[01]\)0x([0-9a-fA-F]+)|([0-9]+))\s*$', lines[0])
         if not match:
             raise InvalidUpdate(f'Android {name} must be an integer literal')
-        value = int(match[1], 16)
+        value = int(match[1], 16) if match[1] else int(match[2], 10)
         if not 0 <= value <= 0xffffffff:
             raise InvalidUpdate(f'Invalid Android {name}')
         return value

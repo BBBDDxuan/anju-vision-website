@@ -2,6 +2,7 @@
 from dataclasses import replace
 import json
 import threading
+import time
 from types import SimpleNamespace
 
 import pytest
@@ -36,7 +37,8 @@ def phone(settings, safety, tmp_path, monkeypatch):
         if camera.process is None:
             camera.starts += 1
             camera.process = SimpleNamespace(poll=lambda: None, stdin=None)
-            camera.info['state'] = 'starting'
+            camera.info['state'] = 'running'
+            camera.received = time.monotonic()
         return camera.status()
 
     def stop():
@@ -48,6 +50,7 @@ def phone(settings, safety, tmp_path, monkeypatch):
     monkeypatch.setattr(camera, 'start', start)
     monkeypatch.setattr(camera, 'stop', stop)
     monkeypatch.setattr(camera_monitoring, 'probe_camera', lambda *args: None)
+    monkeypatch.setattr(camera_monitoring, 'probe_stream', lambda *args: None)
     with TestClient(app, base_url='http://localhost', client=('192.168.1.20', 40000)) as client:
         yield client, camera, tmp_path / 'runtime/camera-connection.json'
 
@@ -82,7 +85,7 @@ def test_profile_encoding_shared_idempotence_stop_and_resume(phone):
     assert response.status_code == 200
     data = response.json()
     assert data['monitoring'] is True and data['lifetime'] == 'backend'
-    assert data['state'] == 'starting' and data['configured'] is True
+    assert data['state'] == 'running' and data['configured'] is True
     assert data['camera'] == {'host': CONNECTION['host'], 'port': 554}
     private = json.loads(profile.read_text(encoding='utf-8'))
     assert private['rtsp_url'] == ('rtsp://local%40user:synthetic%3A%23%20%2F%3F@'
@@ -150,3 +153,64 @@ def test_backend_heartbeat_does_not_require_any_http_status_requests(tmp_path):
     assert messages == [b'ping']
     camera.process = None
     camera.review_pool.shutdown()
+
+
+def test_rejected_credentials_preserve_working_camera(phone, monkeypatch):
+    client, camera, profile = phone
+    client.post('/api/monitoring/camera', headers=HEADERS, json=CONNECTION)
+    before, stops = profile.read_bytes(), camera.stops
+    def fail(*args):
+        raise AppError('CAMERA_AUTH_FAILED', '摄像头本地账号或密码不正确。', 422)
+    monkeypatch.setattr(camera_monitoring, 'probe_stream', fail)
+    response = client.post('/api/monitoring/camera', headers=HEADERS,
+                           json={**CONNECTION, 'password': 'synthetic-wrong'})
+    assert response.status_code == 422
+    assert response.json()['error']['code'] == 'CAMERA_AUTH_FAILED'
+    assert profile.read_bytes() == before and camera.stops == stops
+    assert 'synthetic-wrong' not in response.text
+    assert client.post('/api/monitoring/camera/start', headers=HEADERS).status_code == 200
+    camera.received = None  # A stale worker must revalidate the saved credentials.
+    assert client.post('/api/monitoring/camera/start', headers=HEADERS).status_code == 422
+    assert camera.starts == 1
+
+
+@pytest.mark.parametrize('diagnostic,code', [
+    (b'401 Unauthorized rtsp://secret:password@camera', 'CAMERA_AUTH_FAILED'),
+    (b'403 Forbidden', 'CAMERA_AUTH_FAILED'),
+    (b'404 Not Found', 'CAMERA_STREAM_NOT_FOUND'),
+    (b'connection reset rtsp://secret:password@camera', 'CAMERA_STREAM_UNAVAILABLE'),
+])
+def test_probe_stream_classifies_errors_without_native_diagnostics(monkeypatch, diagnostic, code):
+    monkeypatch.setattr(camera_monitoring.subprocess, 'run', lambda *a, **kw:
+                        SimpleNamespace(returncode=1, stdout=b'', stderr=diagnostic))
+    with pytest.raises(AppError) as caught:
+        camera_monitoring.probe_stream('rtsp://secret:password@192.168.1.3/stream1', 'ffprobe')
+    assert caught.value.code == code
+    assert 'secret' not in str(caught.value) and 'password' not in str(caught.value)
+
+
+@pytest.mark.parametrize('output,valid', [
+    (b'{"streams":[{"codec_type":"video","width":640,"height":360}]}', True),
+    (b'{"streams":[]}', False), (b'invalid', False),
+])
+def test_probe_requires_video_metadata(monkeypatch, output, valid):
+    monkeypatch.setattr(camera_monitoring.subprocess, 'run', lambda *a, **kw:
+                        SimpleNamespace(returncode=0, stdout=output, stderr=b''))
+    if valid:
+        camera_monitoring.probe_stream('rtsp://synthetic', 'ffprobe')
+    else:
+        with pytest.raises(AppError, match='视频轨道'):
+            camera_monitoring.probe_stream('rtsp://synthetic', 'ffprobe')
+
+
+def test_probe_timeout_and_missing_tool_do_not_echo_url(monkeypatch):
+    for error, code in [
+        (camera_monitoring.subprocess.TimeoutExpired(['secret'], 8), 'CAMERA_STREAM_TIMEOUT'),
+        (FileNotFoundError('secret'), 'CAMERA_PROBE_MISSING'),
+    ]:
+        def fail(*args, **kwargs):
+            raise error
+        monkeypatch.setattr(camera_monitoring.subprocess, 'run', fail)
+        with pytest.raises(AppError) as caught:
+            camera_monitoring.probe_stream('rtsp://secret', 'ffprobe')
+        assert caught.value.code == code and 'secret' not in str(caught.value)

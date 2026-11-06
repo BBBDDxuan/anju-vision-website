@@ -5,6 +5,7 @@ import './style.css';
 import './dashboard.css';
 import { Shell } from './Shell';
 import { ReviewPanel } from './ReviewPanel';
+import { LanSetup } from './LanSetup';
 import { LiveCameraPanel } from './LiveCameraPanel';
 import { Icon, mergedRanges, sizeLabel, stamp, durationLabel } from './ui';
 import { EventTimeline, timelineRows, type EventGroup } from './EventTimeline';
@@ -454,6 +455,7 @@ function App() {
             <span><Icon name="flame" size={16} />可见明火</span>
           </div>
         </header>
+        {health && !health.cloud_mode && <LanSetup />}
         {health?.cloud_mode ? <div className="configuration"><span>当前在线环境不支持连接本机摄像头。请在本机启动服务后使用实时摄像头，或导入视频进行分析。</span><button className="text-button" onClick={() => navigate('videos')}>导入视频</button></div> : <LiveCameraPanel ready={health !== null} configurationError={healthError} onRetry={() => { void refresh().catch(e => setError(e.message)); }} />}
         <p className="privacy">切换导航不会停止摄像头。需要结束实时看护时，请点击“停止预览”。</p>
       </> : <>
