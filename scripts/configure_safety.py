@@ -18,13 +18,18 @@ def main():
     parser.add_argument("--device", default="cpu", help="cpu, or CUDA device such as 0")
     args = parser.parse_args()
     manifest = json.loads((ROOT / "elder-safety/weights/manifest.json").read_text(encoding="utf-8"))
-    metadata = dict(zip(("pose", "flame"), manifest["models"]))
+    candidates = {"pose": manifest["models"][:1], "flame": manifest["models"][1:]}
+    metadata = {}
     weights = {"pose": args.pose.resolve(), "flame": args.flame.resolve()}
     for kind, path in weights.items():
         if path.suffix.lower() != ".pt" or not path.is_file():
             parser.error(f"{kind}: provide an existing local .pt file")
-        if hashlib.sha256(path.read_bytes()).hexdigest() != metadata[kind]["downloaded_sha256"]:
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        spec = next((model for model in candidates[kind]
+                     if digest == (model.get("sha256") or model.get("downloaded_sha256"))), None)
+        if spec is None:
             parser.error(f"{kind}: SHA256 differs from the recorded model version")
+        metadata[kind] = spec
     target = ROOT / "elder-safety/ai-service/config.camera-gpu.json"
     if target.exists():
         parser.error("Local config already exists; preserve or rename it before generating another.")

@@ -206,7 +206,7 @@ priced 的金额控制基于源码中的 token 用量预估与填写单价，不
 | SAFETY_MAX_ATTEMPTS | 3 | 旧任务最大尝试数，正数。 |
 | RTSP_URL | 空 | 只在连接真实网络摄像头时填厂家确认的 RTSP 地址，可能含账号密码。上传手机视频不需要填。 |
 | POSE_WEIGHTS | weights/yolo11n-pose.pt | 保留模板。当前混合检测实际按 SAFETY_MODEL_CONFIG 的 models.pose_weights 读取。 |
-| FIRE_WEIGHTS | weights/luminous-fire-yolov8n.pt | 保留模板。当前混合检测实际按 JSON 的 models.flame_weights 读取。 |
+| FIRE_WEIGHTS | weights/indoor-dfire-yolov8n.pt | 保留模板。当前混合检测实际按 JSON 的 models.flame_weights 读取。 |
 
 不要自行猜测摄像头路径；RTSP 地址只在本地填写。上面的内部令牌不要填入手机 App。
 

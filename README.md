@@ -190,7 +190,8 @@ Node.js 仅在需要修改前端时安装。仓库已提交构建后的 `fronten
 | 文件 | 作用 |
 |---|---|
 | `elder-safety/weights/yolo11n-pose.pt` | 姿态检测，供跌倒及求助规则使用 |
-| `elder-safety/weights/luminous-fire-yolov8n.pt` | 当前明火检测 |
+| `elder-safety/weights/indoor-dfire-yolov8n.pt` | 当前明火检测，使用 Indoor Fire Smoke 和 D-Fire 微调 |
+| `elder-safety/weights/luminous-fire-yolov8n.pt` | 微调前的原始权重，供对照和回退 |
 | `elder-safety/weights/fire-smoke-yolov8n.pt` | 保留的备选权重，默认不启用 |
 | `models/face-recognition/face_detection_yunet_2026may.onnx` | 本地家庭成员人脸检测 |
 | `models/face-recognition/face_recognition_sface_2021dec.onnx` | 本地家庭成员特征提取与比对 |

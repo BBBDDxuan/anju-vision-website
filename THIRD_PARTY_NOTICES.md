@@ -3,7 +3,7 @@
 ## 模型
 
 当前模型来源、版本和 SHA256 见 `elder-safety/weights/manifest.json`。
-本次私有团队交付加入清单所列的两个实际 `.pt` 文件，不再只保留下载链接。
+清单记录随项目提供的姿态模型、原始火焰模型和本地微调权重。
 未启用的备选权重单独记于 `elder-safety/weights/alternative-manifest.json`。
 原开发记录中的来源及许可信息保留于 `docs/` 和 `elder-safety/docs/`；相关 AGPLv3 文本见 `licenses/AGPL-3.0.txt`。
 
