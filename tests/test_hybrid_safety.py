@@ -37,7 +37,12 @@ def service(tmp_path, verdict=None, **overrides):
     answer = verdict or dict(verdict='confirmed', event_type='help_requested', reason='双手持续举起且远离头部，非真实意图判断。', frame_ids=['F01','F02'])
     def respond(request):
         requests.append(json.loads(request.content))
-        return httpx.Response(200, json={'id':'mock-only','choices':[{'finish_reason':'stop','message':{'content':json.dumps(answer)}}],
+        content = requests[-1]['messages'][0]['content']
+        aliases = [item['text'].split(';')[0].split('=',1)[1] for item in content
+                   if item['type']=='text' and item['text'].startswith('frame_id=')]
+        fixture = {f'f_{i}': alias for i, alias in enumerate(aliases)}
+        response_answer = {**answer, 'frame_ids': [fixture.get(ref,ref) for ref in answer.get('frame_ids',[])]}
+        return httpx.Response(200, json={'id':'mock-only','choices':[{'finish_reason':'stop','message':{'content':json.dumps(response_answer)}}],
                                          'usage':{'prompt_tokens':100,'completion_tokens':50}})
     settings = Settings(data_dir=tmp_path/'db', api_key='synthetic-not-a-real-key', enable_network=True,
                         billing_mode='request_limited', **overrides)

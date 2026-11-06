@@ -39,6 +39,8 @@ class LiveCamera:
         self.candidate_root = None
         self.review_session = None
         self.review_seen = set()
+        self.review_episode_candidates = {}
+        self.review_episode_results = {}
         self.review_error = None
         self.lock = threading.RLock()
         self.control_lock = threading.RLock()
@@ -98,6 +100,8 @@ class LiveCamera:
             self.review_error = None
             self.review_session = "live_" + uuid4().hex
             self.review_seen = set()
+            self.review_episode_candidates = {}
+            self.review_episode_results = {}
             self.candidate_root = project / "runtime/safety-candidates" / self.review_session
             env["SAFETY_CANDIDATE_DIR"] = str(self.candidate_root)
             if self.safety is not None:
@@ -185,7 +189,18 @@ class LiveCamera:
                 if self.safety is None or root is None:
                     raise AppError("SAFETY_REVIEW_DISABLED", "安全复核未配置。", 503)
                 candidate = self.safety.load_candidate(identifier, root)
-                result = self.safety.review(candidate, session, session)
+                from .hybrid_safety import confirmed_episode, duplicate_episode_result
+                with self.lock:
+                    previous = confirmed_episode(candidate, self.review_episode_candidates.values(), self.review_episode_results)
+                result = duplicate_episode_result(candidate, previous) if previous else self.safety.review(candidate, session, session)
+                with self.lock:
+                    if self.process is process and self.review_session == session:
+                        self.review_episode_candidates[identifier] = candidate
+                        self.review_episode_results[identifier] = result
+                        if len(self.review_episode_candidates) > 128:
+                            oldest = next(iter(self.review_episode_candidates))
+                            self.review_episode_candidates.pop(oldest)
+                            self.review_episode_results.pop(oldest, None)
                 # Store audit metadata locally; never expose evidence paths or API usage to HTTP status.
                 from .hybrid_safety import atomic_json
                 atomic_json(Path(root)/identifier/"review.json", result)

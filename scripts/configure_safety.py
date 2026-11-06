@@ -18,7 +18,10 @@ def main():
     parser.add_argument("--device", default="cpu", help="cpu, or CUDA device such as 0")
     args = parser.parse_args()
     manifest = json.loads((ROOT / "elder-safety/weights/manifest.json").read_text(encoding="utf-8"))
-    candidates = {"pose": manifest["models"][:1], "flame": manifest["models"][1:]}
+    candidates = {
+        "pose": [m for m in manifest["models"] if m["file"].endswith("-pose.pt")],
+        "flame": [m for m in manifest["models"] if not m["file"].endswith("-pose.pt")],
+    }
     metadata = {}
     weights = {"pose": args.pose.resolve(), "flame": args.flame.resolve()}
     for kind, path in weights.items():

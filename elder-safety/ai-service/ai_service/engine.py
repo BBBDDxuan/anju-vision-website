@@ -5,7 +5,8 @@ from .temporal import FallDetector, FireDetector
 from .help_gesture import HelpGestureDetector
 from .help_candidates import ReviewHelpDetector
 from .fire_candidates import ReviewFireDetector
-from .fall_candidates import ReviewFallDetector
+from .occluded_core import OccludedCoreReview
+from .review_lifecycle import ReviewLifecycle
 from .tracking import Tracker
 from .types import Sample, iou
 
@@ -14,7 +15,8 @@ class DetectionEngine:
     def __init__(self, config: Config, *, allow_review_candidates: bool = False):
         self.tracker = Tracker(config.tracking)
         self.fall = FallDetector(config.fall)
-        self.review_fall = ReviewFallDetector(config.fall) if allow_review_candidates else None
+        self.review_fall = OccludedCoreReview(config.fall) if allow_review_candidates else None
+        self.review_lifecycle = ReviewLifecycle(config.fall) if allow_review_candidates else None
         self.fire = FireDetector(config.fire)
         self.review_fire = ReviewFireDetector(config.fire) if allow_review_candidates else None
         self.help = HelpGestureDetector(config.help)
@@ -34,6 +36,7 @@ class DetectionEngine:
             self.fall.reset()
             if self.review_fall:
                 self.review_fall.reset()
+                self.review_lifecycle.reset()
             self.fire.reset()
             if self.review_fire:
                 self.review_fire.reset()
@@ -42,15 +45,33 @@ class DetectionEngine:
                 self.review_help.reset()
         self.session = sample.session
         self.last_t = sample.t
+        if self.review_fall:
+            self.review_fall.frame_shape = sample.image.shape
+            self.review_fall.now = sample.t
         assigned = self.tracker.update([p.bbox for p in sample.poses], sample.t)
         self.fall.retain(set(assigned.values()))
         if self.review_fall:
             self.review_fall.retain(set(assigned.values()), recoverable=set(self.tracker.tracks))
+            self.review_lifecycle.retain(set(self.tracker.tracks), set(assigned.values()))
         self.help.retain(set(assigned.values()))
         if self.review_help:
             self.review_help.retain(set(assigned.values()))
         signals = []
         for index, track_id in assigned.items():
+            recovery_allowed = not any(other != index and iou(sample.poses[index].bbox, p.bbox) >= 0.3
+                                       for other, p in enumerate(sample.poses))
+            progression = None
+            if self.review_lifecycle:
+                progression, recovered = self.review_lifecycle.observe(
+                    track_id, sample.poses[index], sample.t, sample.image.shape, recovery_allowed)
+                if recovered:
+                    state = self.review_fall.states.get(track_id)
+                    if state:
+                        previous = state.last_alert
+                        state.last_alert = float('-inf')
+                        state.prone_reported = False
+                        self.review_fall.recent_alerts = type(self.review_fall.recent_alerts)(
+                            ((t, box) for t, box in self.review_fall.recent_alerts if t != previous), maxlen=64)
             result = self.fall.update(track_id, sample.poses[index], sample.t)
             if self.review_fall:
                 if result:
@@ -60,9 +81,11 @@ class DetectionEngine:
                     state = self.fall.states.get(track_id)
                     result = self.review_fall.update(track_id, sample.poses[index], sample.t,
                                                      bool(state and state.armed_at is not None),
-                                                     recovery_allowed=not any(
-                                                         other != index and iou(sample.poses[index].bbox, p.bbox) >= 0.3
-                                                         for other, p in enumerate(sample.poses)))
+                                                     recovery_allowed=recovery_allowed)
+                if result:
+                    result = self.review_lifecycle.accept(result, sample.poses[index], sample.t)
+                if result is None:
+                    result = progression
             if result:
                 signals.append(result)
             help_result = self.help.update(track_id, sample.poses[index], sample.t)

@@ -141,6 +141,7 @@ def scan_video(source: Path, config, output: Path, max_frames: int | None = None
     class VideoCollector(SafetyCandidateCollector):
         """Stable offline identities; keep the collector's detector rules intact."""
         def _save(self, pending):
+            selected = self._selected_frames(pending)
             candidate = dict(pending.candidate)
             key = [namespace, candidate["event_type"], candidate["track_id"], round(candidate["t"] * fps)]
             candidate["id"] = "sc_" + hashlib.sha256(json.dumps(key).encode()).hexdigest()[:32]
@@ -160,7 +161,7 @@ def scan_video(source: Path, config, output: Path, max_frames: int | None = None
                 # even if the first scan stopped with a shorter post-roll.
                 return stored
             frames = []
-            for frame in pending.frames:
+            for frame in selected:
                 frame_key = [namespace, round(frame.t * fps)]
                 identifier = "sf_" + hashlib.sha256(json.dumps(frame_key).encode()).hexdigest()[:32]
                 path = directory / (identifier + ".jpg")

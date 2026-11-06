@@ -3,7 +3,7 @@ import { Icon } from './ui';
 import { faceIdentityLabel, type FaceIdentity } from './memberApi';
 import './live-camera.css';
 
-type ReviewStatus = 'pending' | 'confirmed' | 'rejected' | 'uncertain' | 'unavailable';
+type ReviewStatus = 'pending' | 'confirmed' | 'rejected' | 'uncertain' | 'unavailable' | 'duplicate';
 type LiveEvent = { candidate_id?: string; event_type: string; occurred_at: string; confidence: number; event_id?: string | null; review_status?: ReviewStatus; review_reason?: string; review_model?: string; face_identity?: FaceIdentity };
 type CameraStatus = { safety_pipeline?: string; review_model?: string; review_enabled?: boolean; review_error?: string; cloud_calls?: boolean; sparks_enabled?: boolean; recording: boolean; recording_status?: { enabled: boolean; state: string; directory?: string; segment_seconds?: number; retention_days?: number; max_gib?: number; min_free_gib?: number; files?: number; bytes?: number; deleted_files?: number; error?: string }; help_facing_camera_required?: boolean; help_face_candidates?: number | null; fall_diagnostics?: { track_id: string; state: string }[]; alerts?: { enabled: boolean; pending?: number; worker_alive?: boolean; error?: string }; state: string; frames: number; persons?: number; fire_candidates?: number; width?: number; height?: number; preview_width?: number; preview_height?: number; flame_tiling_enabled?: boolean; fps?: number; fire_fps?: number; fire_inference_ms?: number; fire_state?: string; inference_ms?: number; device?: string; frame_age_seconds?: number | null; events: LiveEvent[] };
 const stateName: Record<string,string> = { stopped:'未开启', starting:'模型加载中', connecting:'连接摄像头', running:'本地实时识别中', reconnecting:'断线重连中', stale:'画面已过期', error:'连接异常' };

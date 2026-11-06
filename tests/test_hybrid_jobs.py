@@ -87,7 +87,8 @@ class StubSafety:
             if 'bad_time' in spec:
                 frames[0]['pts_ms'] = spec['bad_time']
             candidates.append({'id': 'sc_'+f'{index+1:032x}', 'event_type': spec.get('event_type', 'suspected_fall'),
-                               'frames': frames, 'confidence': .99, 't': 1, 'occurred_at': '2026-10-31T00:00:00+00:00'})
+                               'frames': frames, 'confidence': .99, 't': 1, 'occurred_at': '2026-10-31T00:00:00+00:00',
+                               'track_id': spec.get('track_id', 'person-1'), 'details': spec.get('details', {})})
         return candidates
 
     def review(self, candidate, video_id, job_id):
@@ -185,6 +186,20 @@ def test_scan_reviews_then_objects_filter_and_confirmed_memory(harness):
     assert all('candidate_id' not in e and 'verdict' not in e and 'model' not in e for e in document['events'])
     cache = manager.settings.data_dir/'runs'/job['id']/'safety-reviews.json'
     assert cache.is_file() and json.loads(cache.read_text(encoding='utf8'))['safety']['scan_complete']
+
+
+@pytest.mark.parametrize('first_verdict,paid_calls,alarms', [('confirmed', 1, 1), ('uncertain', 2, 1), ('rejected', 2, 1)])
+def test_uploaded_progression_reviews_only_if_episode_not_yet_confirmed(harness, first_verdict, paid_calls, alarms):
+    specs = [dict(verdict=first_verdict, details={'review_episode': 'p1:1', 'review_stage': 'initial'}),
+             dict(verdict='confirmed', details={'review_episode': 'p1:1', 'review_stage': 'progression'})]
+    manager, safety, _, db, _ = harness(specs)
+    job = finished(manager, manager.start('v_offline', mode='safety'))
+    assert job['status'] == 'completed', job
+    assert len(safety.reviews) == paid_calls
+    assert db.usage_summary()['requests'] == paid_calls
+    assert len(db.safety_alerts('v_offline')) == alarms
+    if first_verdict == 'confirmed':
+        assert job['safety']['duplicate'] == 1
 
 
 @pytest.mark.parametrize('limit,value,expected', [('max_calls', 1, 1), ('max_frame_references', 3, 1),

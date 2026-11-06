@@ -191,7 +191,8 @@ Node.js 仅在需要修改前端时安装。仓库已提交构建后的 `fronten
 
 | 文件 | 作用 |
 |---|---|
-| `elder-safety/weights/yolo11n-pose.pt` | 姿态检测，供跌倒及求助规则使用 |
+| `elder-safety/weights/yolo11s-pose.pt` | 默认姿态检测，供跌倒及求助规则使用；官方预训练权重 |
+| `elder-safety/weights/yolo11n-pose.pt` | 保留的轻量姿态模型，供对照和回退 |
 | `elder-safety/weights/indoor-dfire-yolov8n.pt` | 当前明火检测，使用 Indoor Fire Smoke 和 D-Fire 微调 |
 | `elder-safety/weights/luminous-fire-yolov8n.pt` | 微调前的原始权重，供对照和回退 |
 | `elder-safety/weights/fire-smoke-yolov8n.pt` | 保留的备选权重，默认不启用 |
@@ -216,7 +217,7 @@ App 的地址和令牌见启动后生成的 `runtime/手机连接参数.txt`。�
 
 ## 八、提交前检查
 
-本仓库包含两份 `.env.example`、三个检测模型和两份媒体工具；两个人脸模型由 `scripts/prepare_face_models.py` 在本地准备，命令见人脸接入说明。真实 `.env` 保留在本机并被 Git 忽略。
+本仓库包含两份 `.env.example`、姿态与明火检测模型和两份媒体工具；两个人脸模型由 `scripts/prepare_face_models.py` 在本地准备，命令见人脸接入说明。真实 `.env` 保留在本机并被 Git 忽略。
 忽略所有 `.venv*` 虚拟环境、下载缓存、数据库、录像、推理运行记录及所有视频/分片。
 `setup-team.ps1` 创建这些可重建环境，避免把原电脑绝对路径与旧数据库误当成队友的运行前提。
 
@@ -229,3 +230,5 @@ git diff --check
 ```
 
 确认输出中没有 `.env`、虚拟环境、录像、数据库、视频或摄像头凭据后再提交。`doctor_team.py` 不连接摄像头、不调用云模型。
+
+跌倒模块本次集成、模型配置更新与验证边界见 [跌倒交付说明](docs/FALL_DELIVERY_20261106.md)。已有安装拉取更新后，需要重新生成 `runtime/team-camera.json`，已有文件不会在启动时自动覆盖。

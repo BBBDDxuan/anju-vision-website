@@ -13,6 +13,19 @@
       "integrity": "expected size; locally recorded SHA256"
     },
     {
+      "file": "yolo11s-pose.pt",
+      "name": "Ultralytics YOLO11s Pose",
+      "task": "pose",
+      "license": "AGPL-3.0",
+      "source": "https://docs.ultralytics.com/models/yolo11/",
+      "url": "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11s-pose.pt",
+      "bytes": 20373161,
+      "path": "./yolo11s-pose.pt",
+      "sha256": "1060bda4a27012060eca246f9b2adeea22eabb045a1e58f8d229be29b7ebc2ba",
+      "downloaded_sha256": "1060bda4a27012060eca246f9b2adeea22eabb045a1e58f8d229be29b7ebc2ba",
+      "integrity": "pinned SHA256; official pretrained weights, no local fine-tuning"
+    },
+    {
       "file": "luminous-fire-yolov8n.pt",
       "name": "luminous0219/fire-and-smoke-detection-yolov8",
       "license": "AGPL-3.0",

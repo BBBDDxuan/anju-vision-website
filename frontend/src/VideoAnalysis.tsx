@@ -1,7 +1,7 @@
 export type AnalysisMode = 'safety' | 'objects' | 'all';
 export type StartMode = Exclude<AnalysisMode, 'all'>;
 export type FlameScan = 'normal' | 'small_flame';
-export type SafetyScan = Partial<Record<'processed_frames' | 'total_frames' | 'scan_progress' | 'candidate_count' | 'reviewed' | 'confirmed' | 'rejected' | 'uncertain' | 'unavailable', number | null>> & { candidates?: unknown[] | number | null };
+export type SafetyScan = Partial<Record<'processed_frames' | 'total_frames' | 'scan_progress' | 'candidate_count' | 'reviewed' | 'confirmed' | 'rejected' | 'uncertain' | 'unavailable' | 'duplicate', number | null>> & { candidates?: unknown[] | number | null };
 export type AnalysisJob = {
   analysis_mode?: AnalysisMode;
   flame_scan?: FlameScan;
@@ -77,7 +77,7 @@ export function SafetyScanProgress({ safety }: { safety?: SafetyScan | null }) {
   const total = count(safety?.total_frames);
   const progress = total !== undefined && total > 0 && processed !== undefined ? percent(processed / total * 100) : percent(safety?.scan_progress);
   const values = { ...safety, candidates: count(safety?.candidate_count) ?? (Array.isArray(safety?.candidates) ? safety.candidates.length : safety?.candidates) };
-  const counters = [ ['candidates', '候选'], ['reviewed', '已复核'], ['confirmed', '已确认'], ['rejected', '已排除'], ['uncertain', '不确定'], ['unavailable', '复核不可用'] ] as const;
+  const counters = [ ['candidates', '候选'], ['reviewed', '已复核'], ['confirmed', '已确认'], ['rejected', '已排除'], ['uncertain', '不确定'], ['unavailable', '复核不可用'], ['duplicate', '已合并补证'] ] as const;
   return <section className="safety-scan-progress" aria-label="安全扫描与复核进度">
     <strong>本地扫描 → 候选片段 Qwen 复核</strong>
     <p>扫描帧数：{processed ?? '待上报'} / {total ?? '待上报'}{progress !== undefined && ` · 扫描进度 ${progress.toFixed(1)}%`}</p>

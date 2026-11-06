@@ -341,6 +341,37 @@ def test_cli_natural_eof_full_manifest_and_json_stdout(cli, tmp_path, monkeypatc
     assert all(json.loads(line)["status"] == "progress" for line in stdout.splitlines())
 
 
+def test_cli_adaptive_postroll_uses_shared_twelve_frame_selection(cli, tmp_path, monkeypatch):
+    from test_seated_core_candidates import pose as seated_pose, sample as seated_sample
+    import ai_service.models as models_module
+    source, _ = fake_video(tmp_path, monkeypatch, count=91)
+    count = [0]
+    def infer(self, image):
+        t = count[0] / 10
+        count[0] += 1
+        progress = min(1, max(0, (t - .6) / 3.4))
+        current = seated_pose() if t < .6 else seated_pose(220 + 70 * progress, 280 + 40 * progress, feet=False)
+        return [current], []
+    monkeypatch.setattr(models_module.LocalModels, 'infer', infer)
+    original_capture = cv2.VideoCapture
+    def capture(path):
+        result = original_capture(path)
+        original_read = result.read
+        def read():
+            ok, _ = original_read()
+            return ok, seated_sample(0, seated_pose()).image if ok else None
+        result.read = read
+        return result
+    monkeypatch.setattr(cv2, 'VideoCapture', capture)
+    c = Config()
+    c.fall.observation_seconds = 2.5
+    result = cli.scan_video(source, c, tmp_path / 'adaptive-scan')
+    assert result['completed'] and len(result['candidates']) == 1
+    event = result['candidates'][0]
+    assert len(event['frames']) <= 12
+    assert max(f['pts_ms'] for f in event['frames']) >= 4000
+
+
 @pytest.mark.parametrize("limit", [1, 12, 31])
 def test_cli_limit_is_partial_even_at_exact_length_and_flushes(cli, tmp_path, monkeypatch, limit):
     source, captures = fake_video(tmp_path, monkeypatch)
