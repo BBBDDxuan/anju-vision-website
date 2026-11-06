@@ -1,6 +1,6 @@
 # 第三阶段：挥手动作识别动态演示
 
-开发日期：2026-11-06。直接修改 `D:\anju-vision-website`；没有提交或推送代码。第二张卡片使用用户新提供的 `C:\Users\zll\Desktop\挥手视频.mp4`，原样复制为 `frontend/public/demo/videos/help.mp4`，保留原有资源路径与卡片 ID。URL 增加文件哈希版本参数，封面从新视频第一帧重新生成。
+开发日期：2026-11-06。直接修改 `D:\anju-vision-website`。第二张卡片使用用户新提供的 `C:\Users\zll\Desktop\挥手视频.mp4`，原样复制为 `frontend/public/demo/videos/help.mp4`，保留原有资源路径与卡片 ID。URL 增加文件哈希版本参数，封面从新视频第一帧重新生成。
 
 ## 模型检查和实际运行
 

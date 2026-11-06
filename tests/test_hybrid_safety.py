@@ -37,7 +37,12 @@ def service(tmp_path, verdict=None, **overrides):
     answer = verdict or dict(verdict='confirmed', event_type='help_requested', reason='双手持续举起且远离头部，非真实意图判断。', frame_ids=['F01','F02'])
     def respond(request):
         requests.append(json.loads(request.content))
-        return httpx.Response(200, json={'id':'mock-only','choices':[{'finish_reason':'stop','message':{'content':json.dumps(answer)}}],
+        content = requests[-1]['messages'][0]['content']
+        aliases = [item['text'].split(';')[0].split('=',1)[1] for item in content
+                   if item['type']=='text' and item['text'].startswith('frame_id=')]
+        fixture = {f'f_{i}': alias for i, alias in enumerate(aliases)}
+        response_answer = {**answer, 'frame_ids': [fixture.get(ref,ref) for ref in answer.get('frame_ids',[])]}
+        return httpx.Response(200, json={'id':'mock-only','choices':[{'finish_reason':'stop','message':{'content':json.dumps(response_answer)}}],
                                          'usage':{'prompt_tokens':100,'completion_tokens':50}})
     settings = Settings(data_dir=tmp_path/'db', api_key='synthetic-not-a-real-key', enable_network=True,
                         billing_mode='request_limited', **overrides)
@@ -56,6 +61,21 @@ def test_shared_review_uses_requested_model_budget_and_multiframe_evidence(tmp_p
     assert len([x for x in requests[0]['messages'][0]['content'] if x['type']=='image_url']) == 3
     assert pipeline.db.usage_summary()['requests'] == 1
     assert pipeline.extraction(candidate(tmp_path), result).events[0].action == 'help_gesture'
+
+
+def test_single_arm_motion_candidate_uses_updated_multiframe_review_prompt(tmp_path):
+    pipeline, requests = service(tmp_path)
+    item = candidate(tmp_path)
+    item['details'] = dict(algorithm='body_relative_repeated_arm_motion_review_v2',
+                           review_required=True, active_hands=['right'])
+    result = pipeline.review(item, 'v1', 'j1')
+    assert result['verdict'] == 'confirmed'  # Mock response, not Qwen accuracy evidence.
+    prompt = requests[0]['messages'][0]['content'][0]['text']
+    assert '单手/双手' in prompt
+    assert '不要求双手同时举起' in prompt
+    assert '躺地姿态' in prompt
+    assert '伸懒腰' in prompt and '打招呼' in prompt
+    assert '必须看见双手举起的连续动作' not in prompt
 
 
 @pytest.mark.parametrize('answer', [

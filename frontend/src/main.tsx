@@ -5,6 +5,7 @@ import './style.css';
 import './dashboard.css';
 import { Shell } from './Shell';
 import { ReviewPanel } from './ReviewPanel';
+import { AccountGate } from './AccountGate';
 import { LanSetup } from './LanSetup';
 import { LiveCameraPanel } from './LiveCameraPanel';
 import { MemberManagement } from './MemberManagement';
@@ -547,4 +548,4 @@ function App() {
   </Shell>;
 }
 
-createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>);
+createRoot(document.getElementById('root')!).render(<StrictMode><AccountGate><App /></AccountGate></StrictMode>);

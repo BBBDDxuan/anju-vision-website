@@ -1,12 +1,12 @@
 {
   "models": {
-    "pose_weights": "../weights/yolo11n-pose.pt",
+    "pose_weights": "../weights/yolo11s-pose.pt",
     "flame_weights": "../weights/indoor-dfire-yolov8n.pt",
     "flame_classes": [
       "fire"
     ],
     "pose_license": {
-      "name": "Ultralytics YOLO11n Pose",
+      "name": "Ultralytics YOLO11s Pose",
       "source": "https://docs.ultralytics.com/models/yolo11/",
       "license": "AGPL-3.0",
       "usage_review": "Local prototype only. Preserve AGPL notices; review obligations before distribution. No spark class."

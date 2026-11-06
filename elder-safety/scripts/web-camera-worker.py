@@ -21,7 +21,7 @@ def apply_review_result(candidate, entry, result, alerts):
     """Only a successful, matching cloud review may enter the phone alarm outbox."""
     verdict = result.get("verdict")
     if (result.get("candidate_id") != candidate["id"] or
-            verdict not in {"confirmed", "rejected", "uncertain", "unavailable"} or
+            verdict not in {"confirmed", "rejected", "uncertain", "unavailable", "duplicate"} or
             (verdict == "confirmed" and (result.get("cloud_images") is not True or not result.get("model")))):
         verdict = "unavailable"
     entry.update(review_status=verdict, review_reason=str(result.get("reason", ""))[:800],

@@ -12,6 +12,16 @@ const paused = (locator: Locator) => locator.evaluate((element: HTMLVideoElement
 const card = (page: Page, id: string) => page.locator(`.av-video-card[data-case=${id}]`);
 const playCard = (page: Page, id: string) => card(page, id).locator('.av-card-actions button').first().click();
 
+test('家庭账号头像和核心能力演示在合并后共同可用', async ({ page }) => {
+  await page.goto('/#capabilities');
+  await expect(page.locator('.av-video-card')).toHaveCount(3);
+  await page.getByRole('button', { name: '个人信息', exact: true }).click();
+  await expect(page.getByRole('region', { name: '当前账号' })).toContainText('演示验收');
+  await expect(page.getByRole('button', { name: '家庭管理', exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: '个人信息', exact: true })).toBeFocused();
+});
+
 test('官网采用已批准文案并保持工作台入口去重', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('#hero-title')).toHaveText('让牵挂，有迹可循。');

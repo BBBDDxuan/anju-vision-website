@@ -1,4 +1,7 @@
 import asyncio
+import hmac
+import os
+from .accounts import Accounts, PUBLIC as ACCOUNT_PUBLIC
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -73,7 +76,12 @@ def create_app(settings: Settings | None = None, provider: VisionProvider | None
             await asyncio.to_thread(camera.close)
             await asyncio.to_thread(manager.close)
 
-    app = FastAPI(title="居家摄像头系统", version="0.2.0", lifespan=lifespan)
+    accounts_path = settings.data_dir / 'accounts.sqlite3'
+    if cloud and accounts_path.exists():
+        raise ValueError('Cloud mode must not use a household account data directory')
+    account_enabled = not cloud and (os.getenv('ANJU_ACCOUNTS') == '1' or accounts_path.exists())
+    app = FastAPI(title="居家摄像头系统", version="0.2.0", lifespan=lifespan,
+                  openapi_url=None if account_enabled else '/openapi.json')
     app.state.db, app.state.manager, app.state.settings = db, manager, settings
     app.state.live_camera = camera
     app.state.face_recognition = faces
@@ -86,8 +94,16 @@ def create_app(settings: Settings | None = None, provider: VisionProvider | None
     app.add_middleware(CORSMiddleware, allow_origins=list(settings.allowed_origins), allow_methods=["GET", "POST", "PUT", "DELETE"], allow_headers=["Content-Type", "X-Video-Name"])
 
     from .lan_setup import PAIR_EXCHANGE, lan_router
+    accounts = Accounts(accounts_path) if account_enabled else None
+    app.state.accounts = accounts
+    if accounts:
+        app.include_router(accounts.router())
+    else:
+        @app.get('/api/auth/status')
+        def account_status():
+            return {'enabled': False, 'cloud': bool(cloud)}
     if not cloud:
-        app.include_router(lan_router(settings.lan_token, pairing=phone_gateway))
+        app.include_router(lan_router(settings.lan_token, pairing=phone_gateway and accounts is None))
 
     @app.middleware("http")
     async def local_origin(request, call_next):
@@ -95,7 +111,26 @@ def create_app(settings: Settings | None = None, provider: VisionProvider | None
         request.state.visitor_id = visitor
         ticket = None
         try:
-            if not (phone_gateway and request.method == "POST" and request.url.path == PAIR_EXCHANGE):
+            path = request.url.path
+            method = request.method
+            if accounts:
+                if (path == '/health' or path.startswith(('/api/', '/media/', '/demo/'))) and (method, path) not in ACCOUNT_PUBLIC:
+                    if (phone_gateway and method == 'GET' and
+                            (path == '/api/app/version' or path.startswith('/api/app/apk/')) and
+                            settings.lan_token and hmac.compare_digest(
+                                request.headers.get('authorization', '').encode(),
+                                ('Bearer ' + settings.lan_token).encode())):
+                        # Legacy token can only download a signed upgrade, never household data.
+                        authorize_lan(request, settings.lan_token)
+                    else:
+                        await asyncio.to_thread(accounts.gate, request)
+                if path.startswith('/api/auth/') and method == 'POST':
+                    if request.headers.get('origin') not in (None, str(request.base_url).rstrip('/')):
+                        raise AppError('ORIGIN_REJECTED', '请从本机同源网页操作。', 403)
+                    if (request.headers.get('content-type', '').split(';', 1)[0].lower() != 'application/json'
+                            and (method, path) in ACCOUNT_PUBLIC):
+                        raise AppError('JSON_REQUIRED', '需要 JSON 请求。', 415)
+            elif path != '/api/auth/status' and not (phone_gateway and method == "POST" and path == PAIR_EXCHANGE):
                 authorize_lan(request, settings.lan_token)
             origin = request.headers.get('origin')
             same_host = (origin and urlsplit(origin).scheme in {'http', 'https'}
@@ -138,6 +173,8 @@ def create_app(settings: Settings | None = None, provider: VisionProvider | None
         finally:
             if ticket:
                 cloud.release_upload(ticket)
+        if accounts and request.url.path.startswith(('/api/', '/media/', '/demo/')):
+            response.headers['Cache-Control'] = 'no-store'
         if cloud:
             if request.url.path.startswith(('/api/', '/media/')):
                 response.headers['Cache-Control'] = 'no-store'

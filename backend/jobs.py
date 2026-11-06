@@ -19,7 +19,7 @@ from .providers.base import VisionProvider, ProviderResult
 from .providers.qwen import QwenProvider
 from .prompting import load_event_prompt
 from .activity import ActivityGate, FILTER_VERSION
-from .hybrid_safety import FLAME_SCAN_SIZES, HybridSafety, REVIEW_TOKENS
+from .hybrid_safety import FLAME_SCAN_SIZES, HybridSafety, REVIEW_TOKENS, confirmed_episode, duplicate_episode_result
 from .safety import RULES as SAFETY_RULES
 
 PIPELINE_VERSION = 'uploaded-hybrid-safety-v1'
@@ -260,10 +260,10 @@ class JobManager:
 
             def persist():
                 safety_state['counts'] = {verdict: sum(r.get('verdict') == verdict for r in safety_state['reviews'].values())
-                                          for verdict in ('confirmed', 'rejected', 'uncertain', 'unavailable')}
+                                          for verdict in ('confirmed', 'rejected', 'uncertain', 'unavailable', 'duplicate')}
                 safety_state['counts'].update(candidates=len(safety_state['candidates']),
                                                pending=len(safety_state['candidates'])-len(safety_state['processed']))
-                safety_state.update({key: safety_state['counts'][key] for key in ('confirmed', 'rejected', 'uncertain', 'unavailable')})
+                safety_state.update({key: safety_state['counts'][key] for key in ('confirmed', 'rejected', 'uncertain', 'unavailable', 'duplicate')})
                 safety_state['candidate_count'] = len(safety_state['candidates'])
                 safety_state['reviewed'] = sum(safety_state['counts'][key] for key in ('confirmed', 'rejected', 'uncertain'))
 
@@ -362,6 +362,11 @@ class JobManager:
                 # Check source PTS, original-frame kind and uniqueness before paying.
                 validate_memory(self.document(video, candidate_frames, {}, [], []))
                 result = safety_state['reviews'].get(identifier)
+                previous = confirmed_episode(candidate, safety_state['candidates'], safety_state['reviews'])
+                if result is None and previous:
+                    result = duplicate_episode_result(candidate, previous)
+                    safety_state['reviews'][identifier] = result
+                    persist()
                 if result is None:
                     cloud_request = len(candidate_frames) >= 2
                     if cloud_request:
@@ -402,7 +407,7 @@ class JobManager:
                     # Persist the response independently of normalization/controls.
                     persist()
                 if (result.get('candidate_id') != identifier or result.get('event_type') != candidate['event_type']
-                        or result.get('verdict') not in {'confirmed', 'rejected', 'uncertain', 'unavailable'}):
+                        or result.get('verdict') not in {'confirmed', 'rejected', 'uncertain', 'unavailable', 'duplicate'}):
                     raise AppError('SAFETY_REVIEW_INVALID', '安全复核结果与候选不匹配，未写入。', 422)
                 extraction = self.safety.extraction(candidate, result) if result['verdict'] == 'confirmed' else None
                 if extraction is not None:

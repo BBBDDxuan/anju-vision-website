@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import socket
+import ssl
 import subprocess
 import sys
 import time
@@ -35,7 +36,27 @@ def main():
     parser.add_argument('--port', type=int, default=8000)
     parser.add_argument('--safety-port', type=int, default=8010)
     parser.add_argument('--check', action='store_true', help='Start, check health, then stop both child services.')
+    parser.add_argument('--tls-cert')
+    parser.add_argument('--tls-key')
+    parser.add_argument('--tls-ca', help='CA PEM used to verify the local TLS readiness check.')
+    parser.add_argument('--allow-insecure-lan', action='store_true', help='Demo credentials only on an isolated trusted LAN.')
     args = parser.parse_args()
+    local_data = os.getenv('LOCALAPPDATA')
+    local_tls = Path(local_data) / 'AnjuVision' / 'lan-tls' if local_data else None
+    if (not args.tls_cert and not args.tls_key and not args.allow_insecure_lan
+            and local_tls and (local_tls / 'address.txt').is_file()):
+        if args.address not in (local_tls / 'address.txt').read_text(encoding='ascii').split():
+            parser.error('The local TLS certificate does not cover this IP. Configure a certificate for the current Wi-Fi IP.')
+        args.tls_cert = str(local_tls / 'server.pem')
+        args.tls_key = str(local_tls / 'server.key')
+        args.tls_ca = str(local_tls / 'ca.pem')
+    if bool(args.tls_cert) != bool(args.tls_key) or (args.tls_ca and not args.tls_cert):
+        parser.error('Supply both TLS certificate and key; a CA is optional.')
+    tls_args = ['--ssl-certfile', str(Path(args.tls_cert).resolve(strict=True)),
+                '--ssl-keyfile', str(Path(args.tls_key).resolve(strict=True))] if args.tls_cert else []
+    scheme = 'https' if tls_args else 'http'
+    if args.allow_insecure_lan and tls_args:
+        parser.error('Choose either TLS or explicit HTTP demo mode.')
     address = private_address(args.address)
     additional_addresses = {private_address(value) for value in args.additional_address} - {address}
     if args.port == args.safety_port or not all(1 <= p <= 65535 for p in (args.port, args.safety_port)):
@@ -48,6 +69,9 @@ def main():
         raise ValueError('Run scripts/configure_phone.py first.')
     env = os.environ.copy()
     env['APP_LAN_TOKEN'] = token
+    env['ANJU_ACCOUNTS'] = '1'
+    env['ANJU_ACCOUNT_DEMO_HTTP'] = '1' if args.allow_insecure_lan else '0'
+    env['ANJU_ACCOUNT_ORIGIN'] = f'{scheme}://{address}:{args.port}'
     env['ANJU_PHONE_ADDRESS'] = address
     env['ANJU_PHONE_PORT'] = str(args.port)
     hosts = set(env.get('APP_ALLOWED_HOSTS', '127.0.0.1,localhost,[::1]').split(','))
@@ -71,12 +95,12 @@ def main():
     details = ROOT / 'runtime/手机连接参数.txt'
     details.write_text(
         f'安居视界手机连接参数（仅本机保存，请勿提交或公开）\n\n'
-        f'统一服务地址：http://{address}:{args.port}\n统一访问令牌：{token}\n\n'
+        f'统一服务地址：{scheme}://{address}:{args.port}\n统一访问令牌：{token}\n\n'
         + ''.join(f'其他已放行的本机地址：http://{item}:{args.port}\n' for item in sorted(additional_addresses)) + '\n'
         f'兼容旧 App：录像服务和安全后端均填上面的同一个地址、同一个令牌。\n'
         f'联系人角色：primary\n\n'
         f'新版 App 只需一个地址；旧版页面的两组配置填相同内容。手机与电脑须网络互通。\n'
-        f'电脑网页：http://127.0.0.1:{args.port}/\n'
+        f'电脑网页：{scheme}://127.0.0.1:{args.port}/\n'
         f'{args.safety_port} 仅在电脑内部监听，不向手机开放。\n'
         '统一告警只纳入确认的视觉候选。通知适配器未接入时不会声称后台推送已送达。\n'
         '连接状态：GET /api/connection；统一告警：GET /api/alerts。\n', encoding='utf8')
@@ -88,14 +112,17 @@ def main():
             logs.append(log)
             children.append(subprocess.Popen(
                 [sys.executable, '-m', 'uvicorn', target, '--factory', '--host', host, '--port', str(port),
-                 '--no-proxy-headers', '--no-access-log'], cwd=ROOT, env=env, stdout=log, stderr=subprocess.STDOUT))
+                 '--no-proxy-headers', '--no-access-log', *(tls_args if name == 'video' else [])], cwd=ROOT, env=env, stdout=log, stderr=subprocess.STDOUT))
         deadline = time.monotonic() + 45
-        with httpx.Client(trust_env=False, timeout=2) as client:
+        # The provisioned LAN profile verifies the exact address advertised by QR.
+        verify = ssl.create_default_context(cafile=args.tls_ca) if args.tls_ca else not bool(tls_args)
+        ready_host = address if args.tls_ca else '127.0.0.1'
+        with httpx.Client(trust_env=False, timeout=2, verify=verify) as client:
             while True:
                 if any(p.poll() is not None for p in children):
                     raise RuntimeError('A service stopped. Inspect runtime/phone-server/*.log.')
                 try:
-                    if (client.get(f'http://127.0.0.1:{args.port}/api/health').status_code == 200 and
+                    if (client.get(f'{scheme}://{ready_host}:{args.port}/api/auth/status').status_code == 200 and
                             client.get(f'http://127.0.0.1:{args.safety_port}/health').status_code == 200):
                         break
                 except httpx.HTTPError:
@@ -107,7 +134,7 @@ def main():
             'state': 'running', 'supervisor_pid': os.getpid(), 'pids': [p.pid for p in children],
             'address': address, 'allowed_local_addresses': sorted({address} | additional_addresses), 'ports': [args.port, args.safety_port], 'public_ports': [args.port], 'proxy_headers': False,
         }, indent=2), encoding='utf8')
-        print(f'PC webpage: http://127.0.0.1:{args.port}/', flush=True)
+        print(f'PC webpage: {scheme}://127.0.0.1:{args.port}/', flush=True)
         print(f'Phone connection settings: {details}', flush=True)
         print('Both services are running. Keep this terminal open; Ctrl+C stops both.', flush=True)
         if args.check:

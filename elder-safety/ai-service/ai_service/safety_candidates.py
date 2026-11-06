@@ -1,7 +1,9 @@
 """Local-only small-model candidates; no recording, delivery or model calls.
 
 Evidence uses a 4fps ring. Normal candidates use [trigger - 2, trigger + 1);
-posture-recovery candidates sample [trigger - 4, trigger + 1), still at most 12 frames.
+arm-motion proposals use three pre-seconds, posture recovery four and slow descent six.
+Early seated/progression proposals collect until motion settles, at most five
+post-seconds. All requests still contain at most twelve real frames.
 Only real sampled frames are retained; sparse input is never padded. ``reset``
 discards pending evidence, so call ``finish`` first if it should be preserved.
 """
@@ -13,9 +15,11 @@ import json
 import math
 import os
 from pathlib import Path
+import time
 import uuid
 
 import cv2
+import numpy as np
 
 from .config import Config
 from .engine import DetectionEngine
@@ -25,11 +29,16 @@ from .types import Sample
 EVENT_TYPES = frozenset({"suspected_fall", "help_requested", "fire_detected"})
 _INTERVAL = 0.25
 _PRE_SECONDS = 2.0
+_HELP_MOTION_PRE_SECONDS = 3.0
 _RECOVERY_PRE_SECONDS = 4.0
+_SLOW_PRE_SECONDS = 6.0
 _POST_SECONDS = 1.0
+_MAX_ADAPTIVE_POST_SECONDS = 5.0
+_SETTLE_SECONDS = .75
 _MAX_FRAMES = 12
 _MAX_PENDING = 8
 _EPS = 1e-8
+_CORE_FALL_ALGORITHM = 'lower_body_unreliable_core_descent_review_v1'
 
 
 def _atomic_bytes(path: Path, content: bytes) -> None:
@@ -39,7 +48,16 @@ def _atomic_bytes(path: Path, content: bytes) -> None:
             raise OSError("Incomplete safety evidence write")
         stream.flush()
         os.fsync(stream.fileno())
-    os.replace(temporary, path)
+    for attempt in range(5):
+        try:
+            os.replace(temporary, path)
+            break
+        except PermissionError as exc:
+            # On Windows a concurrent snapshot reader can briefly deny rename.
+            # Retry the same flushed bytes; keep the old commit on real failure.
+            if getattr(exc, "winerror", None) not in {5, 32, 33} or attempt == 4:
+                raise
+            time.sleep(.02 * (attempt + 1))
 
 
 def atomic_json(path: Path, value: dict) -> None:
@@ -61,6 +79,9 @@ class _Pending:
     candidate: dict
     end: float
     frames: list[_Frame]
+    adaptive: bool = False
+    last_motion_t: float = 0.0
+    last_core: dict | None = None
 
 
 class SafetyCandidateCollector:
@@ -68,9 +89,8 @@ class SafetyCandidateCollector:
         self.engine = DetectionEngine(config, allow_review_candidates=True)
         self.output = Path(output).resolve()
         self.output.mkdir(parents=True, exist_ok=True)
-        # Keep up to four seconds so delayed posture recovery can include the
-        # lost descent. Each candidate still sends at most twelve real frames.
-        self._ring: deque[_Frame] = deque(maxlen=17)
+        # Slow descent needs more prehistory; request size remains twelve frames.
+        self._ring: deque[_Frame] = deque(maxlen=25)
         self._pending: list[_Pending] = []
         self._next_frame_t: float | None = None
 
@@ -83,6 +103,7 @@ class SafetyCandidateCollector:
         self.engine.fall.reset()
         if self.engine.review_fall:
             self.engine.review_fall.reset()
+            self.engine.review_lifecycle.reset()
         self.engine.fire.reset()
         if self.engine.review_fire:
             self.engine.review_fire.reset()
@@ -108,12 +129,27 @@ class SafetyCandidateCollector:
             raise OSError("Cannot encode safety evidence JPEG")
         return _Frame("sf_" + uuid.uuid4().hex, float(sample.t), encoded.tobytes())
 
+    def _selected_frames(self, pending: _Pending) -> list[_Frame]:
+        candidate = dict(pending.candidate)
+        selected = pending.frames
+        if pending.adaptive:
+            before = [f for f in selected if f.t < candidate['t'] - _EPS]
+            after = [f for f in selected if f.t >= candidate['t'] - _EPS]
+            def spread(values, count):
+                return values if len(values) <= count else [values[round(i*(len(values)-1)/(count-1))] for i in range(count)]
+            selected = spread(before, 6) + spread(after, 6)
+            pending.candidate['details'] = {**candidate['details'], 'evidence_post_seconds':
+                round(max((f.t - candidate['t'] for f in selected), default=0), 6),
+                'evidence_collection': 'motion_settled_or_five_second_limit'}
+        return selected
+
     def _save(self, pending: _Pending) -> dict:
+        selected = self._selected_frames(pending)
         candidate = dict(pending.candidate)
         directory = self.output / candidate["id"]
         directory.mkdir(exist_ok=True)
         frames = []
-        for frame in pending.frames:
+        for frame in selected:
             path = directory / (frame.id + ".jpg")
             _atomic_bytes(path, frame.jpeg)
             frames.append({"id": frame.id, "pts_ms": round(frame.t * 1000),
@@ -141,7 +177,7 @@ class SafetyCandidateCollector:
         if self.engine.discontinuous(sample):
             completed.extend(self.finish())
             self.reset()
-        while self._ring and self._ring[0].t < t - _RECOVERY_PRE_SECONDS - _EPS:
+        while self._ring and self._ring[0].t < t - _SLOW_PRE_SECONDS - _EPS:
             self._ring.popleft()
         frame = None
         if self._next_frame_t is None:
@@ -153,16 +189,26 @@ class SafetyCandidateCollector:
             ticks = max(1, math.floor((t - self._next_frame_t + _EPS) / _INTERVAL) + 1)
             self._next_frame_t += ticks * _INTERVAL
             self._ring.append(frame)
+        signals = self.engine.process(sample)
         for pending in list(self._pending):
-            if t >= pending.end - _EPS:
+            core = self.engine.review_lifecycle.latest.get(pending.candidate['track_id'])
+            if pending.adaptive and core is not None:
+                previous = pending.last_core
+                if previous is None or max(np.linalg.norm(core['hip'] - previous['hip']),
+                        np.linalg.norm(core['shoulder'] - previous['shoulder'])) / previous['height'] >= .01:
+                    pending.last_motion_t = t
+                    pending.last_core = core
+            deadline = pending.candidate['t'] + _MAX_ADAPTIVE_POST_SECONDS
+            settled = core is not None and t - pending.last_motion_t >= _SETTLE_SECONDS - _EPS
+            ready = (t >= deadline - _EPS or (t >= pending.end - _EPS and settled)) if pending.adaptive else t >= pending.end - _EPS
+            if not ready and frame is not None and (pending.adaptive or len(pending.frames) < _MAX_FRAMES):
+                pending.frames.append(frame)
+            if ready:
                 completed.append(self._save(pending))
                 self._pending.remove(pending)
-            elif frame is not None and len(pending.frames) < _MAX_FRAMES:
-                pending.frames.append(frame)
 
         # Detection always runs at source cadence on this single engine. Evidence
         # sampling never changes detector thresholds, inputs or configuration.
-        signals = self.engine.process(sample)
         if frame is not None:
             height, width = sample.image.shape[:2]
             # Freeze only currently observed tracks, not stale predictions. Boxes
@@ -175,6 +221,17 @@ class SafetyCandidateCollector:
                         frame.people[track_id] = box
         for signal in signals:
             if signal.event_type not in EVENT_TYPES or len(self._pending) >= _MAX_PENDING:
+                continue
+            episode = signal.details.get('review_episode')
+            existing = next((p for p in self._pending if episode and
+                p.candidate['event_type'] == signal.event_type and
+                p.candidate['track_id'] == signal.track_id and
+                p.candidate['details'].get('review_episode') == episode), None)
+            if existing is not None:
+                existing.candidate['details']['progression_observed_at'] = t
+                existing.candidate['details']['progression_evidence'] = signal.details
+                if existing.candidate['details'].get('review_stage') == 'initial':
+                    self.engine.review_lifecycle.merge_progression(signal.track_id)
                 continue
             confidence = float(signal.confidence)
             if not math.isfinite(confidence):
@@ -198,14 +255,22 @@ class SafetyCandidateCollector:
                 candidate["subject_bbox_hint"] = [float(box[0])/width, float(box[1])/height,
                                                    float(box[2])/width, float(box[3])/height]
             recovery = signal.event_type == "suspected_fall" and details.get("fall_transition_observed") is False
-            pre = _RECOVERY_PRE_SECONDS if recovery else _PRE_SECONDS
+            slow = (signal.event_type == "suspected_fall"
+                    and details.get("algorithm") in {"slow_descent_low_posture_review_v1", _CORE_FALL_ALGORITHM})
+            motion_help = (signal.event_type == "help_requested" and
+                           details.get("algorithm") == "body_relative_repeated_arm_motion_review_v2")
+            pre = (_SLOW_PRE_SECONDS if slow else _RECOVERY_PRE_SECONDS if recovery
+                   else _HELP_MOTION_PRE_SECONDS if motion_help else _PRE_SECONDS)
             history = [f for f in self._ring if t - pre - _EPS <= f.t < t - _EPS]
-            if recovery and len(history) > 8:
+            if (recovery or slow or motion_help) and len(history) > 8:
                 # Include both oldest and newest pre-frames; no fabricated ticks.
                 history = [history[round(i * (len(history) - 1) / 7)] for i in range(8)]
             else:
                 history = history[-8:]
             if frame is not None:
                 history.append(frame)
-            self._pending.append(_Pending(candidate, t + _POST_SECONDS, history))
+            adaptive = (signal.event_type == 'suspected_fall' and details.get('algorithm') in {
+                'seated_core_descent_review_v1', 'observed_fall_progression_review_v1', _CORE_FALL_ALGORITHM})
+            self._pending.append(_Pending(candidate, t + _POST_SECONDS, history, adaptive, t,
+                self.engine.review_lifecycle.latest.get(signal.track_id)))
         return completed

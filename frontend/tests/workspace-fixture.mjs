@@ -29,6 +29,9 @@ export async function installWorkspaceFixture(page, options = {}) {
     const request = route.request(); const url = new URL(request.url());
     calls.push({ path: url.pathname + url.search, method: request.method(), body: request.postDataJSON?.() });
     const send = json => route.fulfill({ json });
+    if (url.pathname === '/api/auth/status') return send({ enabled: true, setup_allowed: false, is_mock: true });
+    if (url.pathname === '/api/auth/me') return send({ user: { id: 'fixture_admin', username: 'fixture_admin', display_name: '测试管理员', household_name: '测试家庭', role: 'admin' }, is_mock: true });
+    if (url.pathname === '/api/auth/family-members') return send({ members: [], is_mock: true });
     if (url.pathname === '/api/health') return send({ analysis_ready: state.ready, is_mock: true, cloud_mode: false, model: 'UI fixture / 非真实推理', configuration_error: state.ready ? null : { code: 'MODEL_NOT_CONFIGURED', message: '测试：模型未配置。' }, limits: { max_video_seconds: null, max_upload_mb: null } });
     if (url.pathname === '/api/videos') return send({ videos: videos() });
     if (url.pathname === '/api/demos') return send({ demos: [] });

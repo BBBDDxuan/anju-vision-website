@@ -10,7 +10,7 @@ export default defineConfig({
   testMatch: 'fire-overlay.spec.ts',
   reporter: [['list'], ['json', { outputFile: path.join(run, 'browser-results.json') }]],
   outputDir: path.join(run, 'browser-artifacts'),
-  use: { ...fall.use, baseURL: 'http://127.0.0.1:8019' },
+  use: { ...fall.use, baseURL: 'http://127.0.0.1:8019', storageState: path.join(run, 'browser-auth-state.json') },
   webServer: { command: '".venv/Scripts/python.exe" -m backend.local_server --port 8019', cwd: root,
     url: 'http://127.0.0.1:8019/api/health', reuseExistingServer: false, timeout: 30000,
     env: { DATA_DIR: path.join(run, 'isolated-server-data'), VLM_ENABLE_NETWORK: 'false',

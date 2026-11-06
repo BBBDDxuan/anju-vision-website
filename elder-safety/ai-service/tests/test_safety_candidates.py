@@ -102,6 +102,23 @@ def test_same_engine_and_unchanged_config_every_frame(tmp_path, monkeypatch):
     assert_published(actual[0], tmp_path)
 
 
+def test_help_motion_evidence_covers_three_second_history_with_twelve_frame_limit(tmp_path, monkeypatch):
+    collector = SafetyCandidateCollector(Config(), tmp_path)
+    signal = fire_signal(event_type='help_requested', details={
+        'algorithm': 'body_relative_repeated_arm_motion_review_v2', 'review_required': True})
+    inject(collector, monkeypatch, lambda s: [signal] if s.t == 3 else [])
+    ready = []
+    for i in range(41):
+        ready.extend(collector.process(sample(i / 10)))
+    assert len(ready) == 1
+    frames = ready[0]['frames']
+    assert len(frames) == 12
+    assert frames[0]['pts_ms'] == 0
+    assert frames[-1]['pts_ms'] >= 3700
+    assert len({f['pts_ms'] for f in frames}) == 12
+    assert_published(ready[0], tmp_path)
+
+
 def test_two_second_pre_one_second_post_max_twelve(tmp_path, monkeypatch):
     collector = SafetyCandidateCollector(Config(), tmp_path)
     inject(collector, monkeypatch, lambda s: [fire_signal()] if s.t == 2 else [])
@@ -339,6 +356,37 @@ def test_cli_natural_eof_full_manifest_and_json_stdout(cli, tmp_path, monkeypatc
     stdout = capsys.readouterr().out
     assert "private-secret" not in stdout
     assert all(json.loads(line)["status"] == "progress" for line in stdout.splitlines())
+
+
+def test_cli_adaptive_postroll_uses_shared_twelve_frame_selection(cli, tmp_path, monkeypatch):
+    from test_seated_core_candidates import pose as seated_pose, sample as seated_sample
+    import ai_service.models as models_module
+    source, _ = fake_video(tmp_path, monkeypatch, count=91)
+    count = [0]
+    def infer(self, image):
+        t = count[0] / 10
+        count[0] += 1
+        progress = min(1, max(0, (t - .6) / 3.4))
+        current = seated_pose() if t < .6 else seated_pose(220 + 70 * progress, 280 + 40 * progress, feet=False)
+        return [current], []
+    monkeypatch.setattr(models_module.LocalModels, 'infer', infer)
+    original_capture = cv2.VideoCapture
+    def capture(path):
+        result = original_capture(path)
+        original_read = result.read
+        def read():
+            ok, _ = original_read()
+            return ok, seated_sample(0, seated_pose()).image if ok else None
+        result.read = read
+        return result
+    monkeypatch.setattr(cv2, 'VideoCapture', capture)
+    c = Config()
+    c.fall.observation_seconds = 2.5
+    result = cli.scan_video(source, c, tmp_path / 'adaptive-scan')
+    assert result['completed'] and len(result['candidates']) == 1
+    event = result['candidates'][0]
+    assert len(event['frames']) <= 12
+    assert max(f['pts_ms'] for f in event['frames']) >= 4000
 
 
 @pytest.mark.parametrize("limit", [1, 12, 31])
