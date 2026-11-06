@@ -13,6 +13,7 @@ import cv2
 import numpy as np
 
 from .config import Config
+from .capture_process import capture_process
 from .types import Flame, Pose, Sample
 
 
@@ -234,7 +235,7 @@ class CaptureLink:
         self.config = config
         context = mp.get_context("spawn")
         self.pipe, child = context.Pipe()
-        self.process = context.Process(target=_capture_child, args=(child, url,
+        self.process = context.Process(target=capture_process, args=(child, url,
             int(config.open_timeout_seconds*1000), int(config.read_timeout_seconds*1000)), daemon=True)
         self.process.start()
         child.close()
@@ -250,6 +251,11 @@ class CaptureLink:
         return "failed", None
 
     def open(self, stop):
+        # Windows spawn and native-library loading are not an RTSP open. A cold
+        # runtime used to consume the camera deadline and be killed repeatedly.
+        # Keep initialization bounded, then retain the short network deadline.
+        if self.receive(60.0, stop)[0] != "ready":
+            return False
         return self.receive(self.config.open_timeout_seconds+2.0, stop)[0] == "opened"
 
     def read(self, stop):

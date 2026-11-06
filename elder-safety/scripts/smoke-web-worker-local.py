@@ -20,7 +20,7 @@ ROOT=Path(__file__).resolve().parents[1]
 def child(recording_directory=None):
     sys.path.insert(0,str(ROOT/'ai-service'))
     import cv2
-    from ai_service import sources, preview_alerts, recording
+    from ai_service import sources, preview_alerts, recording, ffmpeg_capture
     from dataclasses import replace
     real_recorder = recording.CameraRecorder
     if recording_directory is None:
@@ -60,6 +60,7 @@ def child(recording_directory=None):
     import dotenv
     dotenv.dotenv_values=lambda *args,**kwargs: {'RTSP_URL':'rtsp://test:test@127.0.0.1/fixture'}
     sources.CaptureLink=FileLink
+    ffmpeg_capture.FFmpegCaptureLink=FileLink
     preview_alerts.PreviewAlerts=SilentAlerts
     runpy.run_path(str(ROOT/'scripts/web-camera-worker.py'),run_name='__main__')
 

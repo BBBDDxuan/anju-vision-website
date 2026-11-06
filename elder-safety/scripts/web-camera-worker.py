@@ -162,12 +162,15 @@ def main():
         from ai_service.config import Config
         from ai_service.models import LocalModels
         from ai_service.sources import CaptureLink, CapturedFrame
+        from ai_service.ffmpeg_capture import FFmpegCaptureLink
         from ai_service.safety_candidates import SafetyCandidateCollector
         from ai_service.types import Sample
         config = Config.load(os.environ.get("SAFETY_MODEL_CONFIG") or str(ROOT / "ai-service/config.camera-gpu.json"))
         if config.models.device != "cpu" and not torch.cuda.is_available():
             raise ValueError
         config.open_timeout_seconds, config.read_timeout_seconds = 8, 3
+        capture_factory = FFmpegCaptureLink if config.recording.ffmpeg_path else CaptureLink
+        info["capture_backend"] = "ffmpeg" if config.recording.ffmpeg_path else "opencv"
         models = LocalModels(config.models)
         info["stage"] = "warmup"
         send(info)
@@ -213,7 +216,7 @@ def main():
             try:
                 while not stop.is_set():
                     send({"kind": "connection", "state": "connecting"})
-                    link = CaptureLink(url, config)
+                    link = capture_factory(url, config)
                     try:
                         if link.open(stop):
                             session += 1

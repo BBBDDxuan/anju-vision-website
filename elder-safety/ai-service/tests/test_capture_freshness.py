@@ -13,6 +13,54 @@ from ai_service.engine import DetectionEngine
 from ai_service.sources import CapturedFrame, _LatestCapture, rtsp_samples
 
 
+def test_capture_open_allows_slow_runtime_bootstrap_without_extending_rtsp_deadline(monkeypatch):
+    import ai_service.sources as sources
+    clock = [0.0]
+    pending = [(14.0, ("ready", None)), (15.0, ("opened", None))]
+
+    class Pipe:
+        def poll(self, timeout):
+            clock[0] += timeout
+            return bool(pending and clock[0] >= pending[0][0])
+
+        def recv(self):
+            return pending.pop(0)[1]
+
+    monkeypatch.setattr(sources.time, "monotonic", lambda: clock[0])
+    link = object.__new__(sources.CaptureLink)
+    link.config, link.pipe = Config(), Pipe()
+    link.config.open_timeout_seconds = 8
+    assert link.open(threading.Event())
+    assert clock[0] < 16
+
+    # Once the runtime is ready, a stalled RTSP open keeps its short deadline.
+    clock[0] = 0.0
+    pending[:] = [(0.0, ("ready", None)), (14.0, ("opened", None))]
+    assert not link.open(threading.Event())
+    assert clock[0] < 11
+
+
+def test_capture_runtime_bootstrap_has_a_hard_deadline_and_can_be_cancelled(monkeypatch):
+    import ai_service.sources as sources
+    clock = [0.0]
+
+    class Pipe:
+        def poll(self, timeout):
+            clock[0] += timeout
+            return False
+
+    monkeypatch.setattr(sources.time, "monotonic", lambda: clock[0])
+    link = object.__new__(sources.CaptureLink)
+    link.config, link.pipe = Config(), Pipe()
+    assert not link.open(threading.Event())
+    assert 30 <= clock[0] <= 61
+    stopped = threading.Event()
+    stopped.set()
+    clock[0] = 0.0
+    assert not link.open(stopped)
+    assert clock[0] == 0.0
+
+
 def frame(sequence, t):
     return CapturedFrame(np.zeros((8, 12, 3), np.uint8), t,
                          datetime.fromtimestamp(t, timezone.utc), sequence)
