@@ -50,7 +50,9 @@ def create_app(settings=None, provider=None, *, safety_repo=None, safety_url=Non
     if (url.scheme != 'http' or url.host != '127.0.0.1' or url.username or url.password
             or url.path != '/' or url.query or url.fragment):
         raise ValueError('Safety upstream must be an explicit loopback HTTP origin')
-    if push_handler is None and os.getenv('APP_ALERT_PUSH_HANDLER'):
+    if app.state.accounts:
+        push_handler = None
+    if not app.state.accounts and push_handler is None and os.getenv('APP_ALERT_PUSH_HANDLER'):
         module, function = os.environ['APP_ALERT_PUSH_HANDLER'].split(':', 1)
         push_handler = getattr(importlib.import_module(module), function)
     if push_handler is not None and not inspect.iscoroutinefunction(push_handler):

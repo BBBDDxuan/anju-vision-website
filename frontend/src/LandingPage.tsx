@@ -1,3 +1,4 @@
+import { AccountAvatar } from './AccountAvatar';
 import { useEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
 import { Icon } from './ui';
 import { Brand, SectionLabel, Arrow } from './Brand';
@@ -120,6 +121,7 @@ export function LandingPage({ onEnter, onCamera, demos = [], onOpenDemo }: Props
         </nav>
         <a className="av-button av-button-small av-header-cta" href={workspaceHref('camera')} onClick={event => enter(event, true)}><Icon name="monitor" size={17}/>进入工作台<Arrow/></a>
         <button className="av-menu" aria-label={menuOpen ? '关闭菜单' : '打开菜单'} aria-controls="av-navigation" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}><Icon name={menuOpen ? 'close' : 'menu'} size={25}/></button>
+        <AccountAvatar />
       </div>
     </header>
 

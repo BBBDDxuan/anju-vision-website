@@ -1,5 +1,6 @@
 """Serve the desktop site and always run application cleanup on Ctrl+C."""
 import argparse
+import os
 import sys
 
 import uvicorn
@@ -44,6 +45,7 @@ def main():
         # A launcher can pass down Windows' per-process Ctrl+C ignore flag.
         if windll.kernel32.GetConsoleCP():
             windll.kernel32.SetConsoleCtrlHandler(None, False)
+    os.environ["ANJU_ACCOUNTS"] = "1"
     config = uvicorn.Config('backend.main:create_app', factory=True, host='127.0.0.1', port=args.port,
                             http=LocalHTTPProtocol, lifespan='on', timeout_graceful_shutdown=5)
     LocalServer(config).run()

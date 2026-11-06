@@ -19,6 +19,8 @@ def face_router(service, settings):
     def allowed(request):
         if settings.cloud_mode:
             raise AppError('FACE_RECOGNITION_DISABLED', '云部署不开放家庭成员人脸接口。', 403)
+        if getattr(request.state, 'account', None):
+            return
         authorize_lan(request, settings.lan_token)
         # Also authenticate when this router is mounted without main's middleware.
         try:

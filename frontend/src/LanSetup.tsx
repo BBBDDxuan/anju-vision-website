@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import QRCode from 'qrcode';
+import { AccountContext } from './AccountGate';
 import './lan-setup.css';
 
 type Camera = { host: string; port: number; username: string; path: string };
@@ -26,7 +27,8 @@ export function LanSetup() {
   const [path, setPath] = useState('stream1');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
-  const loopback = ['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname);
+  const account = useContext(AccountContext);
+  const loopback = !account && ['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname);
 
   function toggle(next: Panel) {
     setPanel(panel === next ? null : next);
@@ -43,6 +45,7 @@ export function LanSetup() {
     finally { setBusy(false); }
   }
 
+  if (account?.role === 'member') return null;
   return <section className="lan-setup" aria-label="局域网快捷连接">
     <div className="lan-setup-actions">
       {loopback && <button type="button" id="lan-pair-button" disabled={busy}
