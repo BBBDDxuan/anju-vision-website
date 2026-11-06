@@ -98,6 +98,9 @@ def create_app(settings: Settings | None = None, provider: VisionProvider | None
     app.state.accounts = accounts
     if accounts:
         app.include_router(accounts.router())
+        if not phone_gateway:
+            from .camera_monitoring import monitoring_router
+            app.include_router(monitoring_router(camera, settings.ffprobe, desktop_only=True))
     else:
         @app.get('/api/auth/status')
         def account_status():

@@ -94,6 +94,21 @@ def test_frame_freshness_stopped_and_reconnecting(tmp_path):
     assert client.get("/api/camera/frame.jpg").status_code == 503
 
 
+def test_preview_revalidation_sends_only_a_new_frame(tmp_path):
+    controller = LiveCamera(tmp_path)
+    client = client_for(controller)
+    controller.info["state"] = "running"
+    controller.frame, controller.received, controller.frame_tag = b"first", time.monotonic(), '"first"'
+    first = client.get("/api/camera/frame.jpg")
+    headers = {"If-None-Match": first.headers["etag"]}
+    duplicate = client.get("/api/camera/frame.jpg", headers=headers)
+    assert duplicate.status_code == 304 and duplicate.content == b""
+    controller.frame, controller.frame_tag = b"second", '"second"'
+    assert client.get("/api/camera/frame.jpg", headers=headers).content == b"second"
+    controller.received -= 5
+    assert client.get("/api/camera/frame.jpg", headers={"If-None-Match": '"second"'}).status_code == 503
+
+
 def test_missing_runtime_does_not_launch_or_leak_paths(tmp_path):
     response = client_for(LiveCamera(tmp_path)).post("/api/camera/start")
     assert response.status_code == 503
@@ -110,6 +125,31 @@ def test_reader_protocol_and_cleanup(tmp_path):
     # EOF cannot leave stale camera images labelled live.
     assert controller.frame is None and controller.info["state"] == "error"
     assert "jpeg_size" not in controller.info
+
+
+def test_preview_state_is_independent_of_analysis_and_reconnect(tmp_path, monkeypatch):
+    controller = LiveCamera(tmp_path)
+    controller.info["state"] = "starting"
+    controller.review_session = "test"
+    def packet(jpeg=b"", **info):
+        header = json.dumps(dict(info, jpeg_size=len(jpeg))).encode()
+        return struct.pack("!I", len(header)) + header + jpeg
+    stream = (
+        packet(b"preview", kind="preview", state="running", capture_session=1, preview_fps=15) +
+        packet(kind="analysis", capture_session=1, fps=3.5, frames=1, pending_candidates=["current"]) +
+        packet(kind="connection", state="reconnecting") +
+        packet(kind="analysis", capture_session=1, fps=3.5, frames=2, pending_candidates=["previous"]) +
+        packet(b"new", kind="preview", state="running", capture_session=2, preview_fps=15)
+    )
+    process = type("FakeProcess", (), {"stdout": io.BytesIO(stream)})()
+    controller.process = process
+    snapshots = {}
+    monkeypatch.setattr(controller, "_queue_review", lambda identifier, _: snapshots.update({identifier: controller.status()}))
+    controller._read(process)
+    assert snapshots["current"]["state"] == "running"
+    assert snapshots["current"]["preview_fps"] == 15 and snapshots["current"]["fps"] == 3.5
+    assert snapshots["previous"]["state"] == "reconnecting" and "fps" not in snapshots["previous"]
+    assert controller.info["frames"] == 2 and controller.frame is None
 
 
 @pytest.mark.parametrize("config_prefix", ["", "\ufeff"])

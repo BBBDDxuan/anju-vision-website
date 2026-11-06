@@ -48,6 +48,10 @@ class LiveCamera:
         self.process = self.thread = None
         self.frame = None
         self.received = None
+        self.frame_tag = None
+        self.capture_session = None
+        self.analysis = {}
+        self.analysis_received = None
         self.info = {"state": "stopped", "frames": 0, "events": [], "recording": False, "cloud_calls": False}
 
     def _review_status(self):
@@ -76,7 +80,7 @@ class LiveCamera:
         with self.control_lock, self.lock:
             if self.process and self.process.poll() is None:
                 return self.status()
-            self.frame, self.received = None, None
+            self._clear_preview()
             project = self.root / "elder-safety"
             python = Path(self.safety.settings.safety_python) if self.safety else project / ".venv-gpu/Scripts/python.exe"
             venv = python.parent.parent / "pyvenv.cfg"
@@ -139,6 +143,8 @@ class LiveCamera:
                 if not 1 <= size <= MAX_METADATA:
                     raise ValueError
                 info = json.loads(read_exact(process.stdout, size))
+                kind = info.pop("kind", None)
+                session = info.pop("capture_session", None)
                 candidates = info.pop("pending_candidates", [])
                 image_size = info.pop("jpeg_size", 0)
                 if not isinstance(image_size, int) or not 0 <= image_size <= MAX_PACKET:
@@ -147,10 +153,25 @@ class LiveCamera:
                 with self.lock:
                     if self.process is not process:
                         break
-                    info.update(self._review_status())
-                    self.info = info
+                    if self.heartbeat_stop.is_set() and self.info.get("state") == "stopped":
+                        continue  # Drain the pipe while the owned worker shuts down.
+                    if kind == "analysis":
+                        self.info.update({k: info.pop(k) for k in ("events", "frames", "alerts") if k in info})
+                        if session is not None and self.capture_session == session:
+                            self.analysis = info
+                            self.analysis_received = time.monotonic()
+                    elif kind == "connection":
+                        self._clear_preview()
+                        self.info.pop("stage", None)
+                        self.info.update(info)
+                    elif kind == "preview":
+                        self.capture_session = session
+                        self.info.update(info)
+                    else:
+                        self.info = info
                     if image:
                         self.frame, self.received = image, time.monotonic()
+                        self.frame_tag = f'"{time.perf_counter_ns():x}"'
                 if isinstance(candidates, list) and len(candidates) <= 8:
                     for identifier in candidates:
                         self._queue_review(identifier, process)
@@ -160,7 +181,7 @@ class LiveCamera:
             with self.lock:
                 if self.process is process:
                     self.review_session = None
-                    self.frame, self.received = None, None
+                    self._clear_preview()
                     if self.info.get("state") != "stopped":
                         self.info["recording"] = False
                         if isinstance(self.info.get("recording_status"), dict):
@@ -224,6 +245,8 @@ class LiveCamera:
     def status(self):
         with self.lock:
             result = dict(self.info)
+            if self.analysis_received is not None and time.monotonic()-self.analysis_received <= 3:
+                result.update(self.analysis)
             result.update(self._review_status())
             age = time.monotonic()-self.received if self.received is not None else None
             result["frame_age_seconds"] = round(age, 3) if age is not None else None
@@ -247,11 +270,18 @@ class LiveCamera:
             result['events'] = events
         return result
 
+    def _clear_preview(self):
+        self.frame = self.received = self.frame_tag = None
+        self.capture_session = self.analysis_received = None
+        self.analysis = {}
+        for key in ("source_fps", "preview_fps", "decoded_frame_age_ms"):
+            self.info.pop(key, None)
+
     def image(self):
         with self.lock:
             if self.info.get("state") != "running" or self.frame is None or self.received is None or time.monotonic()-self.received > 3:
                 raise AppError("CAMERA_FRAME_UNAVAILABLE", "画面未就绪或已过期，请检查摄像头连接。", 503, True)
-            return self.frame
+            return self.frame, self.frame_tag
 
     def stop(self):
         with self.control_lock:
@@ -262,7 +292,7 @@ class LiveCamera:
         with self.lock:
             process = self.process
             self._send(b"stop")
-            self.frame, self.received = None, None
+            self._clear_preview()
             self.info["state"] = "stopped"
             self.info["recording"] = False
             self.review_session = None
@@ -281,7 +311,7 @@ class LiveCamera:
                     stream.close()
         with self.lock:
             self.process = None
-            self.frame, self.received = None, None
+            self._clear_preview()
             self.info["state"] = "stopped"
             self.info["recording"] = False
             if isinstance(self.info.get("recording_status"), dict):
@@ -318,5 +348,11 @@ def camera_router(controller, cloud_mode):
     @router.get("/frame.jpg")
     def frame(request: Request):
         allowed(request)
-        return Response(controller.image(), media_type="image/jpeg", headers={"Cache-Control": "no-store, max-age=0", "X-Content-Type-Options": "nosniff"})
+        image, tag = controller.image()
+        headers = {"Cache-Control": "no-store, max-age=0", "X-Content-Type-Options": "nosniff"}
+        if tag is not None:
+            headers["ETag"] = tag
+            if request.headers.get("if-none-match") == tag:
+                return Response(status_code=304, headers=headers)
+        return Response(image, media_type="image/jpeg", headers=headers)
     return router

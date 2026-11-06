@@ -9,7 +9,7 @@
 .live-camera-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(230px,280px);align-items:start}
 .live-camera-main{min-width:0}
 .live-camera-screen{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;background:#14221b;display:flex;align-items:center;justify-content:center}
-.live-camera-screen img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:contain}
+.live-camera-screen canvas:not([hidden]){position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:contain}
 .live-camera-placeholder{display:flex;flex-direction:column;text-align:center;gap:12px;padding:16px;color:#dee9df}
 .live-camera-placeholder strong{font-size:15px}
 .live-camera-placeholder span{font-size:12px;line-height:1.6;color:#a7bcae}

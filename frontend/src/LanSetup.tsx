@@ -12,7 +12,7 @@ async function lan(path: string, body?: object) {
     ...(body && { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
   });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error?.message || '操作失败，请确认已启动新版手机后端。');
+  if (!response.ok) throw new Error(data.error?.message || `操作失败（HTTP ${response.status}）。`);
   return data;
 }
 

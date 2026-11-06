@@ -15,6 +15,41 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "ai-service"))
 
+PREVIEW_INTERVAL = .05
+POSE_OVERLAY_MAX_AGE = .25
+POSE_EDGES = [(5,6),(5,7),(7,9),(6,8),(8,10),(5,11),(6,12),(11,12),(11,13),(13,15),(12,14),(14,16)]
+
+def preview_jpeg(frame, poses, flames):
+    import cv2
+    import numpy as np
+
+    height, width = frame.image.shape[:2]
+    preview_width = min(1280, width)
+    preview_height = max(1, round(height * preview_width / width))
+    image = cv2.resize(frame.image, (preview_width, preview_height))
+    scale = np.array([preview_width / width, preview_height / height])
+    for pose in poses:
+        x1,y1,x2,y2 = (np.asarray(pose.bbox)*np.tile(scale, 2)).astype(int)
+        cv2.rectangle(image, (x1,y1), (x2,y2), (80,230,80), 2)
+        for a,b in POSE_EDGES:
+            if pose.keypoints[a,2] >= .55 and pose.keypoints[b,2] >= .55:
+                cv2.line(image, tuple((pose.keypoints[a,:2]*scale).astype(int)), tuple((pose.keypoints[b,:2]*scale).astype(int)), (255,200,0), 2)
+        for x,y,c in pose.keypoints:
+            if c >= .55:
+                cv2.circle(image, (int(x*scale[0]),int(y*scale[1])), 3, (0,230,255), -1)
+    for flame in flames:
+        x1,y1,x2,y2 = (np.asarray(flame.bbox)*np.tile(scale, 2)).astype(int)
+        cv2.rectangle(image,(x1,y1),(x2,y2),(0,80,255),2)
+        cv2.putText(image,"FIRE CANDIDATE",(max(0,x1),max(15,y1)),cv2.FONT_HERSHEY_SIMPLEX,.5,(0,80,255),1)
+    cv2.putText(image,"LIVE / LOCAL AI",(10,22),cv2.FONT_HERSHEY_SIMPLEX,.55,(255,255,255),2)
+    ok, jpeg = cv2.imencode(".jpg", image, [cv2.IMWRITE_JPEG_QUALITY, 78])
+    if not ok:
+        raise RuntimeError("preview JPEG encoding failed")
+    return preview_width, preview_height, jpeg.tobytes()
+
+
+def frame_rate(times):
+    return round((len(times)-1)/(times[-1]-times[0]), 1) if len(times) > 1 else None
 
 
 def apply_review_result(candidate, entry, result, alerts):
@@ -74,20 +109,34 @@ def main():
             if time.monotonic()-last_ping[0] > 30:
                 stop.set()
     threading.Thread(target=watchdog, daemon=True).start()
+    output_lock = threading.Lock()
+    ready = threading.Condition()
+    latest_frame = overlay = None
+
     def send(info, jpeg=b""):
-        if recorder is not None:
+        packet = dict(info, jpeg_size=len(jpeg))
+        if recorder is not None and packet.get("kind") != "analysis":
             recording_status = recorder.status()
-            info["recording_status"] = recording_status
-            info["recording"] = recording_status["state"] == "recording"
-        data = json.dumps(dict(info, jpeg_size=len(jpeg)), ensure_ascii=False, separators=(",", ":")).encode()
-        output.write(struct.pack("!I", len(data))+data+jpeg)
+            packet["recording_status"] = recording_status
+            packet["recording"] = recording_status["state"] == "recording"
+        data = json.dumps(packet, ensure_ascii=False, separators=(",", ":")).encode()
+        with output_lock:
+            if jpeg:
+                # Do not publish a JPEG that finished encoding after its capture
+                # session disconnected or changed.
+                with ready:
+                    if latest_frame is None or latest_frame[0] != info["capture_session"]:
+                        return
+            output.write(struct.pack("!I", len(data))+data+jpeg)
     info = {"state": "starting", "frames": 0, "events": [], "recording": False, "cloud_calls": False,
             "smoke_enabled": False, "sparks_enabled": False,
             "safety_pipeline": "small_models_then_qwen"}
-    link = None
     alerts = None
     fire_worker = None
     recorder = None
+    capture_thread = None
+    preview_thread = None
+    stream_failed = threading.Event()
     try:
         info["stage"] = "config"
         send(info)
@@ -106,7 +155,6 @@ def main():
         configure_model_runtime()
         info["stage"] = "import_runtime"
         send(info)
-        import cv2
         import numpy as np
         import torch
         info["stage"] = "load_models"
@@ -135,6 +183,7 @@ def main():
         from ai_service.realtime import LatestFireWorker
         fire_worker = LatestFireWorker(models.infer_flames)
         recent_frames = deque(maxlen=40)
+        pose_sample_gaps = deque(maxlen=12)
         recent_fire = deque(maxlen=20)
         visible_flames, flame_t, fire_ms = [], None, None
         from ai_service.preview_alerts import PreviewAlerts
@@ -156,33 +205,120 @@ def main():
                 info["alerts"] = {"enabled": False, "error": "alarm_relay_unavailable"}
         events = deque(maxlen=20)
         info.pop("stage", None)
-        session = 0
+        info.pop("state", None)
+        info.pop("recording", None)
+        def capture_frames():
+            nonlocal latest_frame, overlay
+            session = 0
+            try:
+                while not stop.is_set():
+                    send({"kind": "connection", "state": "connecting"})
+                    link = CaptureLink(url, config)
+                    try:
+                        if link.open(stop):
+                            session += 1
+                            capture_times = deque(maxlen=40)
+                            while not stop.is_set():
+                                kind, frame = link.read(stop)
+                                if stop.is_set() or kind != "frame" or not isinstance(frame, CapturedFrame):
+                                    break
+                                started = time.perf_counter()
+                                if capture_times and (frame.sequence <= capture_times[-1][0] or frame.t <= capture_times[-1][1]):
+                                    break
+                                if started-frame.t > config.read_timeout_seconds:
+                                    continue
+                                capture_times.append((frame.sequence, frame.t))
+                                source_fps = None
+                                if len(capture_times) > 1:
+                                    first_sequence, first_t = capture_times[0]
+                                    source_fps = round((frame.sequence-first_sequence)/(frame.t-first_t), 1)
+                                # Each consumer reads the newest frame at its own
+                                # pace. Encoding a preview cannot delay this handoff.
+                                with ready:
+                                    latest_frame = (session, frame, source_fps)
+                                    ready.notify_all()
+                                stop.wait(max(0, PREVIEW_INTERVAL-(time.perf_counter()-started)))
+                    finally:
+                        with ready:
+                            latest_frame = overlay = None
+                            if alerts:
+                                alerts.disconnected()
+                        link.close()
+                    if not stop.is_set():
+                        send({"kind": "connection", "state": "reconnecting"})
+                        stop.wait(1)
+            except Exception:
+                stream_failed.set()
+                stop.set()
+            finally:
+                with ready:
+                    ready.notify_all()
+
+        def publish_preview():
+            import cv2
+
+            last_frame = session = None
+            preview_times = deque(maxlen=40)
+            try:
+                while not stop.is_set():
+                    with ready:
+                        ready.wait_for(lambda: stop.is_set() or (latest_frame is not None and latest_frame is not last_frame), .2)
+                        if stop.is_set():
+                            return
+                        if latest_frame is None or latest_frame is last_frame:
+                            continue
+                        last_frame, current_overlay = latest_frame, overlay
+                    started = time.perf_counter()
+                    next_session, frame, source_fps = last_frame
+                    if next_session != session:
+                        session = next_session
+                        preview_times.clear()
+                    poses, flames = (), ()
+                    if current_overlay is not None and current_overlay[0] == frame.image.shape[:2]:
+                        _, pose_t, detected_poses, flame_t, detected_flames = current_overlay
+                        if 0 <= frame.t-pose_t <= POSE_OVERLAY_MAX_AGE:
+                            poses = detected_poses
+                        if flame_t is not None and 0 <= frame.t-flame_t <= config.fire.max_gap_seconds:
+                            flames = detected_flames
+                    try:
+                        preview_width, preview_height, jpeg = preview_jpeg(frame, poses, flames)
+                    except (cv2.error, RuntimeError):
+                        stop.wait(PREVIEW_INTERVAL)
+                        continue  # A failed JPEG must not stop pose analysis.
+                    preview_times.append(time.perf_counter())
+                    height, width = frame.image.shape[:2]
+                    send(dict(kind="preview", capture_session=session, state="running",
+                        width=width, height=height, preview_width=preview_width, preview_height=preview_height,
+                        source_fps=source_fps, preview_fps=frame_rate(preview_times),
+                        occurred_at=frame.occurred_at.isoformat(),
+                        decoded_frame_age_ms=round((time.perf_counter()-frame.t)*1000,1)), jpeg)
+                    stop.wait(max(0, PREVIEW_INTERVAL-(time.perf_counter()-started)))
+            except Exception:
+                stream_failed.set()
+                stop.set()
+
+        capture_thread = threading.Thread(target=capture_frames, name="camera-capture", daemon=True)
+        capture_thread.start()
+        preview_thread = threading.Thread(target=publish_preview, name="camera-preview", daemon=True)
+        preview_thread.start()
+        session = last_frame = None
         sequence = 0
-        edges = [(5,6),(5,7),(7,9),(6,8),(8,10),(5,11),(6,12),(11,12),(11,13),(13,15),(12,14),(14,16)]
         while not stop.is_set():
-            if link is None:
-                info["state"] = "connecting"
-                send(info)
-                link = CaptureLink(url, config)
-                if not link.open(stop):
-                    link.close(); link = None
-                    info["state"] = "reconnecting"
-                    send(info)
-                    stop.wait(1)
+            with ready:
+                ready.wait_for(lambda: stop.is_set() or (latest_frame is not None and latest_frame is not last_frame), .2)
+                if stop.is_set():
+                    break
+                if latest_frame is None or latest_frame is last_frame:
                     continue
-                session += 1
+                last_frame = latest_frame
+            next_session, frame, _ = last_frame
+            if session != next_session:
+                session = next_session
                 collector.reset()
-                visible_flames, flame_t = [], None
+                visible_flames, flame_t, fire_ms = [], None, None
                 recent_frames.clear()
+                pose_sample_gaps.clear()
                 recent_fire.clear()
-            kind, frame = link.read(stop)
-            if stop.is_set():
-                break
-            if kind != "frame" or not isinstance(frame, CapturedFrame):
-                if alerts:
-                    alerts.disconnected()
-                link.close(); link = None
-                continue
             if time.perf_counter()-frame.t > config.read_timeout_seconds:
                 continue
             sample = Sample(frame.image, frame.t, frame.occurred_at, session=session)
@@ -198,8 +334,11 @@ def main():
                 recent_fire.append(observation.t)
             if flame_t is None or not 0 <= frame.t-flame_t <= config.fire.max_gap_seconds:
                 visible_flames = []
-            if alerts:
-                alerts.mark_frame()
+            with ready:
+                if latest_frame is not None and latest_frame[0] == session and not stop.is_set():
+                    overlay = (frame.image.shape[:2], frame.t, sample.poses, flame_t, visible_flames)
+                    if alerts:
+                        alerts.mark_frame()
             # A cloud request never blocks this capture/inference thread.
             pending_candidates = []
             for candidate in collector.process(sample):
@@ -231,37 +370,16 @@ def main():
                 except Exception:
                     if alerts:
                         info["alerts"]["error"] = "alarm_queue_failed"
-            # Resize once before drawing, avoiding a full-HD copy and full-HD overlays.
-            source_height, source_width = frame.image.shape[:2]
-            preview_width = min(1280, source_width)
-            preview_height = max(1, round(source_height*preview_width/source_width))
-            image = cv2.resize(frame.image, (preview_width, preview_height))
-            scale = np.array([preview_width/source_width, preview_height/source_height])
-            for pose in sample.poses:
-                x1,y1,x2,y2 = (np.asarray(pose.bbox)*np.tile(scale, 2)).astype(int)
-                cv2.rectangle(image, (x1,y1), (x2,y2), (80,230,80), 2)
-                for a,b in edges:
-                    if pose.keypoints[a,2] >= .55 and pose.keypoints[b,2] >= .55:
-                        cv2.line(image, tuple((pose.keypoints[a,:2]*scale).astype(int)), tuple((pose.keypoints[b,:2]*scale).astype(int)), (255,200,0), 2)
-                for x,y,c in pose.keypoints:
-                    if c >= .55:
-                        cv2.circle(image, (int(x*scale[0]),int(y*scale[1])), 3, (0,230,255), -1)
-            for flame in visible_flames:
-                x1,y1,x2,y2 = (np.asarray(flame.bbox)*np.tile(scale, 2)).astype(int)
-                cv2.rectangle(image,(x1,y1),(x2,y2),(0,80,255),2)
-                cv2.putText(image,"FIRE CANDIDATE",(max(0,x1),max(15,y1)),cv2.FONT_HERSHEY_SIMPLEX,.5,(0,80,255),1)
             sequence += 1
-            cv2.putText(image,"LIVE / LOCAL AI",(10,22),cv2.FONT_HERSHEY_SIMPLEX,.55,(255,255,255),2)
-            ok, jpeg = cv2.imencode(".jpg", image, [cv2.IMWRITE_JPEG_QUALITY, 78])
-            if not ok:
-                raise RuntimeError
-            recent_frames.append(time.perf_counter())
-            fps = (len(recent_frames)-1)/(recent_frames[-1]-recent_frames[0]) if len(recent_frames)>1 else 0
-            fire_fps = (len(recent_fire)-1)/(recent_fire[-1]-recent_fire[0]) if len(recent_fire)>1 else 0
-            info.update(state="running", frames=sequence, persons=len(sample.poses), fire_candidates=len(visible_flames),
-                width=source_width, height=source_height, preview_width=image.shape[1], preview_height=image.shape[0],
+            if recent_frames:
+                pose_sample_gaps.append(frame.t-recent_frames[-1])
+            recent_frames.append(frame.t)
+            info.update(kind="analysis", capture_session=session, frames=sequence,
+                persons=len(sample.poses), fire_candidates=len(visible_flames),
+                pose_enabled=models.pose is not None,
+                pose_sample_gap_ms=round(max(pose_sample_gaps)*1000,1) if pose_sample_gaps else None,
                 flame_tiling_enabled=config.models.flame_tiling_enabled, inference_ms=round(inference_ms,1),
-                fps=round(fps,1), fire_fps=round(fire_fps,1), fire_inference_ms=round(fire_ms,1) if fire_ms is not None else None,
+                fps=frame_rate(recent_frames), fire_fps=frame_rate(recent_fire), fire_inference_ms=round(fire_ms,1) if fire_ms is not None else None,
                 pending_candidates=pending_candidates,
                 fire_state=("error" if fire_worker.failed else "starting" if flame_t is None else
                             "stale" if frame.t-flame_t > config.fire.max_gap_seconds else "running"), events=list(events),
@@ -269,26 +387,25 @@ def main():
                 help_facing_camera_required=config.help.require_facing_camera,
                 help_face_candidates=sum(engine.help.facing_camera_confidence(p) is not None for p in sample.poses)
                     if config.help.require_facing_camera else None,
-                device=("cpu" if config.models.device == "cpu" else "cuda:"+config.models.device), occurred_at=frame.occurred_at.isoformat(),
-                decoded_frame_age_ms=round((time.perf_counter()-frame.t)*1000,1))
+                device=("cpu" if config.models.device == "cpu" else "cuda:"+config.models.device),
+                analysis_frame_age_ms=round((time.perf_counter()-frame.t)*1000,1))
             if alerts:
                 previous_error = info["alerts"].get("error")
                 info["alerts"] = alerts.status()
                 if previous_error:
                     info["alerts"]["error"] = previous_error
-            send(info, jpeg.tobytes())
-            # Preview is capped independently of camera decode to limit CPU/bandwidth.
-            stop.wait(max(0, .05-(time.perf_counter()-t0)))
+            send(info)
+            stop.wait(max(0, PREVIEW_INTERVAL-(time.perf_counter()-t0)))
+        if stream_failed.is_set():
+            raise RuntimeError("camera capture or preview failed")
     except (Exception, KeyboardInterrupt):
         info.update(state="error", error="camera_preview_failed")
-        try:
-            send(info)
-        except (OSError, BrokenPipeError):
-            pass
     finally:
         stop.set()
-        if link is not None:
-            link.close()
+        if capture_thread is not None:
+            capture_thread.join()
+        if preview_thread is not None:
+            preview_thread.join()
         if recorder is not None:
             recorder.close()
         if fire_worker is not None:
@@ -296,9 +413,8 @@ def main():
         if alerts is not None:
             alerts.close()
         try:
-            if info.get("state") != "error":
-                info["state"] = "stopped"
-                send(info)
+            state = "error" if info.get("state") == "error" else "stopped"
+            send(dict(kind="connection", state=state, **({"error": info["error"]} if state == "error" else {})))
         except (OSError, BrokenPipeError):
             pass
         output.close()

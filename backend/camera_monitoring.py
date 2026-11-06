@@ -110,12 +110,13 @@ def require_alerting(controller):
         raise AppError("CAMERA_ALERT_RELAY_MISSING", "请先运行手机服务配置，设置摄像头告警设备身份。", 503)
 
 
-def monitoring_router(controller, ffprobe="ffprobe"):
+def monitoring_router(controller, ffprobe="ffprobe", *, desktop_only=False):
     router = APIRouter(prefix="/api/monitoring/camera")
     profile_file = controller.root / "runtime/camera-connection.json"
 
     def allowed(request):
-        # This router is installed only on the authenticated LAN phone gateway.
+        if desktop_only and (request.client is None or request.client.host not in {"127.0.0.1", "::1"}):
+            raise AppError("CAMERA_LOCAL_ONLY", "请在后端电脑的本机网页配置摄像头。", 403)
         # Native clients have no Origin; browser mutations must be same-origin.
         origin = request.headers.get("origin")
         if origin and origin.rstrip("/") != str(request.base_url).rstrip("/"):
@@ -136,18 +137,14 @@ def monitoring_router(controller, ffprobe="ffprobe"):
                           camera={key: saved.get(key) for key in ("host", "port")} if saved else None)
             return JSONResponse(result, headers={"Cache-Control": "no-store"})
 
-    @router.get("")
-    def status(request: Request):
-        allowed(request)
-        return response()
-
     @router.post("")
     def connect(body: CameraConnection, request: Request):
         allowed(request)
         new = body.profile()
         with controller.control_lock:
             old = read_profile()
-            require_alerting(controller)
+            if not desktop_only:
+                require_alerting(controller)
             if (old == new and controller.process and controller.process.poll() is None
                     and controller.status().get("state") == "running"):
                 return response()
@@ -175,6 +172,14 @@ def monitoring_router(controller, ffprobe="ffprobe"):
             finally:
                 temporary.unlink(missing_ok=True)
             return response()
+
+    if desktop_only:
+        return router
+
+    @router.get("")
+    def status(request: Request):
+        allowed(request)
+        return response()
 
     @router.post("/start")
     def start(request: Request):
