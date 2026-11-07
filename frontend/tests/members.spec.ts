@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import path from 'node:path';
 // @ts-ignore Shared JS browser fixture.
 import { installWorkspaceFixture } from './workspace-fixture.mjs';
 
@@ -6,6 +7,7 @@ import { installWorkspaceFixture } from './workspace-fixture.mjs';
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
 const photo = (name = 'synthetic.png') => ({ name, mimeType: 'image/png', buffer: png });
 const seed = () => ({ id: 'web-fixture-member', number: 1, name: '测试家人', relationship: '家人', notes: '', bindings: [], revision: 1, face_sample_count: 0 });
+const run = process.env.ANJU_CHECK_DIR || path.resolve('../data/run/product-round2-check-20261107');
 
 async function fixture(page: Page, options: { existing?: boolean; missing?: boolean; cloud?: boolean; conflict?: boolean; partial?: boolean } = {}) {
   const state = { members: options.existing ? [seed()] : [] as ReturnType<typeof seed>[], enroll: 0, recognize: 0, bodies: [] as Buffer[], writes: [] as any[], errors: [] as string[] };
@@ -13,6 +15,9 @@ async function fixture(page: Page, options: { existing?: boolean; missing?: bool
   await page.route('**/api/**', async route => {
     const request = route.request(), url = new URL(request.url()), path = url.pathname, method = request.method();
     const send = (json: unknown, status = 200) => route.fulfill({ json, status });
+    if (path === '/api/auth/status') return send({ enabled:true, setup_allowed:false, is_mock:true });
+    if (path === '/api/auth/me') return send({ user:{id:'members-fixture',username:'fixture',display_name:'测试家人',household_name:'测试家庭',role:'admin'},is_mock:true });
+    if (path === '/api/auth/family-members') return send({members:[],is_mock:true});
     if (path === '/api/health') return send({ analysis_ready: false, is_mock: true, cloud_mode: !!options.cloud, model: 'UI fixture', configuration_error: { code: 'OFFLINE', message: '测试：云分析关闭' }, limits: { max_video_seconds: null, max_upload_mb: null } });
     if (path === '/api/videos' || path === '/api/demos') return send({ [path.endsWith('videos') ? 'videos' : 'demos']: [] });
     if (path === '/api/faces/status') return send({ enabled: true, ready: !options.missing, error: options.missing ? 'FACE_MODEL_MISSING' : undefined, max_samples_per_member: 10, max_image_bytes: 5242880 });
@@ -49,8 +54,11 @@ async function fixture(page: Page, options: { existing?: boolean; missing?: bool
 test('网页建档、同意录入、批量上传、试识别、清除和删除', async ({ page }) => {
   const state = await fixture(page);
   await page.goto('/workspace?view=members');
-  await expect(page.getByText('本地人脸识别已就绪')).toBeVisible();
-  await page.getByRole('button', { name: '添加成员', exact: true }).click();
+  await expect(page.getByRole('heading', { name:'建立你的家庭成员档案' })).toBeVisible();
+  await expect(page.getByLabel('家庭成员列表')).toHaveCount(0);
+  await expect(page.locator('.member-service')).toHaveCount(0);
+  await page.screenshot({path:path.join(run,'members-empty-round2.png'),fullPage:true});
+  await page.getByRole('button', { name: '+ 添加家庭成员', exact: true }).click();
   await page.getByLabel('姓名', { exact: true }).fill('网页测试家人');
   await page.getByLabel('关系', { exact: true }).fill('父亲');
   await page.getByRole('button', { name: '保存档案', exact: true }).click();
@@ -60,7 +68,7 @@ test('网页建档、同意录入、批量上传、试识别、清除和删除',
   await expect(page.getByText('2/10 张', { exact: true })).toBeVisible();
   expect(state.enroll).toBe(2); expect(state.bodies.every(body => body.equals(png))).toBe(true);
   await page.getByLabel('选择试识别照片', { exact: true }).setInputFiles(photo('check.png'));
-  await expect(page.getByText('网页测试家人（人脸识别候选，请核对）', { exact: false })).toBeVisible();
+  await expect(page.getByText('可能是网页测试家人', { exact: false })).toBeVisible();
   await expect(page.getByText('2 · 身份未确认', { exact: true })).toBeVisible();
   expect(state.recognize).toBe(1); expect(state.members[0].face_sample_count).toBe(2);
   page.on('dialog', dialog => dialog.accept());
@@ -71,7 +79,7 @@ test('网页建档、同意录入、批量上传、试识别、清除和删除',
   await page.getByRole('button', { name: '保存档案', exact: true }).click();
   await expect.poll(() => state.writes.at(-1)?.revision).toBe(4);
   await page.getByRole('button', { name: '删除成员', exact: true }).click();
-  await expect(page.getByText('还没有成员，点击“添加成员”建立第一份档案。')).toBeVisible();
+  await expect(page.getByText('建立你的家庭成员档案')).toBeVisible();
   expect(state.errors).toEqual([]);
 });
 
@@ -91,7 +99,7 @@ test('部分录入失败保留成功数量，非法文件不发送请求', async
 test('档案冲突保留编辑，模型缺失允许建档并禁用录入', async ({ page }) => {
   const state = await fixture(page, { existing: true, missing: true, conflict: true });
   await page.goto('/workspace?view=members');
-  await expect(page.getByText('缺少人脸模型，请先准备模型并刷新')).toBeVisible();
+  await expect(page.getByText('家庭成员识别暂不可用，请稍后重试。')).toBeVisible();
   await page.getByRole('button', { name: /测试家人/ }).click();
   await expect(page.getByRole('button', { name: '选择照片试识别', exact: true })).toBeDisabled();
   await page.getByLabel('姓名', { exact: true }).fill('保留未保存编辑');
@@ -108,8 +116,12 @@ test('移动尺寸可使用成员页面，路由刷新保留入口', async ({ pa
   await page.getByRole('button', { name: /测试家人/ }).click();
   await expect(page.getByRole('heading', { name: '人脸资料' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.screenshot({ path: '../runtime/member-mobile.png', fullPage: true });
-  await page.reload(); await expect(page.getByRole('heading', { name: '家庭成员', exact: true })).toBeVisible();
+  await page.screenshot({ path: path.join(run, 'member-mobile.png'), fullPage: true });
+  await page.reload();
+  await expect(page.getByRole('heading', { name: '家庭成员', exact: true })).toHaveCount(0);
+  await expect(page.locator('.topbar .breadcrumb strong')).toHaveText('家庭成员');
+  await expect(page.getByRole('region', { name: '家庭成员', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '刷新列表', exact: true })).toBeVisible();
   expect(state.errors).toEqual([]);
 });
 
@@ -118,7 +130,7 @@ test('桌面成员页面显示录入状态，云端页面不读取家庭资料',
   await page.goto('/workspace?view=members');
   await page.getByRole('button', { name: /测试家人/ }).click();
   await expect(page.getByRole('heading', { name: '人脸资料' })).toBeVisible();
-  await page.screenshot({ path: '../runtime/member-desktop.png', fullPage: true });
+  await page.screenshot({ path: path.join(run, 'member-desktop.png'), fullPage: true });
   await page.unroute('**/api/**');
   const state = await fixture(page, { cloud: true });
   await page.reload();
@@ -139,16 +151,16 @@ test('摄像头告警显示身份候选并随撤销更新，明火不挂姓名',
     })),
   } }));
   await page.goto('/workspace?view=camera');
-  await expect(page.getByRole('button', { name: '扫码连接手机', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '扫码连接手机', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: '搜索摄像头', exact: true })).toBeVisible();
   await expect(page.locator('.privacy').getByRole('link', { name: '家庭成员', exact: true })).toBeVisible();
   await page.getByText('本次会话事件', { exact: true }).click();
-  await expect(page.getByText('成员：告警测试家人（人脸识别候选，请核对）', { exact: true })).toHaveCount(1);
-  const fire = page.locator('.live-camera-events li').filter({ hasText: '疑似明火' });
+  await expect(page.getByText('成员：可能是告警测试家人', { exact: true })).toHaveCount(1);
+  const fire = page.locator('.live-camera-events li').filter({ hasText: '明火提醒' });
   await expect(fire).not.toContainText('成员：');
   matched = false;
   await expect(page.getByText('成员：身份未确认', { exact: true })).toBeVisible();
-  await expect(page.getByText('成员：告警测试家人（人脸识别候选，请核对）', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('成员：可能是告警测试家人', { exact: true })).toHaveCount(0);
   expect(state.errors).toEqual([]);
 });
 
@@ -162,7 +174,7 @@ test('录像告警显示后端人脸身份，不把环境事件归给家人', as
     })), evidence: [], frames: [], absence_alert_seconds: 300,
   } }));
   await page.goto('/workspace?view=videos&video=v_inspector_fixture');
-  await page.getByText('预警与通知设置', { exact: true }).click();
-  await expect(page.getByText('成员：录像测试家人（人脸识别候选，请核对）', { exact: true })).toHaveCount(1);
-  await expect(page.locator('.safety-alert').filter({ hasText: '环境测试明火' })).not.toContainText('成员：');
+  await page.getByText('提醒设置', { exact: true }).click();
+  await expect(page.getByText('成员：可能是录像测试家人', { exact: true })).toHaveCount(1);
+  await expect(page.locator('.reminder-card').filter({ hasText: '明火提醒' })).not.toContainText('成员：');
 });

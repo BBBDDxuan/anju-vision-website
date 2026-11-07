@@ -32,8 +32,8 @@ test('挥手原片确为新附件，来源与独立分析文件可核对且无�
   expect(await video(page).getAttribute('poster')).toMatch(/^\/demo\/posters\/help\.jpg\?v=[a-f0-9]{16}$/);
   await expect(overlay(page)).toHaveAttribute('data-source-basis', 'offline_pose_with_temporal_heuristic');
   await expect(overlay(page)).toHaveCSS('pointer-events', 'none');
-  await expect(card(page)).toContainText('姿态模型 + 往复运动规则');
-  await expect(card(page)).toContainText('非训练动作分类模型');
+  await expect(page.locator('.av-demo-intro')).toContainText('离线分析演示');
+  await expect(card(page)).toContainText('检测到连续挥手动作');
   await expect(card(page)).toContainText('00:00.73–00:03.87');
   await expect(card(page).locator('video')).toHaveCount(1);
   await expect(card(page).locator('[data-joint]')).toHaveCount(7);
@@ -97,7 +97,7 @@ test('挥手循环与从头重播重置轨迹，关闭循环后的自然结束�
   await open(page); await seek(page, 2);
   const original = await trail(page).elementHandle();
   await seek(page, 3.7);
-  await card(page).locator('.av-card-actions button').first().click();
+  await card(page).locator('.av-card-actions .av-text-link').click();
   await expect.poll(() => video(page).evaluate((v: HTMLVideoElement) => v.currentTime), { timeout: 3000 }).toBeLessThan(.5);
   await expect(card(page).locator('.wave-risk')).toHaveAttribute('visibility', 'hidden');
   await card(page).getByRole('button', { name: '挥手动作线索：从头重播' }).click();
@@ -110,7 +110,7 @@ test('挥手循环与从头重播重置轨迹，关闭循环后的自然结束�
 test('挥手沿用rAF回退、后台和离屏暂停，鼠标移开仍持续同步', async ({ page }) => {
   await page.addInitScript(() => Object.defineProperty(HTMLVideoElement.prototype, 'requestVideoFrameCallback', { value: undefined, configurable: true }));
   await open(page); await seek(page, 2);
-  await card(page).locator('.av-card-actions button').first().click();
+  await card(page).locator('.av-card-actions .av-text-link').click();
   await page.mouse.move(2, 2);
   await expect.poll(async () => Number(await overlay(page).getAttribute('data-time-ms'))).toBeGreaterThan(2150);
   await page.evaluate(() => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => true }); document.dispatchEvent(new Event('visibilitychange')); });
@@ -118,7 +118,7 @@ test('挥手沿用rAF回退、后台和离屏暂停，鼠标移开仍持续同�
   const paused = await overlay(page).innerHTML();
   await page.waitForTimeout(120); expect(await overlay(page).innerHTML()).toBe(paused);
   await page.evaluate(() => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => false }); document.dispatchEvent(new Event('visibilitychange')); });
-  await card(page).locator('.av-card-actions button').first().click();
+  await card(page).locator('.av-card-actions .av-text-link').click();
   await page.locator('#devices').scrollIntoViewIfNeeded();
   await expect.poll(() => video(page).evaluate((v: HTMLVideoElement) => v.paused)).toBe(true);
 });
@@ -150,7 +150,7 @@ for (const width of [1440, 768, 390]) test(`${width}px挥手竖屏视频的框�
   });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   const overlaps = await card(page).evaluate(node => {
-    const a = node.querySelector('.wave-risk')!.getBoundingClientRect(), b = node.querySelector('.av-real-footage')!.getBoundingClientRect();
+    const a = node.querySelector('.wave-risk')!.getBoundingClientRect(), b = node.querySelector('.av-media-play, .av-media-pause')!.getBoundingClientRect();
     return Math.min(a.right, b.right) > Math.max(a.left, b.left) && Math.min(a.bottom, b.bottom) > Math.max(a.top, b.top);
   });
   expect(overlaps).toBe(false);

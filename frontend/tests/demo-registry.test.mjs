@@ -55,7 +55,7 @@ test('Future verified results use the shared registry without a permanently pend
   const { demoRegistry, reviewLabel } = await loadRegistry(updated);
   assert.equal(demoRegistry[1].modelResult.status, 'available');
   assert.equal(demoRegistry[1].modelResult.result.type, 'contract_test');
-  assert.equal(reviewLabel(demoRegistry[1].modelResult.result), '视觉模型复核尚不支持确认');
+  assert.equal(reviewLabel(demoRegistry[1].modelResult.result), '相关情况暂时无法确认');
   assert.equal(fixture.cases[1].event, null);
 });
 

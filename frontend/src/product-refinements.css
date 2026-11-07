@@ -1,0 +1,159 @@
+/* Shared product layout. Keep task, playback and device state in their owners. */
+.av-workspace-shell main:is(.unified-workspace, .camera-workspace, .members-workspace) {
+  width: 100%; max-width: 1480px; margin-inline: auto; padding: 24px 28px 48px;
+  height: auto; min-height: 0; overflow: visible; box-sizing: border-box;
+}
+.av-workspace-shell :is(.video-page-heading, .camera-page-heading, .members-heading) {
+  display: flex; align-items: center; justify-content: space-between; gap: 24px;
+  padding: 0; margin: 0 0 24px; background: transparent;
+}
+.av-workspace-shell :is(.video-page-heading, .camera-page-heading, .members-heading) h1 {
+  font-size: 28px; line-height: 1.3; letter-spacing: -.035em; margin: 6px 0 8px; font-weight: 600;
+}
+.av-workspace-shell :is(.video-page-heading, .camera-page-heading-copy, .members-heading) p {
+  color: var(--muted); font-size: 13px; line-height: 1.8; margin: 0;
+}
+.av-workspace-shell :is(.workspace-eyebrow, .camera-page-eyebrow, .members-eyebrow) {
+  display: flex; gap: 7px; align-items: center; font-size: 11px; letter-spacing: .06em; color: var(--color-evergreen);
+}
+.av-workspace-shell :is(.member-editor, .members-list, .member-face-panel, .live-camera-panel, .analysis-inspector, .member-onboarding) {
+  border-radius: 14px; border-color: var(--line);
+}
+.av-workspace-shell :is(.member-actions, .member-onboarding) button.primary,
+.av-workspace-shell .live-camera-controls button, .av-workspace-shell #lan-camera-button {
+  min-height: 42px; border-radius: 9px; background: var(--color-evergreen); border-color: var(--color-evergreen); color: #fff;
+}
+.av-workspace-shell .unified-workspace .video-panel > video { height: clamp(170px, calc(100dvh - 630px), 420px); }
+.workspace-welcome { padding: 28px; }
+.workspace-welcome h2 { font-size: 23px; line-height: 1.5; margin: 12px 0; font-weight: 600; max-width: 330px; }
+.workspace-welcome > p:not(.workspace-eyebrow) { font-size: 13px; line-height: 1.9; color: var(--muted); }
+.welcome-capabilities { margin: 24px 0; display: grid; gap: 19px; }
+.welcome-capabilities > div { display: flex; gap: 13px; align-items: flex-start; }
+.welcome-capabilities > div > svg { color: var(--color-evergreen); margin-top: 2px; }
+.welcome-capabilities h3 { font-size: 14px; margin: 0 0 4px; font-weight: 600; }
+.welcome-capabilities p { font-size: 12px; color: var(--muted); margin: 0; line-height: 1.8; }
+.product-steps { list-style: none; padding: 20px 0 0; margin: 0; border-top: 1px solid var(--line); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.product-steps li { min-width: 0; }
+.product-steps li > span { display: block; font-size: 12px; color: #7d9479; margin-bottom: 8px; font-variant-numeric: tabular-nums; }
+.product-steps strong { display: block; font-size: 12px; font-weight: 500; line-height: 1.6; }
+.product-steps p { color: var(--muted); font-size: 12px; line-height: 1.8; margin: 7px 0 0; }
+.conversation-history { border-top: 1px solid var(--line); margin-top: 22px; padding-top: 16px; }
+.conversation-history summary { cursor: pointer; font-size: 13px; color: var(--ink); }
+.conversation-history summary > span { color: var(--muted); margin-left: 8px; }
+.conversation-history ol { padding: 0; list-style: none; margin: 10px 0 0; }
+.conversation-history button { display: flex; gap: 8px; width: 100%; align-items: center; padding: 11px 8px; background: transparent; border: 0; border-radius: 6px; text-align: left; font-size: 12px; }
+.conversation-history button > span { flex: 1; overflow-wrap: anywhere; }
+.conversation-history button[aria-pressed=true] { background: var(--soft); color: var(--color-evergreen); }
+.av-workspace-shell .camera-workspace { display: block; }
+.av-workspace-shell main:is(.camera-workspace, .members-workspace) { padding-top: 16px; }
+.av-workspace-shell .live-camera-heading {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+  min-height: 0; padding: 10px 16px; gap: 8px 16px;
+}
+.live-camera-heading-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-left: auto; }
+.av-workspace-shell .live-camera-controls { width: auto; gap: 8px; }
+.live-camera-heading .lan-setup { padding: 0; margin: 0; flex-shrink: 0; }
+.live-camera-heading .lan-setup-actions { gap: 8px; justify-content: flex-end; }
+.av-workspace-shell .live-camera-heading :is(.live-camera-controls > button, #lan-camera-button, #lan-pair-button) {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  min-height: 36px; min-width: 0; padding: 8px 12px; font-size: 12px;
+}
+.av-workspace-shell .live-camera-heading #lan-camera-button {
+  background: var(--surface); border: 1px solid var(--line); color: var(--color-evergreen);
+}
+.av-workspace-shell .camera-workspace > .privacy { margin: 8px 0 0; line-height: 1.7; }
+.members-list-heading, .member-editor-heading {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+  gap: 10px 12px; margin-bottom: 16px;
+}
+.members-page :is(.members-list-heading, .member-editor-heading) h2 { margin: 0; }
+.members-page .member-management-actions { gap: 6px; margin: 0; }
+.members-page .member-management-actions button { min-height: 34px; padding: 7px 10px; font-size: 12px; }
+.members-page .member-onboarding { position: relative; margin-top: 0; }
+.member-onboarding-actions { position: absolute; top: 16px; right: 16px; }
+.lan-dialog { width: min(620px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); box-sizing: border-box; padding: 24px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 24px 90px #243b2c35; }
+.lan-dialog::backdrop { background: #1a2d235c; backdrop-filter: blur(3px); }
+.lan-dialog-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.lan-dialog-heading h2 { margin: 0; font-size: 21px; }
+.lan-dialog .lan-setup-panel { padding: 0; border: 0; background: transparent; margin-top: 20px; }
+.lan-dialog fieldset { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.lan-dialog button[type=submit] { background: var(--color-evergreen); color: white; min-height: 42px; }
+.lan-dialog .lan-setup-status { line-height: 1.8; margin-top: 16px; }
+.av-workspace-shell .live-camera-workspace,
+.av-workspace-shell .live-camera-workspace > .live-camera-panel { display: block; height: auto; min-height: 0; overflow: visible; flex: none; }
+.av-workspace-shell .live-camera-viewport { overflow: visible; }
+.av-workspace-shell .live-camera-grid { height: auto; min-height: 0; grid-template-columns: minmax(0, 1fr) minmax(260px, 320px); align-items: stretch; }
+.av-workspace-shell .live-camera-main { height: auto; min-height: 0; }
+.av-workspace-shell .live-camera-screen { height: auto; min-height: 280px; aspect-ratio: 16/9; }
+.av-workspace-shell .live-camera-detail { overflow: visible; max-height: none; height: auto; padding: 22px; }
+.camera-safety { border-bottom: 1px solid var(--line); margin-bottom: 22px; padding-bottom: 16px; }
+.camera-safety ul { list-style: none; padding: 0; margin: 0; }
+.camera-safety li { display: flex; gap: 8px; align-items: center; font-size: 12px; padding: 10px 0; }
+.camera-safety li > span { flex: 1; }
+.camera-safety small { display: block; font-size: 10px; margin-top: 4px; color: var(--muted); }
+.camera-safety strong { font-size: 11px; font-weight: 400; color: var(--color-evergreen); }
+.av-workspace-shell .members-page { max-width: none; padding: 0; }
+.member-onboarding { max-width: 1000px; margin: 12px auto 0; padding: 44px 48px 34px; text-align: center; border: 1px solid var(--line); background: var(--surface); }
+.onboarding-icon { display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; border-radius: 50%; color: var(--color-evergreen); background: var(--soft); margin-bottom: 20px; }
+.member-onboarding h2 { font-size: 24px; margin: 0 0 12px; }
+.member-onboarding > p { font-size: 14px; line-height: 1.9; margin: 0 0 24px; color: var(--muted); }
+.member-onboarding .product-steps { margin-top: 36px; padding-top: 26px; text-align: left; gap: 32px; }
+.member-onboarding .product-steps strong { font-size: 15px; }
+.av-workspace-shell .members-layout-single { grid-template-columns: minmax(0, 1fr); max-width: 900px; margin-inline: auto; }
+.av-workspace-shell .member-editor-empty { min-height: 240px; }
+.av-site #capabilities { padding-block: 64px; }
+.av-site #capabilities .av-section-top { margin-bottom: 14px; }
+.av-site #capabilities .av-section-top h2 { font-size: 34px; line-height: 1.35; margin: 0; }
+.av-site #capabilities .av-card-media { aspect-ratio: 16 / 9; }
+.av-demo-intro { color: var(--color-muted, #71806b); font-size: 12px; line-height: 1.8; margin: 0 0 22px; }
+.av-site .av-video-card .av-cap-copy { padding: 16px 22px; }
+.av-site .av-video-card .av-card-title { margin-bottom: 8px; height: 18px; }
+.av-site .av-video-card .av-card-title svg { width: 18px; height: 18px; }
+.av-site .av-video-card h3 { font-size: 19px; margin-bottom: 8px; }
+.av-site .av-video-card .av-card-description { min-height: 26px; margin-bottom: 8px; font-size: 12px; line-height: 1.8; }
+.av-site .av-video-card .av-card-result { padding-top: 8px; margin-bottom: 0; }
+.av-site .av-video-card .av-case-result { margin: 0; }
+.av-site .av-video-card .av-case-result > div { padding: 6px 0; }
+.av-site .av-video-card .av-case-result dt { min-width: 56px; font-size: 11px; }
+.av-site .av-video-card .av-case-result dd { font-size: 12px; }
+.av-site .av-video-card .av-case-result time { display: block; font-variant-numeric: tabular-nums; }
+.av-site .av-video-card .av-card-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 14px; padding-top: 0; }
+.av-site .av-segment-play { display: inline-flex; gap: 5px; align-items: center; border: 1px solid #b9c8b2; background: #edf3e7; color: #365332; border-radius: 7px; padding: 8px 10px; font-size: 12px; cursor: pointer; }
+.av-site .av-segment-play:disabled { opacity: .55; cursor: default; }
+.av-site .av-segment-play:focus-visible { outline: 2px solid #52734c; outline-offset: 3px; }
+.av-site .av-card-actions :is(.av-text-link, .av-card-replay) { font-size: 11px; }
+@media (min-width: 1101px) and (max-height: 800px) {
+  .av-site #capabilities .av-card-media { aspect-ratio: 2 / 1; }
+  .av-site .av-video-card .av-cap-copy { padding-block: 12px; }
+  .av-site .av-video-card .av-case-result > div { padding-block: 5px; }
+  .av-site .av-video-card .av-card-actions { margin-top: 10px; }
+}
+@media (max-width: 1100px) { .av-site .av-video-card .av-cap-copy { padding: 16px; } }
+@media (max-width: 900px) {
+  .av-workspace-shell main:is(.unified-workspace, .camera-workspace, .members-workspace) { padding: 22px 18px 90px; }
+  .av-workspace-shell .unified-workspace .video-panel > video { height: auto; aspect-ratio: 16/9; }
+  .av-workspace-shell .live-camera-grid { grid-template-columns: minmax(0, 1fr); }
+  .av-workspace-shell .live-camera-detail { border-left: 0; border-top: 1px solid var(--line); }
+  .camera-safety ul { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  .camera-safety li { flex-wrap: wrap; }
+  .av-site #capabilities { padding-block: 42px; }
+}
+@media (max-width: 600px) {
+  .av-workspace-shell main:is(.unified-workspace, .camera-workspace, .members-workspace) { padding-inline: 14px; }
+  .av-workspace-shell main:is(.camera-workspace, .members-workspace) { padding-top: 12px; }
+  .av-workspace-shell .live-camera-heading { padding: 9px 10px; gap: 8px; }
+  .av-workspace-shell .live-camera-heading :is(.live-camera-controls > button, #lan-camera-button, #lan-pair-button) { padding-inline: 9px; font-size: 11px; }
+  .av-workspace-shell :is(.video-page-heading, .camera-page-heading, .members-heading) { flex-direction: column; align-items: flex-start; gap: 16px; margin-bottom: 20px; }
+  .av-workspace-shell :is(.video-page-heading, .camera-page-heading, .members-heading) h1 { font-size: 25px; }
+  .workspace-welcome { padding: 24px 20px; }
+  .workspace-welcome h2 { font-size: 21px; }
+  .member-onboarding { padding: 32px 22px; }
+  .member-onboarding h2 { font-size: 21px; }
+  .member-onboarding .product-steps { grid-template-columns: 1fr; gap: 22px; }
+  .av-workspace-shell .live-camera-screen { min-height: 0; }
+  .camera-safety ul { display: block; }
+  .lan-dialog { padding: 20px; }
+  .lan-dialog fieldset { grid-template-columns: minmax(0, 1fr); }
+  .av-site #capabilities .av-section-top h2 { font-size: 29px; }
+  .av-site #capabilities .av-card-media { aspect-ratio: 3 / 2; }
+}

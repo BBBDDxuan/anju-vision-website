@@ -5,17 +5,17 @@ import { Brand, SectionLabel, Arrow } from './Brand';
 import type { IntroductionPage } from './introduction';
 import { workspaceHref } from './navigation';
 import { CapabilityVideos, WorkflowDemo } from './VideoDemos';
-import { demoRegistry, evidenceRange, relativeTime, reviewLabel, type DemoCaseId } from './demoRegistry';
+import { demoRegistry, evidenceRange, relativeTime, type DemoCaseId } from './demoRegistry';
 import './product-site.css';
 import './video-demos.css';
 
 export type DemoVideo = { id: string; name: string; duration_ms: number; record_count: number; priority_count: number; poster_url: string; description: string; case_type: string };
 type Props = { page: IntroductionPage; onPageChange: (page: IntroductionPage) => void; onEnter: () => void; onCamera: () => void; demos?: DemoVideo[]; onOpenDemo?: (id: string) => void };
 const sections = [{ id: 'home', label: '首页' }, { id: 'capabilities', label: '核心能力' }, { id: 'workflow', label: '工作流程' }, { id: 'ai-qa', label: 'AI 问答' }, { id: 'devices', label: '设备接入' }];
-const homeImage = '/assets/home-care.webp';
+const homeImage = '/assets/home-care-watering.webp';
 const qaExamples: { question: string; caseId: DemoCaseId; evidenceQuestion?: boolean }[] = [
   { question: '这段视频里有没有需要关注的异常？', caseId: 'fall' },
-  { question: '有没有识别到求助动作？', caseId: 'help' },
+  { question: '有没有识别到挥手动作？', caseId: 'help' },
   { question: '有没有识别到明火？', caseId: 'fire' },
   { question: '帮我找到相关的视频片段。', caseId: 'fall', evidenceQuestion: true },
 ];
@@ -35,12 +35,12 @@ export function LandingPage({ onEnter, onCamera, demos = [], onOpenDemo }: Props
   const waveResult = qaCase.modelResult.status === 'pose_based_heuristic' ? qaCase.modelResult.result : null;
   const evidenceFrame = evidence?.frames.find(frame => frame.ptsMs === 6000) || evidence?.frames[0];
   const answer = waveResult
-    ? `离线姿态分析与手腕往复运动规则保留了 ${waveResult.events.length} 条挥手动作${waveResult.events.length ? `，区间为 ${waveResult.events.map(evidenceRange).join('、')}` : ''}。这不是训练动作分类模型的结论，不能据此确认求助意图；请结合原片判断。`
+    ? `检测到 ${waveResult.events.length} 条连续挥手动作${waveResult.events.length ? `，出现时间为 ${waveResult.events.map(evidenceRange).join('、')}` : ''}。`
     : evidence
     ? qa.evidenceQuestion
-      ? `这 1 条${evidence.title}线索对应 ${evidenceRange(evidence)}。模型复核支持，但未经人工确认；请结合原片核实，不能推断受伤。下方可展开实际引用的关键帧，也可在工作流程中定位证据回看。`
-      : `已有分析保留了 1 条${evidence.title}线索，证据区间为 ${evidenceRange(evidence)}。${evidence.reviewVerdict === 'confirmed' ? '视觉模型复核支持这一判断' : '视觉模型复核尚不支持确认'}，未经人工确认；请结合原片核对，不能据此推断受伤。`
-    : `目前没有可用模型结果，不能判断“有”或“没有”。${qaCase.disclaimer}`;
+      ? `已找到相关片段：${evidenceRange(evidence)}。点击下方画面可查看事件详情。`
+      : `${qa.caseId === 'fire' ? '检测到明火，请及时关注' : '检测到跌倒姿态，请及时关注'}。出现时间：${evidenceRange(evidence)}。`
+    : '这段视频中暂时没有找到相关信息。';
 
   useEffect(() => {
     const update = () => {
@@ -64,13 +64,21 @@ export function LandingPage({ onEnter, onCamera, demos = [], onOpenDemo }: Props
     const restoreSection = () => {
       const hash = location.hash.slice(1);
       const id = hash === 'how-it-works' ? 'workflow' : hash === 'overview' ? 'home' : hash;
-      if (sections.some(section => section.id === id)) document.getElementById(id)?.scrollIntoView({ behavior: 'instant' });
+      if (sections.some(section => section.id === id)) alignSection(id, 'instant');
     };
-    const initialScroll = requestAnimationFrame(restoreSection);
+    let disposed = false;
+    let initialScroll = requestAnimationFrame(restoreSection);
+    const restoreAfterLayout = () => { cancelAnimationFrame(initialScroll); initialScroll = requestAnimationFrame(() => { if (!disposed) restoreSection(); }); };
+    window.addEventListener('load', restoreAfterLayout);
+    window.addEventListener('pageshow', restoreAfterLayout);
+    void document.fonts.ready.then(() => { if (!disposed) restoreAfterLayout(); });
     window.addEventListener('popstate', restoreSection);
     window.addEventListener('hashchange', restoreSection);
     return () => {
+      disposed = true;
       cancelAnimationFrame(initialScroll);
+      window.removeEventListener('load', restoreAfterLayout);
+      window.removeEventListener('pageshow', restoreAfterLayout);
       window.removeEventListener('scroll', scroll); window.removeEventListener('resize', scroll);
       window.removeEventListener('popstate', restoreSection); window.removeEventListener('hashchange', restoreSection);
       observer.disconnect();
@@ -85,11 +93,18 @@ export function LandingPage({ onEnter, onCamera, demos = [], onOpenDemo }: Props
     return () => window.removeEventListener('keydown', escape);
   }, []);
 
+  const alignSection = (id: string, behavior: ScrollBehavior) => {
+    const target = document.getElementById(id);
+    if (!target) return;
+    const headerHeight = root.current?.querySelector('.av-header')?.getBoundingClientRect().height || 78;
+    const inset = Number.parseFloat(getComputedStyle(target).paddingTop) || 0;
+    window.scrollTo({ top: Math.max(0, window.scrollY + target.getBoundingClientRect().top + inset - headerHeight - 22), behavior });
+  };
   const navigateToSection = (id: string, targetId = id) => {
     setMenuOpen(false);
     const url = `/#${id}`;
     if (`${location.pathname}${location.hash}` !== url) history.pushState(null, '', url);
-    document.getElementById(targetId)?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+    alignSection(targetId, matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth');
   };
   const scrollTo = (event: MouseEvent<HTMLAnchorElement>, id: string, targetId = id) => {
     if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
@@ -134,17 +149,17 @@ export function LandingPage({ onEnter, onCamera, demos = [], onOpenDemo }: Props
           <div className="av-hero-copy">
             <p className="av-eyebrow av-entrance"><span/>AI 视频理解 · 居家安全关怀</p>
             <h1 id="hero-title" className="av-entrance">让牵挂，<br/><em>有迹可循。</em></h1>
-            <p className="av-hero-description av-entrance">不用时刻守着监控，也不错过需要留意的瞬间。AI 自动分析居家录像，识别疑似跌倒、举手求助、明火异常等风险线索，以时间线串联完整视频证据，让每一份关心都清晰可查。</p>
+            <p className="av-hero-description av-entrance">不用时刻守着监控，也不错过需要留意的瞬间。AI 自动分析居家录像，提供跌倒、挥手和明火安全提醒，标记需要关注的时刻，让每一份关心都清晰可查。</p>
             <div className="av-actions av-entrance"><a className="av-button" href={workspaceHref('videos')} onClick={event => enter(event)}><Icon name="play" size={17}/>开始视频分析<Arrow/></a><a className="av-button av-button-outline" href="/#capabilities" onClick={event => scrollTo(event, 'capabilities')}>了解核心能力<Arrow down/></a></div>
             <div className="av-hero-footnote av-entrance"><Icon name="shield" size={15}/>为独居老人照护与家庭安全而设计</div>
           </div>
           <div className="av-hero-art" aria-label="居家安全场景示意">
-            <img className="av-hero-image" src={homeImage} width="1536" height="1024" fetchPriority="high" alt="温暖客厅中，老人身体失衡，伸手扶向茶桌的示意画面"/>
+            <img className="av-hero-image" src={homeImage} width="1448" height="1086" fetchPriority="high" alt="温暖客厅中，老人微笑着为花草浇水的居家生活画面"/>
             <div className="av-scene-tag"><Icon name="shield" size={14}/>居家安全<span>场景示意</span></div>
           </div>
         </div>
         <div className="av-container av-hero-principles" aria-label="产品价值">
-          {[['video', '完整原片留存', '留住事件前后的完整画面'], ['clock', '异常智能定位', '快速找到需要关注的时刻'], ['document', '证据随时回看', '结合时间线核对原始录像']].map(([icon, title, description]) => <div className="av-value-card" key={title}><span><Icon name={icon} size={27}/></span><div><h2>{title}</h2><p>{description}</p></div></div>)}
+          {[['video', '完整原片留存', '留住事件前后的完整画面'], ['clock', '异常智能定位', '快速找到需要关注的时刻'], ['document', '证据随时回看', '随时查看事件前后的完整画面']].map(([icon, title, description]) => <div className="av-value-card" key={title}><span><Icon name={icon} size={27}/></span><div><h2>{title}</h2><p>{description}</p></div></div>)}
         </div>
         <a className="av-hero-next" href="/#capabilities" aria-label="向下了解核心能力" onClick={event => scrollTo(event, 'capabilities')}><Arrow down/></a>
       </section>
@@ -152,8 +167,8 @@ export function LandingPage({ onEnter, onCamera, demos = [], onOpenDemo }: Props
       <section id="capabilities" className="av-section av-capabilities" aria-labelledby="capabilities-title">
         <div className="av-container">
           <div className="av-section-top av-reveal"><div><SectionLabel number="01 / CAPABILITIES">核心能力</SectionLabel><h2 id="capabilities-title">风险线索，<em>精准捕捉。</em></h2></div><p>自动筛查居家风险场景，省去逐帧翻找录像的麻烦。</p></div>
+          <p className="av-demo-intro">以下为已保存的离线分析演示，展示识别结果与画面标记。</p>
           <CapabilityVideos/>
-          <p className="av-subtle-note"><Icon name="help" size={15}/>跌倒与明火演示使用已保存的模型复核；挥手演示使用真实离线姿态与时序规则，不代表求助意图。实际分析能力以模型配置及返回结果为准。</p>
         </div>
       </section>
 
@@ -173,21 +188,21 @@ export function LandingPage({ onEnter, onCamera, demos = [], onOpenDemo }: Props
               <p>{answer}</p>
               {evidence && evidenceFrame && <>
                 <button className="av-qa-evidence" aria-label={`${evidenceExpanded ? '收起' : '展开'}${evidence.title}证据详情`} aria-expanded={evidenceExpanded} aria-controls="av-qa-evidence-detail" onClick={toggleEvidence}>
-                  <span className="av-qa-thumb"><img src={evidenceFrame.image} alt="模型实际引用的原始关键帧" loading="lazy" width="720" height="480"/><Icon name="document" size={19}/></span>
+                  <span className="av-qa-thumb"><img src={evidenceFrame.image} alt="相关原始视频画面" loading="lazy" width="720" height="480"/><Icon name="document" size={19}/></span>
                   <span><small>相关证据 · 原片关键帧</small><strong>{evidence.title}</strong><span><Icon name="clock" size={13}/>{evidenceRange(evidence)}</span></span>
                   <span className="av-qa-disclosure" aria-hidden="true"><Arrow down/></span>
                 </button>
                 <div id="av-qa-evidence-detail" className={`av-inline-evidence${evidenceExpanded ? ' is-expanded' : ' is-closing'}`} role="region" aria-label="示例证据详情" hidden={!evidencePresent} inert={!evidenceExpanded} aria-hidden={!evidenceExpanded}>
                   {evidencePresent && <>
-                    <figure><img src={evidenceFrame.image} alt={`模型引用原帧 ${relativeTime(evidenceFrame.ptsMs)}`} width="720" height="480"/><figcaption>真实原片关键帧 · 既有模型复核依据</figcaption></figure>
+                    <figure><img src={evidenceFrame.image} alt={`原始画面 ${relativeTime(evidenceFrame.ptsMs)}`} width="720" height="480"/><figcaption>真实原片关键帧 · 已保存的分析画面</figcaption></figure>
                     <div className="av-inline-evidence-meta"><span>{qaCase.title}实景测试原片</span><time>相对视频时间 {relativeTime(evidenceFrame.ptsMs)}</time></div>
-                    <p>证据区间 {evidenceRange(evidence)}；{reviewLabel(evidence)}，未经人工确认。</p>
+                    <p>出现时间：{evidenceRange(evidence)}。</p>
                   </>}
                 </div>
               </>}
-              <p className="av-answer-source"><Icon name="layers" size={12}/>{waveResult ? '来源：本机姿态模型 + 时序规则 · 离线演示' : evidence ? '来源：真实模型导出 · 预先组织的示例文案' : '识别结果待接入 · 当前没有可引用的事件证据'}</p>
+              <p className="av-answer-source"><Icon name="layers" size={12}/>{waveResult ? '来源：已保存的离线动作分析 · 预设示例' : evidence ? '来源：已保存的 AI 分析 · 预设示例' : '暂无可用分析结果'}</p>
             </div></div></div>
-            <p className="av-chat-note"><Icon name="chat" size={14}/><span>预设问答演示 · 基于既有模型分析结果，不发起在线推理</span></p>
+            <p className="av-chat-note"><Icon name="chat" size={14}/><span>预设问答演示 · 使用已保存的分析结果，不进行实时分析</span></p>
           </div>
         </div>
       </section>
@@ -204,7 +219,7 @@ export function LandingPage({ onEnter, onCamera, demos = [], onOpenDemo }: Props
         </div>
       </section>
 
-      <section className="av-final-cta"><div className="av-container av-reveal"><p className="av-eyebrow">ANJU VISION · 让关心有据可查</p><h2>距离可以很远，<em>关心可以更近。</em></h2><p>让 AI 看见生活里的线索，让家人更便捷地了解居家情况。</p><a className="av-button" href={workspaceHref('camera')} onClick={event => enter(event, true)}>进入工作台<Arrow/></a>{demos.length > 0 && <div className="av-real-demos"><span>已有保存案例</span>{demos.slice(0, 3).map(demo => <button key={demo.id} onClick={() => onOpenDemo?.(demo.id)}>{demo.name.replace('.mp4', '').slice(0, 26)}<Arrow/></button>)}</div>}</div></section>
+      <section className="av-final-cta"><div className="av-container av-reveal"><p className="av-eyebrow">ANJU VISION · 让关心有据可查</p><h2>距离可以很远，<em>关心可以更近。</em></h2><p>让 AI 留意需要关注的瞬间，让家人的安全多一份守护。</p><a className="av-button" href={workspaceHref('camera')} onClick={event => enter(event, true)}>进入工作台<Arrow/></a>{demos.length > 0 && <div className="av-real-demos"><span>已有保存案例</span>{demos.slice(0, 3).map(demo => <button key={demo.id} onClick={() => onOpenDemo?.(demo.id)}>{demo.name.replace('.mp4', '').slice(0, 26)}<Arrow/></button>)}</div>}</div></section>
     </main>
     <footer className="av-footer"><div className="av-container"><Brand compact/><span>独居老人照护与家庭安全 · AI 视频分析平台</span><a href="/#home" onClick={event => scrollTo(event, 'home')}>回到顶部<Arrow/></a></div></footer>
   </div>;

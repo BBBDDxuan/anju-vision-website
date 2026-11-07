@@ -25,7 +25,7 @@ export function WaveActionLabel() {
 }
 
 export function RiskLabel() {
-  return <g className="detection-risk"><rect width="142" height="34" rx="17"/><path d="M19 8 9 25h20Z M19 14v5 M19 22v1"/><text x="37" y="23">疑似跌倒</text></g>;
+  return <g className="detection-risk"><rect width="142" height="34" rx="17"/><path d="M19 8 9 25h20Z M19 14v5 M19 22v1"/><text x="37" y="23">跌倒提醒</text></g>;
 }
 
 export function FireBoundingBox() {
@@ -33,7 +33,7 @@ export function FireBoundingBox() {
 }
 
 export function FireRiskLabel() {
-  return <g className="detection-risk fire-risk"><rect width="154" height="36" rx="18"/><path d="M21 7c2 7-7 7-7 14a8 8 0 0 0 16 0c0-4-3-7-5-9 1 6-2 6-2 6 0-5-2-8-2-11Z"/><text x="39" y="25">疑似明火</text></g>;
+  return <g className="detection-risk fire-risk"><rect width="154" height="36" rx="18"/><path d="M21 7c2 7-7 7-7 14a8 8 0 0 0 16 0c0-4-3-7-5-9 1 6-2 6-2 6 0-5-2-8-2-11Z"/><text x="39" y="25">明火提醒</text></g>;
 }
 
 export function DetectionHint({ text = '检测到人体姿态异常' }: { text?: string }) {
@@ -171,7 +171,7 @@ export function DetectionOverlay({ videoRef, sequence, statusRef }: {
   useVideoFrame(videoRef, draw);
 
   return <svg ref={svgRef} className={`detection-overlay${fire ? ' fire-detection-overlay' : wave ? ' wave-detection-overlay' : ''}`} aria-hidden="true" focusable="false" opacity="0" data-target={sequence.target || 'person'} data-source={sequence.source.kind} data-source-basis={'basis' in sequence.source ? sequence.source.basis : 'inference'}>
-    <g ref={worldRef}>{Array.from({ length: maxPeople }, (_, index) => <g key={index} data-person-slot={index} visibility="hidden">{fire ? <><FireBoundingBox/>{hasPolygon && <polygon className="detection-polygon" visibility="hidden"/>}<FireRiskLabel/></> : <><PersonBoundingBox/>{wave && <WristMotionTrail/>}<PoseSkeleton upperBody={wave}/>{wave ? <><WristHighlight/><WaveActionLabel/></> : <RiskLabel/>}</>}</g>)}<g ref={hintRef} visibility="hidden"><DetectionHint text={fire ? '已定位可见火焰线索' : undefined}/></g></g>
+    <g ref={worldRef}>{Array.from({ length: maxPeople }, (_, index) => <g key={index} data-person-slot={index} visibility="hidden">{fire ? <><FireBoundingBox/>{hasPolygon && <polygon className="detection-polygon" visibility="hidden"/>}<FireRiskLabel/></> : <><PersonBoundingBox/>{wave && <WristMotionTrail/>}<PoseSkeleton upperBody={wave}/>{wave ? <><WristHighlight/><WaveActionLabel/></> : <RiskLabel/>}</>}</g>)}<g ref={hintRef} visibility="hidden"><DetectionHint text={fire ? '已定位火焰区域' : undefined}/></g></g>
   </svg>;
 }
 

@@ -1,4 +1,4 @@
-// One cancellable seek path for events, question citations, review and the timebar.
+// One cancellable seek path for events, question citations and the timebar.
 export async function seekVideo(video: HTMLVideoElement, timeMs: number, signal: AbortSignal): Promise<number> {
   const wait = (event: 'loadedmetadata' | 'seeked') => new Promise<void>((resolve, reject) => {
     const clean = () => { clearTimeout(timer); video.removeEventListener(event, ready); video.removeEventListener('error', fail); signal.removeEventListener('abort', cancel); };

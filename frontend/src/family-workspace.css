@@ -1,0 +1,88 @@
+/* A single document scrolls the video and its information panel together. */
+.unified-shell { height: auto; min-height: 100dvh; overflow: visible; }
+.unified-shell .app-body { height: auto; min-height: 100dvh; overflow: visible; display: block; }
+.av-workspace-shell main.unified-workspace { display: block; height: auto; min-height: 0; overflow: visible; padding: 20px 24px 48px; }
+.unified-shell :is(.mock-banner, .global-notice), .unified-workspace .workspace-notices, .unified-workspace .cloud-demo-note { max-height: none; overflow: visible; }
+.av-workspace-shell .analysis-layout { display: grid; grid-template-columns: minmax(0, 3fr) minmax(350px, 2fr); align-items: start; gap: 22px; height: auto; }
+.unified-workspace :is(.analysis-player-column, .analysis-inspector, .workspace-inspector-scroll) { height: auto; max-height: none; overflow: visible; overscroll-behavior: auto; min-width: 0; }
+.unified-workspace .analysis-player-column { display: block; padding: 0; }
+.unified-workspace .analysis-inspector { display: block; border-radius: 14px; }
+.unified-workspace .workspace-inspector-scroll { padding: 20px; }
+.av-workspace-shell .unified-workspace .video-panel { display: block; height: auto; overflow: visible; border-radius: 14px; }
+.av-workspace-shell .unified-workspace .video-panel > video { width: 100%; height: clamp(180px, calc(100dvh - 535px), 460px); max-height: none; aspect-ratio: auto; object-fit: contain; }
+.unified-workspace .video-panel > .panel-head { border-radius: 14px 14px 0 0; }
+.av-workspace-shell .unified-workspace .empty-video { height: 390px; min-height: 280px; aspect-ratio: auto; border-radius: 0 0 14px 14px; }
+.unified-workspace .video-select select { text-overflow: ellipsis; }
+.unified-workspace .recording-controls { padding: 9px 16px; }
+.unified-workspace .workspace-seek-status { margin: 0; padding: 0 16px 6px; color: var(--muted); }
+.unified-workspace .workspace-analysis-area { padding: 14px 18px 18px; border-top: 1px solid var(--line); }
+.unified-workspace .video-analysis { padding: 0; }
+.unified-workspace .analysis-mode-tabs { margin: 0 0 12px; display: flex; gap: 6px; width: fit-content; }
+.unified-workspace .analysis-mode-tabs button { padding: 7px 16px; min-height: 36px; }
+.unified-workspace .analysis-bar { display: flex; padding: 0; gap: 12px; align-items: center; }
+.av-workspace-shell .unified-workspace .analysis-start { min-height: 48px; flex: 1; padding: 12px 24px; background: var(--color-evergreen, #315e4c); color: white; font-size: 15px; font-weight: 600; border-radius: 9px; box-shadow: 0 4px 12px #315e4c16; }
+.unified-workspace .analysis-start:disabled { opacity: .65; }
+.unified-workspace .analysis-start[aria-busy=true] { opacity: 1; background: #5b7967; }
+.unified-workspace .analysis-method { margin: 9px 0; font-size: 12px; line-height: 1.8; }
+.unified-workspace .analysis-job-status:empty { display: none; }
+.unified-workspace .analysis-job-progress { background: var(--soft); padding: 13px; border-radius: 9px; margin-top: 12px; }
+.unified-workspace .analysis-job-progress progress { width: 100%; margin: 8px 0 0; height: 7px; }
+.unified-workspace .safety-scan-progress { border: 0; background: transparent; margin: 8px 0; padding: 0; color: var(--muted); font-size: 12px; }
+.unified-workspace :is(.analysis-options, .analysis-details) { margin: 12px 0 0; padding: 0; border: 0; background: transparent; color: var(--muted); font-size: 12px; }
+.unified-workspace :is(.analysis-options, .analysis-details) > summary { cursor: pointer; padding: 8px 0; }
+.unified-workspace .analysis-details p { line-height: 1.8; }
+.unified-workspace .analysis-result-summary { margin-top: 16px; border-radius: 10px; padding: 16px; background: #f1f5eb; border: 1px solid var(--line); }
+.unified-workspace .analysis-result-summary h2 { font-size: 15px; }
+.unified-workspace .analysis-result-summary p { font-size: 12px; line-height: 1.8; margin: 8px 0; }
+.unified-workspace .summary-actions { display: flex; flex-wrap: wrap; gap: 16px; }
+.unified-workspace .summary-actions button { font-size: 12px; padding: 3px 0; }
+.av-workspace-shell .unified-workspace .family-event { display: block; padding: 15px; margin: 12px 0; border: 1px solid var(--line); border-radius: 10px; background: #fbfcf8; border-left: 3px solid #9dad93; }
+.av-workspace-shell .unified-workspace .family-event::before, .av-workspace-shell .unified-workspace .family-event::after { content: none; }
+.av-workspace-shell .unified-workspace .family-event.is-selected { border-color: #68866c; background: #edf4e7; box-shadow: 0 0 0 2px #68866c17; }
+.family-event-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.family-event-heading strong { font-size: 14px; font-weight: 600; }
+.family-event-heading :is(time, span) { font-size: 11px; color: var(--muted); }
+.unified-workspace .event-select { color: #60775f; background: transparent; border: 0; padding: 2px 0; font-size: 11px; }
+.unified-workspace .family-event p { margin: 7px 0 10px; font-size: 12px; }
+.family-event-links { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.family-event-links .text-button { font-size: 12px; padding: 4px 0; }
+.av-workspace-shell .unified-workspace .frames { max-height: none; overflow: visible; }
+.unified-workspace .evidence-view { margin-top: 20px; }
+.unified-workspace .answer-panel { overflow: visible; }
+.unified-workspace .qa-prerequisite { font-size: 13px; line-height: 1.8; padding: 12px; background: var(--soft); border-radius: 9px; }
+.unified-workspace :is(.answer-uncertainty, .answer-footnote) { font-size: 12px; line-height: 1.8; color: var(--muted); }
+.unified-workspace .answer-uncertainty { padding: 10px 12px; border-radius: 8px; background: #f7f3e9; color: #7c6e50; }
+.unified-workspace .answer-result { margin-top: 20px; }
+.unified-workspace .answer-result .claim { padding: 1px 0 12px 12px; }
+.family-reminders { margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--line); }
+.reminder-counts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin: 14px 0; }
+.reminder-counts > div { text-align: center; padding: 12px 3px; background: var(--soft); border-radius: 8px; }
+.reminder-counts strong { display: block; font-size: 20px; font-weight: 500; margin-bottom: 5px; }
+.reminder-counts span { font-size: 10px; color: var(--muted); }
+.reminder-settings { margin: 14px 0 18px; border: 1px solid var(--line); border-radius: 9px; padding: 0 13px; }
+.reminder-settings summary { cursor: pointer; font-size: 13px; padding: 13px 0; color: var(--ink); }
+.reminder-settings p { color: var(--muted); font-size: 11px; line-height: 1.8; }
+.reminder-switch { display: flex; align-items: center; justify-content: space-between; min-height: 38px; font-size: 12px; border-top: 1px solid var(--line); }
+.reminder-switch input { width: 30px; height: 18px; accent-color: #52795b; cursor: pointer; }
+.reminder-card { padding: 14px 0; border-top: 1px solid var(--line); }
+.reminder-card time { font-size: 11px; color: var(--muted); }
+.reminder-card p { margin: 8px 0; font-size: 12px; line-height: 1.8; }
+.reminder-card.is-viewed { opacity: .75; }
+.reminder-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; font-size: 12px; }
+@media (max-width: 1200px) and (min-width: 901px) {
+  .av-workspace-shell .analysis-layout { grid-template-columns: minmax(0, 1.4fr) minmax(310px, 1fr); gap: 16px; }
+}
+@media (max-width: 900px) {
+  .av-workspace-shell .analysis-layout { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .av-workspace-shell main.unified-workspace { padding: 14px 16px 90px; }
+  .av-workspace-shell .unified-workspace .video-panel > video { height: auto; aspect-ratio: 16 / 9; max-height: 440px; }
+}
+@media (max-width: 480px) {
+  .av-workspace-shell main.unified-workspace { padding-inline: 10px; }
+  .unified-workspace .workspace-inspector-scroll { padding: 16px 13px; }
+  .unified-workspace .workspace-analysis-area { padding: 14px 12px; }
+  .unified-workspace .analysis-bar { gap: 8px; }
+  .unified-workspace .analysis-bar .text-button { white-space: normal; max-width: 100%; }
+  .av-workspace-shell .unified-workspace .empty-video { height: 320px; }
+  .unified-workspace .delete-video-button { font-size: 10px; }
+}

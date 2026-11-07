@@ -33,7 +33,7 @@ export const relativeTime = (ms: number) => {
 };
 export const evidenceRange = (event: { startMs: number; endMs: number }) => `${relativeTime(event.startMs)}–${relativeTime(event.endMs)}`;
 export const reviewLabel = (event: DemoEvidence) => event.reviewVerdict === 'confirmed'
-  ? `视觉模型复核支持${event.type === 'suspected_fall' ? '跌倒' : event.title}判断` : '视觉模型复核尚不支持确认';
+  ? '已找到相关画面，具体情况请结合原片查看' : '相关情况暂时无法确认';
 
 export function adaptVerifiedResult(event: PublicDemoEvent, durationMs: number): DemoEvidence {
   if (!(Number.isFinite(event.startMs) && event.startMs >= 0 && event.endMs > event.startMs && event.endMs <= durationMs)) throw new Error('Invalid evidence interval');

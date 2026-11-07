@@ -25,23 +25,14 @@ export function analysisPath(videoId: string, mode: AnalysisMode, resume = false
 }
 export const isAnalysisRunning = (job: AnalysisJob | null) => !!job && ['queued', 'running'].includes(job.status);
 const percent = (value: number | null | undefined) => typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : undefined;
-const count = (value: number | null | undefined) => typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined;
-const statusLabel: Record<string, string> = { queued: '等待分析', running: '分析中', paused: '已保存进度', completed: '分析完成', partial: '部分完成', failed: '分析失败', interrupted: '分析中断' };
-const stageLabel: Record<string, string> = { safety_scan: '本地小模型扫描', scanning: '本地小模型扫描', safety_review: 'Qwen 候选复核', reviewing: 'Qwen 候选复核', object_analysis: 'Qwen 物体分析', completed: '处理结束', queued: '等待执行' };
+const statusLabel: Record<string, string> = { queued: '等待分析', running: '正在分析', paused: '进度已保存', completed: '分析完成', partial: '部分完成', failed: '分析未完成', interrupted: '分析已中断' };
 
 export function FlameScanSetting({ value, onChange, disabled }: {
   value: FlameScan; onChange: (scan: FlameScan) => void; disabled: boolean;
 }) {
-  return <div className="flame-scan-row">
-    <label className="flame-scan-setting">火焰扫描
-      <select value={value} onChange={e => onChange(e.target.value as FlameScan)}
-        disabled={disabled} aria-describedby="flame-scan-note">
-        <option value="normal">正常扫描</option>
-        <option value="small_flame">小火苗识别</option>
-      </select>
-    </label>
-    <p id="flame-scan-note">用于安全分析。疑似漏掉小火苗时可切换，扫描可能更久。</p>
-  </div>;
+  return <div className="flame-scan-row"><label className="flame-scan-setting">明火识别
+    <select value={value} onChange={e => onChange(e.target.value as FlameScan)} disabled={disabled} aria-describedby="flame-scan-note"><option value="normal">标准识别</option><option value="small_flame">留意小火苗</option></select>
+  </label><p id="flame-scan-note">小火苗较难看清时可切换，分析可能需要更长时间。</p></div>;
 }
 
 export function VideoAnalysisControls({ mode, onModeChange, job, pending, ready, demo, onStart, onResume, onPause }: {
@@ -52,40 +43,33 @@ export function VideoAnalysisControls({ mode, onModeChange, job, pending, ready,
   const running = isAnalysisRunning(job);
   const blocked = running || pending || !ready;
   return <section className="video-analysis" id="analysis-tools" aria-label="上传录像分析">
+    <div className="analysis-primary-row">
     {!demo && <div className="analysis-mode-tabs" role="group" aria-label="选择录像分析任务">
       <button type="button" aria-pressed={mode === 'safety'} disabled={running || pending} onClick={() => onModeChange('safety')}>安全分析</button>
       <button type="button" aria-pressed={mode === 'objects'} disabled={running || pending} onClick={() => onModeChange('objects')}>物体追踪</button>
     </div>}
-    <p className="analysis-method" id="analysis-method">{demo ? '重新分析将创建案例副本；上传录像可选择安全分析或物体追踪。' : mode === 'safety'
-      ? '本地小模型扫描摔倒、举手求助、可见明火 → Qwen 复核候选片段。'
-      : '使用 Qwen 分析物体与位置变化，生成带时间证据的踪迹。'}</p>
     <div className="analysis-bar">
-      <button type="button" className="primary" aria-describedby="analysis-method" onClick={onStart} disabled={blocked}>{pending ? '正在提交…' : running ? '当前录像任务进行中…' : demo ? '重新分析此案例' : `开始${modeLabel(mode)}`}</button>
+      <button type="button" className="primary analysis-start" aria-describedby="analysis-method" onClick={onStart} disabled={blocked} aria-busy={running || pending}>{pending ? '正在提交…' : running ? '正在分析…' : demo ? '重新分析此案例' : mode === 'objects' ? '开始物体追踪' : '开始安全分析'}</button>
       {running && <button type="button" className="text-button" onClick={onPause} disabled={pending || job?.pause_requested}>{job?.pause_requested ? '正在保存并暂停…' : '暂停当前任务'}</button>}
       {job?.resumable && !running && !demo && <button type="button" className="text-button" onClick={onResume} disabled={blocked}>继续上次{modeLabel(jobMode(job))}</button>}
     </div>
-    <p className="analysis-task-note">同一视频一次只能运行一个任务。开始所选分析会新建任务；继续上次任务保留其原分析模式。</p>
-    {demo && <p className="analysis-task-note">重新识别将创建你的分析副本；云端调用计入每日额度，原展示成果保留。</p>}
-    <div className="analysis-job-status" role="status">{job ? `最近任务：${modeLabel(jobMode(job))}${job.flame_scan === 'small_flame' ? ' · 小火苗识别' : ''} · ${statusLabel[job.status] || job.status}${job.stage ? ` · ${stageLabel[job.stage] || job.stage}` : ''}` : demo ? '内置案例已就绪，可回看证据或重新分析副本。' : '上传完成，选择一种分析后开始。'}</div>
-    {job?.retained_analysis && <p className="analysis-task-note">保留历史分析：{modeLabel(job.retained_analysis.analysis_mode || 'all')}{job.retained_analysis.event_ids && ` · ${job.retained_analysis.event_ids.length} 条事件`}{job.retained_analysis.run_id && ` · 来源任务 ${job.retained_analysis.run_id}`}。这些保留事件未由本次任务重新识别或复核。</p>}
-    {job && (running || job.resumable) && <div className="analysis-job-progress"><span>{modeLabel(jobMode(job))} · 总体进度{percent(job.progress) === undefined ? '待上报' : ` ${percent(job.progress)?.toFixed(1)}%`}</span><progress aria-label={`${modeLabel(jobMode(job))}总体进度`} max={100} value={percent(job.progress)} /></div>}
+    </div>
+    <div className="analysis-feedback">
+    <p className="analysis-method" id="analysis-method">{running ? jobMode(job) === 'objects' ? '正在整理视频中人物和物品的出现位置……' : '正在分析视频中的人物和环境安全情况……' : demo ? '重新分析将创建案例副本，保留现有展示结果。' : !job ? '录像已准备好，点击上方按钮开始。' : mode === 'safety' ? '留意跌倒姿态、挥手动作和明火，提供安全提醒。' : '回顾人物和物品在录像中的位置与活动。'}</p>
+    {!ready && <p className="warning">分析服务暂未就绪，仍可上传和播放录像。</p>}
+    <div className="analysis-job-status" role="status">{job ? `${modeLabel(jobMode(job))} · ${statusLabel[job.status] || '正在准备'}` : ''}</div>
+    {job?.retained_analysis && <p className="analysis-task-note">已保留之前的{modeLabel(job.retained_analysis.analysis_mode || 'all')}结果，可继续回看。这些结果来自之前的分析。</p>}
+    <div className="analysis-progress-slot">{job && running && <div className="analysis-job-progress"><span>分析进度{percent(job.progress) === undefined ? '正在更新' : ` ${percent(job.progress)?.toFixed(0)}%`}</span><progress aria-label="视频分析进度" max={100} value={percent(job.progress)} /></div>}</div>
+    </div>
   </section>;
 }
 
 export function SafetyScanProgress({ safety }: { safety?: SafetyScan | null }) {
-  const processed = count(safety?.processed_frames);
-  const total = count(safety?.total_frames);
-  const progress = total !== undefined && total > 0 && processed !== undefined ? percent(processed / total * 100) : percent(safety?.scan_progress);
-  const values = { ...safety, candidates: count(safety?.candidate_count) ?? (Array.isArray(safety?.candidates) ? safety.candidates.length : safety?.candidates) };
-  const counters = [ ['candidates', '候选'], ['reviewed', '已复核'], ['confirmed', '已确认'], ['rejected', '已排除'], ['uncertain', '不确定'], ['unavailable', '复核不可用'], ['duplicate', '已合并补证'] ] as const;
-  return <section className="safety-scan-progress" aria-label="安全扫描与复核进度">
-    <strong>本地扫描 → 候选片段 Qwen 复核</strong>
-    <p>扫描帧数：{processed ?? '待上报'} / {total ?? '待上报'}{progress !== undefined && ` · 扫描进度 ${progress.toFixed(1)}%`}</p>
-    {progress !== undefined && <progress aria-label="本地小模型扫描进度" max={100} value={progress} />}
-    <dl>{counters.map(([key, label]) => <div key={key}><dt>{label}</dt><dd>{count(values[key]) ?? '待上报'}</dd></div>)}</dl>
-  </section>;
+  const processed = safety?.processed_frames, total = safety?.total_frames;
+  const progress = typeof total === 'number' && total > 0 && typeof processed === 'number' ? percent(processed / total * 100) : percent(safety?.scan_progress);
+  return <p className="safety-scan-progress">{progress === undefined ? '正在读取画面，请稍候。' : `已读取 ${progress.toFixed(0)}% 的视频画面，分析结果会陆续显示。`}</p>;
 }
 
 export function SafetyAnalysisPlan({ plan }: { plan?: { daily_requests_remaining?: number; max_windows_per_batch?: number } | null } = {}) {
-  return <details className="analysis-details"><summary>安全分析计划 <span>本地扫描 · 候选复核</span></summary><p className="analysis-plan">本地扫描摔倒、举手求助、可见明火，候选证据画面交由 Qwen 复核。暂停后可继续原任务。</p>{plan && <p className="analysis-plan">{count(plan.daily_requests_remaining) !== undefined && `今日剩余 ${plan.daily_requests_remaining} 次云端请求。`}{count(plan.max_windows_per_batch) !== undefined && `每批最多复核 ${plan.max_windows_per_batch} 个候选。`}复核次数按实际候选计算。</p>}</details>;
+  return <details className="analysis-details"><summary>分析使用说明</summary><p>分析过程中可以暂停并保存进度，稍后继续。完成后可查看安全提醒、提问或播放相关片段。</p>{typeof plan?.daily_requests_remaining === 'number' && <p>今日剩余分析额度：{plan.daily_requests_remaining} 次。达到上限后会保存进度。</p>}</details>;
 }

@@ -27,6 +27,7 @@ export function useDemoVideo() {
   const operation = useRef<AbortController | null>(null);
   const playRequest = useRef(false);
   const boundary = useRef<number | undefined>(undefined);
+  const loopBeforeSegment = useRef<boolean | null>(null);
   const [playing, setPlaying] = useState(false);
   const [busy, setBusy] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -34,11 +35,36 @@ export function useDemoVideo() {
   const [buffering, setBuffering] = useState(false);
   const [error, setError] = useState('');
 
+  const restoreLoop = useCallback(() => {
+    if (ref.current && loopBeforeSegment.current !== null) ref.current.loop = loopBeforeSegment.current;
+    loopBeforeSegment.current = null;
+  }, []);
+  const finishSegment = useCallback(() => {
+    const video = ref.current;
+    const end = boundary.current;
+    if (!video || end === undefined) return;
+    boundary.current = undefined; playRequest.current = false;
+    video.pause();
+    video.currentTime = Math.min(end, video.duration);
+    restoreLoop(); setCurrentTime(video.currentTime); setPlaying(false);
+  }, [restoreLoop]);
   const pause = useCallback(() => {
     playRequest.current = false; operation.current?.abort();
     boundary.current = undefined;
-    ref.current?.pause(); setBusy(false); setPlaying(false); setBuffering(false);
-  }, []);
+    ref.current?.pause(); restoreLoop(); setBusy(false); setPlaying(false); setBuffering(false);
+  }, [restoreLoop]);
+  useEffect(() => {
+    if (!playing || boundary.current === undefined) return;
+    let frame = 0;
+    const check = () => {
+      const video = ref.current;
+      if (!video || video.paused || boundary.current === undefined) return;
+      if (video.currentTime >= boundary.current) finishSegment();
+      else frame = requestAnimationFrame(check);
+    };
+    frame = requestAnimationFrame(check);
+    return () => cancelAnimationFrame(frame);
+  }, [playing, finishSegment]);
   useEffect(() => {
     const video = ref.current;
     if (!video) return;
@@ -52,12 +78,12 @@ export function useDemoVideo() {
     }, { threshold: [0, .12] });
     observer.observe(video);
     return () => {
-      operation.current?.abort(); video.pause(); observer.disconnect();
+      operation.current?.abort(); video.pause(); restoreLoop(); observer.disconnect();
       document.removeEventListener('av-demo-play', stopOthers);
       document.removeEventListener('av-demo-pause', pause);
       document.removeEventListener('visibilitychange', visibility);
     };
-  }, [pause]);
+  }, [pause, restoreLoop]);
 
   const command = useCallback(async ({ start, end, play = false }: VideoCommand) => {
     const video = ref.current;
@@ -65,7 +91,11 @@ export function useDemoVideo() {
     operation.current?.abort();
     const controller = new AbortController(); operation.current = controller;
     const { signal } = controller;
+    restoreLoop();
     playRequest.current = play; boundary.current = end;
+    // A near-end segment must finish before native looping jumps to zero.
+    // Preserve the caller's loop setting for full-video playback afterwards.
+    if (end !== undefined) { loopBeforeSegment.current = video.loop; video.loop = false; }
     video.pause(); setError(''); setBusy(true);
     if (play) video.dispatchEvent(new Event('av-demo-play', { bubbles: true }));
     try {
@@ -89,7 +119,7 @@ export function useDemoVideo() {
       if (!signal.aborted) setError(cause instanceof Error ? cause.message : '视频暂时无法播放，请重试。');
       return false;
     } finally { if (!signal.aborted) setBusy(false); }
-  }, []);
+  }, [restoreLoop]);
 
   return { ref, playing, busy, currentTime, duration, buffering, error, pause, command, videoEvents: {
     onLoadedMetadata: () => setDuration(ref.current?.duration || 0),
@@ -104,11 +134,11 @@ export function useDemoVideo() {
       setPlaying(true);
     },
     onPause: () => setPlaying(false),
-    onEnded: () => { playRequest.current = false; setPlaying(false); },
+    onEnded: () => { finishSegment(); playRequest.current = false; setPlaying(false); },
     onTimeUpdate: () => {
       const video = ref.current!;
       if (boundary.current !== undefined && video.currentTime >= boundary.current) {
-        video.pause(); video.currentTime = boundary.current; playRequest.current = false;
+        finishSegment();
       }
       setCurrentTime(video.currentTime);
     },

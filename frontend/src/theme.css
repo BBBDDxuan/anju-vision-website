@@ -231,11 +231,7 @@ svg { flex-shrink: 0; }
 .answer-empty h2 { font-size: 15px; font-weight: 600; line-height: 1.7; color: #365e44; }
 .answer-empty p { margin: 8px 0 0; font-size: 12px; color: #647965; line-height: 1.9; }
 .claim h3 { font-size: 12px; }
-.warning, .coverage-labels, .analysis-plan, .analysis-details summary, .review-panel p { font-size: 12px; line-height: 1.9; }
-.review-panel { font-size: 13px; }
-.review-panel > summary { font-size: 13px; min-height: 36px; }
-.review-panel select, .review-panel textarea, .review-panel button { font-size: 12px; }
-.review-controls input, .review-controls select, .review-controls button { min-height: 40px; }
+.warning, .coverage-labels, .analysis-plan, .analysis-details summary { font-size: 12px; line-height: 1.9; }
 .delete-video-button { font-size: 12px; min-height: 40px; }
 .safety-alert p { font-size: 14px; line-height: 1.9; }
 .safety-alert small, .safety-notification, .safety-reason, .safety-explainer { font-size: 12px; }
@@ -400,8 +396,7 @@ footer { color: #607769; font-size: 12px; line-height: 1.9; gap: 12px; }
   .empty-video { width: calc(100% - 28px); height: 220px; margin: 0 14px; }
   .video-panel > .empty-video { margin: 16px 14px; height: 260px; }
   .empty-video small { font-size: 12px; }
-  .event-search input, .question-input input, .library-search input,
-  .review-panel input, .review-panel select, .review-panel textarea { font-size: 16px; }
+  .event-search input, .question-input input, .library-search input { font-size: 16px; }
   .event-tools select { font-size: 14px; min-height: 44px; }
   .event-filters { flex-wrap: wrap; }
   .event-filters button { min-height: 44px; font-size: 12px; }

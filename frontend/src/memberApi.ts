@@ -20,10 +20,14 @@ export async function memberRequest<T>(path: string, init?: RequestInit): Promis
       ? AbortSignal.any([init.signal, AbortSignal.timeout(30000)]) : AbortSignal.timeout(30000) });
   } catch (error) {
     if (init?.signal?.aborted) throw error;
-    throw new MemberApiError('服务连接失败或请求超时，请检查本机后端后重试。', 'CONNECTION_FAILED');
+    throw new MemberApiError('服务连接失败或请求超时，请稍后重试。', 'CONNECTION_FAILED');
   }
   const body = await response.json().catch(() => null);
-  if (!response.ok) throw new MemberApiError(body?.error?.message || `操作失败（HTTP ${response.status}）`, body?.error?.code || 'REQUEST_FAILED');
+  if (!response.ok) {
+    const code = body?.error?.code || 'REQUEST_FAILED';
+    const message = /FACE_(?:MODEL_|NOT_READY|DISABLED|UNAVAILABLE)/.test(code) ? '家庭成员识别暂不可用，请稍后重试。' : body?.error?.message || `操作失败（HTTP ${response.status}）`;
+    throw new MemberApiError(message, code);
+  }
   if (body === null) throw new MemberApiError('服务返回了无法读取的结果，请刷新重试。', 'INVALID_RESPONSE');
   return body as T;
 }
@@ -36,12 +40,7 @@ export function faceFileError(file: File, maxBytes = 5 * 1024 * 1024): string {
 
 export function faceIdentityLabel(identity?: FaceIdentity): string {
   return identity?.status === 'matched' && identity.member_id && identity.name?.trim()
-    ? `${identity.name.trim()}（人脸识别候选，请核对）` : '身份未确认';
+    ? `可能是${identity.name.trim()}` : '身份未确认';
 }
 
-export const faceStatusMessage = (status: FaceStatus | null) => !status ? '人脸服务状态暂不可用'
-  : !status.enabled ? '人脸识别未启用'
-  : status.ready ? '本地人脸识别已就绪'
-  : status.error === 'FACE_MODEL_MISSING' ? '缺少人脸模型，请先准备模型并刷新'
-  : status.error === 'FACE_MODEL_INTEGRITY' ? '人脸模型校验失败，请重新准备模型'
-  : '人脸模型加载失败，请检查后端环境';
+export const faceStatusMessage = (status: FaceStatus | null) => status?.enabled && status.ready ? '' : '家庭成员识别暂不可用，请稍后重试。';

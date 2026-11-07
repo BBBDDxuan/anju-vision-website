@@ -40,16 +40,16 @@ export function eventDescription(event: Event, label: (id: string | null) => str
   }
   if (person) {
     const verbs: Record<string,string> = {walk:'在画面中行走',sit_down:'坐下',stand_up:'起身',lie_down:'躺下',
-      lying_on_floor:'躺卧于地面',fall:'出现疑似跌倒过程',climb:'攀爬',help_gesture:'做出疑似求助动作',
+      lying_on_floor:'躺卧于地面',fall:'出现跌倒姿态',climb:'攀爬',help_gesture:'做出挥手动作',
       explicit_exit:'离开摄像头视野',occluded:'被遮挡',unknown:'的相关动作无法确定'};
     if (verbs[event.action]) return `${subject} ${verbs[event.action]}${['walk','sit_down','stand_up','lie_down','climb'].includes(event.action) ? context : ''}`;
-    if (['put_in','take_out'].includes(event.action)) return `${subject} 有与${target || '物体'}相关的进出候选（主体与容器关系未明确）`;
+    if (['put_in','take_out'].includes(event.action)) return `${subject} 有与${target || '物体'}相关的活动，具体动作暂时无法确认`;
   }
   const phrases: Record<string,string> = {
     pick_up:`被拿起${target ? `（相关对象：${target}）` : ''}`,
     place_on:target ? `被放在${target}上` : '被放下（位置未明确）',
-    put_in:target ? `被放入${target}` : '存在放入候选（容器未明确）',
-    take_out:target ? `被从${target}取出` : '存在取出候选（容器未明确）',
+    put_in:target ? `被放入${target}` : '可能被放入某处，具体位置暂时无法确认',
+    take_out:target ? `被从${target}取出` : '可能被取出，原位置暂时无法确认',
     open:'被打开',close:'被关闭',explicit_exit:'离开摄像头视野',occluded:'被遮挡',
     unknown:'的相关动作无法确定',no_person_visible:'的所引用采样画面未见人物',
   };

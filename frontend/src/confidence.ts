@@ -4,7 +4,6 @@ export type ConfidenceLevel = 'high' | 'medium' | 'hidden';
 export const HIGH_SCORE = 0.75;
 export const MIN_SCORE = 0.55;
 export const isPriorityEvent = (event: { action: string }) => ['fall','help_gesture','long_absence','smoke','flame','sparks'].includes(event.action);
-export const confidenceLabel = (level: ConfidenceLevel) => level === 'high' ? '较高可信' : level === 'medium' ? '中等可信' : '不展示';
 
 export type ConfidenceEvent = {
   id: string; subject_id: string; target_id: string | null; action: string; epistemic_type: string;
@@ -61,17 +60,12 @@ export function eventConfidence(event: ConfidenceEvent, index: ConfidenceIndex):
 }
 
 export function visibleText(text: string): string {
-  return text
-    .replace('原模型的关键动作候选尚未复核，暂作为推测展示；不是新一次上下文分析，不能据此确定容器内部或当前位置。', '该动作属于未证实的模型推测，不能据此确定容器内部或当前位置。')
-    .replace('部分事件待复核或未获复核支持，已排除相关动作及其容器关系推断；请到人工复核面板核对。', '部分事件缺乏充分证据，相关动作及位置推断暂不展示。')
-    .replaceAll('AI复核未支持原事件：','现有证据未支持原识别：')
-    .replaceAll('人工复核','历史核验').replaceAll('人工确认','历史确认').replaceAll('人工纠正','历史修正')
-    .replaceAll('待复核','证据待完善');
+  return text.replace(/[^。；]*?(?:人工复核|人工确认|人工纠正|待复核|AI复核|历史确认|历史核验)[^。；]*/g, '相关情况暂时无法确认');
 }
 
 export type SourceClaim = { text: string; event_ids?: string[]; evidence_ids: string[]; rule_id?: string; review_status?: string; record_summary?: boolean };
 export type DisplayClaim = SourceClaim & { confidence: 'high' | 'medium'; time_range?: string; explanations?: string[] };
-const phrase: Record<string,string> = { seen_at:'出现在',place_on:'被放在',pick_up:'被拿起',put_in:'被放入',take_out:'被取出于',move:'移动到',open:'被打开',close:'被关闭',explicit_exit:'离开视野',occluded:'被遮挡',walk:'行走',sit_down:'坐下',stand_up:'起身',lie_down:'躺下',lying_on_floor:'躺卧于地面',fall:'出现疑似跌倒过程',climb:'攀爬',help_gesture:'做出疑似求助动作',no_person_visible:'所引用采样画面未见人物' };
+const phrase: Record<string,string> = { seen_at:'出现在',place_on:'被放在',pick_up:'被拿起',put_in:'被放入',take_out:'被取出于',move:'移动到',open:'被打开',close:'被关闭',explicit_exit:'离开视野',occluded:'被遮挡',walk:'行走',sit_down:'坐下',stand_up:'起身',lie_down:'躺下',lying_on_floor:'躺卧于地面',fall:'出现疑似跌倒过程',climb:'攀爬',help_gesture:'做出挥手动作',no_person_visible:'所引用采样画面未见人物' };
 const timeLabel = (ms: number) => `${String(Math.floor(ms/60000)).padStart(2,'0')}:${(ms/1000%60).toFixed(1).padStart(4,'0')}`;
 
 export function displayClaim(claim: SourceClaim, index: ConfidenceIndex, inferred = false): DisplayClaim | null {

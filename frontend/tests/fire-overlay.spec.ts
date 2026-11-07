@@ -36,9 +36,9 @@ test('明火剪辑已移除前九秒及末尾2.6秒，来源可见且没有虚�
   await expect(overlay(page)).toHaveAttribute('opacity', '0');
   await expect(overlay(page)).toHaveAttribute('data-source-basis', 'model_review_with_reviewed_annotations');
   await expect(overlay(page)).toHaveCSS('pointer-events', 'none');
-  await expect(card(page)).toContainText('逐帧核对标注');
-  await expect(card(page)).toContainText('非实时推理');
-  await expect(card(page)).toContainText('1 条明火线索');
+  await expect(page.locator('.av-demo-intro')).toHaveCount(1);
+  await expect(page.locator('.av-demo-intro')).toContainText('离线分析演示');
+  await expect(card(page)).toContainText('检测到火焰区域');
   await expect(card(page)).toContainText('00:03.03–00:05.76');
   await expect(card(page).locator('video')).toHaveCount(1);
   await expect(card(page).locator('.detection-skeleton,.detection-polygon,canvas')).toHaveCount(0);
@@ -88,7 +88,7 @@ test('明火循环、从头重播与自然结束清理标记，SVG元素持续�
   await open(page); await seek(page, 4);
   const original = await box(page).elementHandle();
   await seek(page, 6.47);
-  await card(page).locator('.av-card-actions button').first().click();
+  await card(page).locator('.av-card-actions .av-text-link').click();
   await expect.poll(() => video(page).evaluate((v: HTMLVideoElement) => v.currentTime), { timeout: 3000 }).toBeLessThan(1);
   await expect(overlay(page)).toHaveAttribute('opacity', '0');
   await card(page).getByRole('button', { name: '可见火焰场景：从头重播' }).click();
@@ -104,7 +104,7 @@ test('明火播放与鼠标无关，rAF回退、离屏及页面隐藏暂停均�
     Object.defineProperty(HTMLVideoElement.prototype, 'requestVideoFrameCallback', { value: undefined, configurable: true });
   });
   await open(page); await seek(page, 4);
-  await card(page).locator('.av-card-actions button').first().click();
+  await card(page).locator('.av-card-actions .av-text-link').click();
   await page.mouse.move(5, 5);
   await expect.poll(async () => Number(await overlay(page).getAttribute('data-time-ms'))).toBeGreaterThan(4100);
   await page.evaluate(() => {
@@ -116,7 +116,7 @@ test('明火播放与鼠标无关，rAF回退、离屏及页面隐藏暂停均�
     Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
     document.dispatchEvent(new Event('visibilitychange'));
   });
-  await card(page).locator('.av-card-actions button').first().click();
+  await card(page).locator('.av-card-actions .av-text-link').click();
   await page.locator('#devices').scrollIntoViewIfNeeded();
   await expect.poll(() => video(page).evaluate((v: HTMLVideoElement) => v.paused)).toBe(true);
 });

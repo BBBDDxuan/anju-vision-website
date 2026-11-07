@@ -57,13 +57,14 @@ function eventMarkup(event) {
   return html.match(/<ul class="live-camera-events"[^>]*>([\s\S]*?)<\/ul>/)?.[1] ?? assert.fail('Event list missing');
 }
 
-test('Panel keeps compact status controls while camera title and capabilities stay in the main page header', () => {
+test('Panel keeps compact status controls while camera title stays in the page header and safety types sit beside the picture', () => {
   const html = render({ ...baseStatus, state: 'stopped' });
   const section = html.match(/<section id="camera"[\s\S]*?<\/section>/)?.[0] ?? assert.fail('Camera section missing');
   assert.match(section, /class="live-camera-controls"/);
   assert.match(section, /开启摄像头/);
   assert.doesNotMatch(section, /<h[1-3][^>]*>实时摄像头<\/h[1-3]>/);
-  assert.doesNotMatch(section, /跌倒|举手求助|可见明火/);
+  assert.match(section, /安全识别/);
+  assert.match(section, /跌倒识别|挥手识别|明火识别/);
   assert.match(html, /<div class="live-camera-options">/);
   assert.match(html, /<details class="live-camera-session"><summary>[\s\S]*?本次会话事件/);
   assert.match(html, /<details><summary>[\s\S]*?检测详情/);
@@ -83,8 +84,8 @@ test('Only confirmed danger events with a per-event review model are listed', ()
     ...candidate, candidate_id: `confirmed-${i}`, event_type, review_status: 'confirmed', review_model: 'qwen-review-test',
   }));
   const html = render({ ...baseStatus, events });
-  assert.equal((html.match(/data-review="confirmed"/g) || []).length, 3);
-  for (const text of ['疑似跌倒', '疑似求助', '疑似明火', 'Qwen 已复核确认', 'dateTime="2026-10-31T08:00:00Z"']) {
+  assert.equal((html.match(/<ul class="live-camera-events"[^>]*>([\s\S]*?)<\/ul>/)?.[1].match(/<li>/g) || []).length, 3);
+  for (const text of ['跌倒提醒', '举手提醒', '明火提醒', 'dateTime="2026-10-31T08:00:00Z"']) {
     assert.ok(html.includes(text), text);
   }
 });
@@ -95,16 +96,17 @@ test('Pending, excluded, uncertain, unavailable and unknown events are hidden fr
   }));
   events.push({ ...candidate, review_status: 'confirmed', review_model: 'qwen-review-test', review_reason: 'visible-confirmation' });
   const html = render({ ...baseStatus, events });
-  assert.equal((html.match(/data-review="confirmed"/g) || []).length, 1);
-  assert.match(html, /visible-confirmation/);
+  assert.equal((html.match(/<ul class="live-camera-events"[^>]*>([\s\S]*?)<\/ul>/)?.[1].match(/<li>/g) || []).length, 1);
+  assert.match(html, /跌倒提醒/);
+  assert.doesNotMatch(html, /visible-confirmation|Qwen/);
   assert.doesNotMatch(html, /hidden-reason|复核排除|待复核|证据不足|data-review="rejected"/);
 });
 
 test('Legacy events remain hidden even with a configured global model and event ID', () => {
   const legacyEvent = { event_type: 'fire_detected', occurred_at: candidate.occurred_at, confidence: 0.99, event_id: 'legacy-event' };
   const html = render({ ...baseStatus, events: [legacyEvent] });
-  assert.match(html, /暂无 Qwen 复核确认的危险事件/);
-  assert.doesNotMatch(html, /class="live-camera-events"|已复核确认|疑似明火/);
+  assert.match(html, /目前没有需要查看的提醒。/);
+  assert.doesNotMatch(html, /class="live-camera-events"|已复核确认/);
 });
 
 test('Confirmed status without an actual review model and unsupported event types remain hidden', () => {
@@ -113,56 +115,44 @@ test('Confirmed status without an actual review model and unsupported event type
     ...['unknown_type', '__proto__', 'constructor'].map(event_type => ({ ...candidate, event_type, review_status: 'confirmed', review_model: 'qwen-review-test' })),
   ]) {
     const html = render({ ...baseStatus, events: [event] });
-    assert.match(html, /暂无 Qwen 复核确认的危险事件/);
+    assert.match(html, /目前没有需要查看的提醒。/);
     assert.doesNotMatch(html, /class="live-camera-events"|已复核确认/);
   }
 });
 
-test('Per-event review reason and model are shown as escaped text, without a global-model fallback', () => {
+test('Internal event review diagnostics stay out of the family interface', () => {
   const html = eventMarkup({ ...candidate, review_status: 'confirmed', review_reason: '<script>confirmed danger</script>', review_model: 'event-review-model' });
-  assert.match(html, /复核说明：&lt;script&gt;confirmed danger&lt;\/script&gt;/);
-  assert.match(html, /复核模型：event-review-model/);
-  assert.doesNotMatch(html, /<script>|qwen-review-test/);
+  assert.match(html, /跌倒提醒/);
+  assert.doesNotMatch(html, /<script>|confirmed danger|event-review-model|qwen-review-test|复核/);
 });
 
 test('Person alerts show matched identity as a candidate; unknown and fire never borrow a name', () => {
   const event = { ...candidate, review_status: 'confirmed', review_model: 'synthetic-review',
     face_identity: { status: 'matched', member_id: 'member-1', name: '<测试家人>' } };
-  assert.match(eventMarkup(event), /&lt;测试家人&gt;（人脸识别候选，请核对）/);
+  assert.match(eventMarkup(event), /可能是&lt;测试家人&gt;/);
   const unknown = eventMarkup({ ...event, face_identity: { ...event.face_identity, status: 'unknown', reason: 'member_deleted' } });
   assert.match(unknown, /身份未确认/);
   assert.doesNotMatch(unknown, /测试家人/);
   assert.doesNotMatch(eventMarkup({ ...event, event_type: 'fire_detected' }), /成员：|测试家人/);
 });
 
-test('Pipeline, availability, supported tasks and review errors are explicit', () => {
+test('Unavailable safety service gives a natural error while keeping recording controls', () => {
   const html = render({ ...baseStatus, review_error: 'review_timeout', events: [{ ...candidate, review_status: 'unavailable' }] });
-  assert.match(html, /小模型候选 → Qwen 复核/);
-  assert.match(html, /复核模型<\/dt><dd>qwen-review-test/);
-  assert.match(html, /候选复核<\/dt><dd>已启用/);
-  assert.match(html, /云端复核配置<\/dt><dd>已配置/);
-  assert.doesNotMatch(html, /候选不等于|不代表|不构成诊断/);
-  assert.doesNotMatch(html, /摔倒 · 举手求助 · 可见明火/);
-  assert.doesNotMatch(html, /烟雾|电火花/);
-  assert.match(html, /role="alert">复核异常：review_timeout/);
-  assert.match(html, /云端复核使用候选证据画面/);
-  assert.doesNotMatch(html, /无云上传|不上传画面|不调用云|已复核确认/);
+  assert.match(html, /role="alert">安全分析暂时不可用/);
+  assert.match(html, /安全提醒<\/dt><dd>已启用/);
+  assert.match(html, /安全分析会使用相关画面/);
+  assert.doesNotMatch(html, /Qwen|qwen-review-test|review_timeout|复核/);
 });
 
-test('Disabled or missing review configuration never implies confirmation or local-only processing', () => {
+test('Disabled or missing safety configuration never implies a confirmed event', () => {
   const disabled = render({ ...baseStatus, review_enabled: false, cloud_calls: false });
-  assert.match(disabled, /候选复核<\/dt><dd>未启用/);
-  assert.match(disabled, /云端复核配置<\/dt><dd>未配置/);
+  assert.match(disabled, /安全提醒<\/dt><dd>未启用/);
   const legacy = render({ state: 'stopped', frames: 0, recording: false, events: [] });
-  for (const field of ['安全流程', '复核模型', '云端复核配置']) {
-    assert.ok(legacy.includes(`${field}</dt><dd>未下发`));
-  }
+  assert.match(legacy, /安全提醒<\/dt><dd>待获取/);
   for (const html of [disabled, legacy]) {
-    assert.doesNotMatch(html, /无云上传|不上传画面|不调用云|已复核确认/);
-    assert.match(html, /暂无 Qwen 复核确认的危险事件/);
+    assert.doesNotMatch(html, /无云上传|不上传画面|不调用云|已复核确认|Qwen/);
+    assert.match(html, /目前没有需要查看的提醒/);
   }
-  for (const sparks_enabled of [undefined, true]) assert.doesNotMatch(render({ ...baseStatus, sparks_enabled }), /摔倒 · 举手求助 · 可见明火/);
-  assert.match(render({ ...baseStatus, safety_pipeline: 'future_pipeline' }), /未知流程/);
 });
 
 test('Recording, performance, help/fall diagnostics and alert queue information remain visible', () => {
@@ -175,7 +165,7 @@ test('Recording, performance, help/fall diagnostics and alert queue information 
     alerts: { enabled: true, pending: 2, worker_alive: true },
     recording_status: { enabled: true, state: 'recording', directory: 'G:/recordings-test', files: 3, bytes: 1024 ** 3, deleted_files: 2, retention_days: 3, max_gib: 10, min_free_gib: 5, segment_seconds: 300, error: 'recording-test-error' },
   });
-  for (const text of ['停止预览', '25 FPS', '8 ms', '4 FPS', '15 ms', '1920 × 1080', '960 × 540', 'GPU-test', '全画面 + 高清重叠切片', 'G:/recordings-test', '1.000 GiB', '正在录像', '正在录制</dt><dd>是', '3 天', '10 GiB', '5 GiB', '300 秒', '录像错误：recording-test-error', '面部朝向候选 1 / 2', 'person-1：正在观察下降过程', '待传送 2 条']) {
+  for (const text of ['停止预览', '25 FPS', '8 ms', '4 FPS', '15 ms', '1920 × 1080', '960 × 540', 'GPU-test', '完整画面与局部细节', 'G:/recordings-test', '1.000 GiB', '正在录像', '正在录制</dt><dd>是', '3 天', '10 GiB', '5 GiB', '300 秒', '录像错误：recording-test-error', 'person-1：正在观察下降过程', '待传送 2 条']) {
     assert.ok(html.includes(text), `Missing existing information: ${text}`);
   }
 });
@@ -193,7 +183,7 @@ test('Loading and configuration errors keep the existing disabled control and re
 test('Disconnected camera states do not present previous FPS or counts as current measurements', () => {
   for (const state of ['stopped', 'starting', 'connecting', 'reconnecting', 'stale', 'error']) {
     const html = render({ ...baseStatus, state, fps: 25, fire_fps: 4, persons: 2, fire_candidates: 1 });
-    assert.doesNotMatch(html, /25 FPS|4 FPS|画面人数<\/dt><dd>2|火焰候选<\/dt><dd>1/);
+    assert.doesNotMatch(html, /25 FPS|4 FPS|画面人数<\/dt><dd>2|疑似明火<\/dt><dd>1/);
     assert.match(html, /— FPS/);
     assert.doesNotMatch(html, /data-state="running"/);
   }

@@ -29,8 +29,8 @@ test('原始封面无检测框，演示来源明确，未发起推理请求', as
   await open(page);
   await expect(overlay(page)).toHaveAttribute('opacity', '0');
   await expect(overlay(page)).toHaveAttribute('data-source', 'demo');
-  await expect(card(page)).toContainText('含核对标注');
-  await expect(card(page)).toContainText('非实时推理');
+  await expect(page.locator('.av-demo-intro')).toHaveText('以下为已保存的离线分析演示，展示识别结果与画面标记。');
+  await expect(card(page)).toContainText('检测到跌倒姿态');
   await expect(overlay(page)).toHaveCSS('pointer-events', 'none');
   const before = (await (await request.get('/api/health')).json()).usage.requests;
   await seek(page, 3.1);
@@ -49,9 +49,9 @@ test('实际视频时间驱动框、骨架与风险标签，暂停后静止，�
   await expect(card(page).locator('.detection-risk')).toHaveAttribute('visibility', 'visible');
   await expect(card(page).locator('[data-joint][visibility=visible]')).not.toHaveCount(0);
   const before = await box(page).getAttribute('y');
-  await card(page).locator('.av-card-actions button').first().click();
+  await card(page).locator('.av-card-actions .av-text-link').click();
   await page.waitForTimeout(180);
-  await card(page).locator('.av-card-actions button').first().click();
+  await card(page).locator('.av-card-actions .av-text-link').click();
   await expect.poll(() => video(page).evaluate((v: HTMLVideoElement) => v.paused)).toBe(true);
   const frozen = await overlay(page).evaluate(node => node.innerHTML);
   await page.waitForTimeout(300);
@@ -69,7 +69,7 @@ test('淡出取决于媒体时间，循环与重播清除上一轮标记，SVG�
   await seek(page, 6.3);
   await expect(overlay(page)).toHaveAttribute('opacity', '0');
   await seek(page, 8.35);
-  await card(page).locator('.av-card-actions button').first().click();
+  await card(page).locator('.av-card-actions .av-text-link').click();
   await expect.poll(() => video(page).evaluate((v: HTMLVideoElement) => v.currentTime), { timeout: 3000 }).toBeLessThan(1);
   await expect(overlay(page)).toHaveAttribute('opacity', '0');
   await card(page).getByRole('button', { name: '跌倒 / 异常姿态：从头重播' }).click();
@@ -83,7 +83,7 @@ test('requestAnimationFrame回退仍同步视频，鼠标移出与暂停不会�
   });
   await open(page);
   await seek(page, 5.7);
-  await card(page).locator('.av-card-actions button').first().click();
+  await card(page).locator('.av-card-actions .av-text-link').click();
   await page.mouse.move(5, 5);
   await expect.poll(async () => Number(await overlay(page).getAttribute('data-time-ms'))).toBeGreaterThan(5800);
   await video(page).evaluate((v: HTMLVideoElement) => v.pause());
@@ -138,7 +138,7 @@ test('减少动态效果下仍可定位，离屏暂停且卸载后不再更新',
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await open(page); await seek(page, 5.8);
   await expect(card(page).locator('.detection-risk')).toHaveCSS('animation-name', 'none');
-  await card(page).locator('.av-card-actions button').first().click();
+  await card(page).locator('.av-card-actions .av-text-link').click();
   await page.locator('#devices').scrollIntoViewIfNeeded();
   await expect.poll(() => video(page).evaluate((v: HTMLVideoElement) => v.paused)).toBe(true);
   await page.getByRole('banner').getByRole('link', { name: '进入工作台', exact: true }).click();

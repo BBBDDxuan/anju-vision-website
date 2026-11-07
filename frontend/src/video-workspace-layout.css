@@ -1,0 +1,229 @@
+/* Video page only: keep playback and analysis in the same document flow. */
+.av-workspace-shell main.unified-workspace {
+  padding: 16px 24px 36px;
+}
+.av-workspace-shell .unified-workspace .analysis-layout {
+  grid-template-columns: minmax(0, 13fr) minmax(0, 7fr);
+  gap: 18px;
+  align-items: start;
+}
+.unified-workspace :is(.analysis-player-column, .analysis-inspector, .workspace-inspector-scroll, .workspace-analysis-area) {
+  min-width: 0; height: auto; max-height: none; overflow: visible;
+}
+.unified-workspace .recording-toolbar {
+  display: flex; align-items: center; gap: 12px; min-height: 56px;
+  padding: 10px 14px; box-sizing: border-box; border-bottom: 1px solid var(--line);
+}
+.unified-workspace .recording-toolbar-title {
+  display: flex; align-items: center; gap: 9px; font-size: 13px; font-weight: 600;
+}
+.unified-workspace .recording-toolbar .video-select {
+  flex: 1; min-width: 0; padding: 0; gap: 8px;
+}
+.unified-workspace .recording-toolbar .video-select label { font-size: 11px; }
+.unified-workspace .recording-toolbar .video-select select {
+  width: 100%; min-width: 0; min-height: 34px; padding: 6px 9px; font-size: 12px;
+}
+.unified-workspace .recording-toolbar .video-panel-actions {
+  display: flex; align-items: center; flex: 0 0 auto; gap: 8px; margin-left: auto;
+}
+.unified-workspace .recording-toolbar :is(.recording-import, .delete-video-button) {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  min-height: 34px; padding: 7px 9px; font-size: 11px; border-radius: 7px;
+}
+.unified-workspace .video-panel { position: relative; }
+.unified-workspace .recording-stage { background: #14231d; }
+.unified-workspace .recording-player {
+  position: relative; width: 100%; aspect-ratio: 16 / 9; margin-inline: auto;
+  max-width: calc(clamp(240px, calc(100dvh - 390px), 480px) * 16 / 9);
+  max-height: none; background: #14231d;
+}
+.unified-workspace .video-panel > .upload-progress {
+  position: absolute; top: 64px; inset-inline: 14px; z-index: 2;
+  margin: 0; padding: 10px 12px; border-radius: 9px; box-shadow: 0 3px 12px #253b2510;
+}
+.av-workspace-shell .unified-workspace .recording-player video {
+  display: block; position: absolute; inset: 0; width: 100%; height: 100%;
+  max-height: none; object-fit: contain; background: transparent; border: 0;
+}
+.unified-workspace .recording-controls {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; padding: 8px 14px 3px;
+}
+.unified-workspace .playback-clock { font-size: 11px; font-variant-numeric: tabular-nums; }
+.unified-workspace .evidence-timebar { padding: 4px 14px 0; }
+.unified-workspace .evidence-timebar-track { margin: 7px 0 9px; height: 7px; }
+.unified-workspace .timebar-labels { line-height: 16px; }
+.unified-workspace .timebar-markers {
+  height: 30px; min-height: 30px; max-height: none; padding: 4px 0 0;
+  overflow: visible; flex-wrap: nowrap; align-items: center; box-sizing: border-box;
+}
+.unified-workspace .timebar-markers button {
+  min-width: 0; min-height: 24px; max-width: 32%; padding: 4px 7px;
+  white-space: nowrap; text-overflow: ellipsis; overflow: hidden;
+}
+.unified-workspace .timebar-markers > span { font-size: 10px; }
+.unified-workspace .timebar-more { margin-left: auto; white-space: nowrap; }
+.unified-workspace .workspace-seek-status {
+  display: block; min-height: 18px; padding: 0 14px; margin: 0;
+  box-sizing: border-box; font-size: 10px; line-height: 18px;
+}
+.unified-workspace .workspace-analysis-area { padding: 12px 14px 14px; }
+.unified-workspace .analysis-primary-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 42px;
+}
+.unified-workspace .analysis-mode-tabs {
+  display: flex; flex: 0 0 auto; gap: 3px; margin: 0; padding: 3px; border-radius: 8px;
+  background: var(--soft); border: 1px solid var(--line);
+}
+.unified-workspace .analysis-mode-tabs button {
+  min-height: 32px; padding: 6px 12px; font-size: 12px; border: 0; border-radius: 6px;
+}
+.unified-workspace .analysis-mode-tabs button[aria-pressed=true] {
+  background: var(--surface); color: var(--color-evergreen); box-shadow: 0 1px 4px #253b2510;
+}
+.unified-workspace .analysis-bar { justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+.av-workspace-shell .unified-workspace .analysis-start {
+  flex: 0 0 auto; min-height: 42px; padding: 10px 20px; font-size: 13px; min-width: 142px;
+}
+.unified-workspace .analysis-bar .text-button { font-size: 11px; padding: 5px 0; }
+.unified-workspace .analysis-feedback { margin-top: 9px; }
+.unified-workspace .analysis-method { margin: 0; line-height: 20px; font-size: 11px; }
+.unified-workspace .analysis-job-status { font-size: 11px; line-height: 20px; margin: 0; }
+.unified-workspace .analysis-progress-slot { min-height: 20px; }
+.unified-workspace .analysis-job-progress {
+  display: flex; gap: 10px; align-items: center; padding: 0; margin: 0;
+  background: transparent; min-height: 20px; font-size: 10px; color: var(--muted);
+}
+.unified-workspace .analysis-job-progress span { flex: 0 0 auto; }
+.unified-workspace .analysis-job-progress progress { flex: 1; width: 0; height: 5px; margin: 0; }
+.unified-workspace :is(.analysis-options, .analysis-details) { margin-top: 0; }
+.unified-workspace :is(.analysis-options, .analysis-details) > summary { padding: 5px 0; font-size: 11px; }
+.unified-workspace .workspace-inspector-scroll { padding: 18px 16px; }
+.unified-workspace .workspace-inspector-tabs { border-radius: 14px 14px 0 0; }
+.unified-workspace .workspace-inspector-tabs button { font-size: 12px; padding: 13px 3px; gap: 5px; }
+.unified-workspace .inspector-section-heading { margin-bottom: 14px; }
+.unified-workspace .inspector-section-heading h2 { font-size: 15px; }
+.unified-workspace .analysis-result-summary {
+  margin: 0 0 16px; padding: 12px; background: var(--soft);
+}
+.unified-workspace .analysis-result-summary h2 { font-size: 13px; }
+.unified-workspace .analysis-result-summary p { margin: 6px 0; }
+.unified-workspace .summary-actions { gap: 12px; }
+.unified-workspace .inspector-analysis-state {
+  display: flex; align-items: flex-start; gap: 10px; padding: 15px 12px;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--soft); margin-bottom: 16px;
+}
+.unified-workspace .inspector-analysis-state > svg { flex-shrink: 0; color: var(--color-evergreen); }
+.unified-workspace .inspector-analysis-state strong { font-size: 13px; font-weight: 600; }
+.unified-workspace .inspector-analysis-state p { font-size: 12px; line-height: 1.8; margin: 7px 0 0; color: var(--muted); }
+.unified-workspace .event-categories { gap: 5px; }
+.unified-workspace .event-categories button { font-size: 11px; padding-inline: 7px; }
+.unified-workspace .timeline-panel > .empty {
+  padding: 24px 14px; margin: 8px 0; border: 1px dashed var(--line);
+  border-radius: 9px; background: #f8faf5; text-align: center;
+}
+.unified-workspace .family-reminders { margin-top: 18px; padding-top: 16px; }
+.unified-workspace .family-reminders .reminder-settings { margin-block: 10px; }
+.unified-workspace .family-reminders > .empty { margin: 0; padding: 9px 0; }
+.unified-workspace .replay-view > select { width: 100%; }
+.unified-workspace .answer-panel .answer-empty { padding: 16px 12px; }
+.unified-workspace .answer-panel .answer-empty h2 { font-size: 16px; }
+.av-workspace-shell .is-video-empty .analysis-layout {
+  grid-template-columns: minmax(0, 13fr) minmax(270px, 7fr); align-items: stretch;
+}
+.is-video-empty .analysis-player-column { display: block; }
+.av-workspace-shell .unified-workspace.is-video-empty .video-panel {
+  display: flex; flex-direction: column; flex: none; height: 390px; min-height: 0; margin: 0;
+}
+.is-video-empty .recording-toolbar { flex: 0 0 auto; }
+.av-workspace-shell .is-video-empty .upload-dropzone {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  width: 100%; flex: 1; height: auto; min-height: 0; max-height: none;
+  padding: 22px 24px; box-sizing: border-box; gap: 12px; margin: 0; border: 0;
+  background: #fafbf7; border-radius: 0 0 14px 14px; text-align: center;
+}
+.av-workspace-shell .unified-workspace .upload-dropzone:hover:not(:disabled),
+.av-workspace-shell .unified-workspace .upload-dropzone.is-dragging { background: #edf3e5; }
+.is-video-empty .empty-upload-icon {
+  display: grid; place-items: center; width: 46px; height: 46px; flex-shrink: 0;
+  background: var(--soft); color: var(--color-evergreen); border-radius: 12px; margin: 0;
+}
+.is-video-empty .upload-dropzone[aria-busy=true] .empty-upload-icon { visibility: hidden; }
+.is-video-empty .empty-video strong { font-size: 23px; font-weight: 600; line-height: 1.4; margin: 0; }
+.unified-workspace .empty-upload-description {
+  max-width: 390px; color: var(--muted); font-size: 13px; line-height: 1.8; font-weight: 400;
+}
+.unified-workspace .empty-upload-action {
+  min-height: 42px; display: inline-flex; align-items: center; justify-content: center;
+  padding: 10px 24px; border-radius: 8px; box-sizing: border-box; font-size: 13px;
+  background: var(--color-evergreen); color: #fff;
+}
+.is-video-empty .empty-video-selection-hint { color: var(--muted); font-size: 11px; line-height: 1.7; font-weight: 400; }
+.is-video-empty .upload-dropzone small { color: var(--muted); font-size: 11px; line-height: 1.7; }
+.unified-workspace .workspace-workflow {
+  display: flex; flex-direction: column; box-sizing: border-box; min-width: 0;
+  padding: 24px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface);
+  box-shadow: 0 3px 16px #253a3304;
+}
+.workspace-workflow > h2 { display: flex; align-items: center; gap: 9px; margin: 0 0 24px; font-size: 16px; line-height: 1.5; font-weight: 600; }
+.workspace-workflow > h2 svg { color: var(--color-evergreen); }
+.workspace-workflow-steps { display: flex; flex-direction: column; justify-content: space-between; flex: 1; gap: 22px; list-style: none; margin: 0; padding: 0; }
+.workspace-workflow-steps li { display: flex; gap: 13px; align-items: flex-start; min-width: 0; }
+.workspace-step-number {
+  display: grid; place-items: center; flex-shrink: 0; width: 32px; height: 32px;
+  border-radius: 9px; background: var(--soft); color: var(--color-evergreen); font-size: 12px; font-variant-numeric: tabular-nums;
+}
+.workspace-workflow-steps h3 { margin: 3px 0 7px; font-size: 14px; line-height: 1.5; font-weight: 600; }
+.workspace-workflow-steps p { margin: 0; font-size: 12px; line-height: 1.8; color: var(--muted); }
+.workspace-capability-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 18px; }
+.workspace-capability-card {
+  display: flex; align-items: flex-start; gap: 15px; min-width: 0; min-height: 124px; padding: 24px;
+  border: 1px solid var(--line); border-radius: 14px; background: var(--surface); box-sizing: border-box;
+  box-shadow: 0 3px 16px #253a3304;
+}
+.workspace-capability-icon {
+  display: grid; place-items: center; width: 46px; height: 46px; flex-shrink: 0;
+  border-radius: 12px; background: var(--soft); color: var(--color-evergreen);
+}
+.workspace-capability-card h2 { display: flex; align-items: baseline; gap: 9px; font-size: 15px; line-height: 1.6; font-weight: 600; margin: 0 0 7px; }
+.workspace-capability-card h2 > span { color: var(--muted); font-size: 11px; font-weight: 400; }
+.workspace-capability-card p { margin: 0; font-size: 12px; line-height: 1.8; color: var(--muted); }
+@media (min-width: 901px) and (max-height: 800px) {
+  .av-workspace-shell main.unified-workspace { padding: 12px 20px 30px; }
+}
+@media (max-width: 1150px) and (min-width: 1025px) {
+  .av-workspace-shell .unified-workspace.is-video-selected .analysis-layout { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 900px) {
+  .av-workspace-shell main.unified-workspace { padding: 14px 16px 88px; }
+  .av-workspace-shell .unified-workspace .analysis-layout { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .unified-workspace .recording-player { max-width: calc(480px * 16 / 9); }
+  .unified-workspace .analysis-inspector { min-height: 0; }
+  .av-workspace-shell .is-video-empty .analysis-layout { grid-template-columns: minmax(0, 1fr); }
+  .unified-workspace .workspace-workflow { padding: 24px; }
+  .workspace-workflow-steps { gap: 22px; }
+  .workspace-capability-grid { gap: 14px; }
+  .workspace-capability-card { padding: 20px 16px; gap: 12px; align-items: flex-start; }
+  .workspace-capability-card h2 { flex-wrap: wrap; gap: 3px 7px; }
+}
+@media (max-width: 600px) {
+  .av-workspace-shell main.unified-workspace { padding-inline: 10px; }
+  .unified-workspace .recording-toolbar { flex-wrap: wrap; gap: 8px; padding: 10px 12px; }
+  .unified-workspace .recording-toolbar .video-select { flex-basis: 100%; }
+  .unified-workspace .recording-toolbar .video-select label { display: block; }
+  .unified-workspace .recording-toolbar .video-panel-actions { width: 100%; justify-content: flex-end; }
+  .unified-workspace .recording-toolbar :is(.recording-import, .delete-video-button) { min-height: 30px; }
+  .unified-workspace .analysis-primary-row { flex-wrap: wrap; gap: 9px; }
+  .unified-workspace .analysis-primary-row .analysis-bar { flex: 1; }
+  .unified-workspace .analysis-mode-tabs button { padding-inline: 10px; }
+  .av-workspace-shell .unified-workspace .analysis-start { min-width: 126px; padding-inline: 13px; }
+  .unified-workspace .timebar-more { white-space: normal; font-size: 9px; line-height: 12px; }
+  .unified-workspace .timebar-markers button { font-size: 9px; padding-inline: 4px; }
+  .av-workspace-shell .unified-workspace.is-video-empty .video-panel { height: 420px; }
+  .av-workspace-shell .is-video-empty .upload-dropzone { padding-inline: 18px; gap: 11px; }
+  .is-video-empty .empty-video strong { font-size: 20px; }
+  .unified-workspace .video-panel > .upload-progress { top: 108px; inset-inline: 10px; }
+  .workspace-capability-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .workspace-capability-card { min-height: 104px; align-items: center; padding: 20px; }
+}

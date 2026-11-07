@@ -2,31 +2,4 @@
 .event{align-items:start}
 .analysis-plan{margin:0 20px 16px;color:#74846e;font-size:11px;line-height:1.9}.analysis-bar{flex-wrap:wrap}
 .timeline-tabs{display:flex;gap:8px;margin:0 0 20px}.timeline-tabs button{border:1px solid #dce2d5;background:transparent;color:#69816c;padding:8px 15px;border-radius:8px;font-size:12px}.timeline-tabs .active{background:#22674e;border-color:#22674e;color:white}.replay-view>label{display:block;font-size:12px;margin-bottom:10px}.replay-view>select{width:100%;padding:10px;border:1px solid #dce2d5;border-radius:8px;background:#fffef9;color:#264b36;margin-bottom:20px}.replay-title{font-weight:600;margin:0 0 20px}.replay-entry{display:grid;grid-template-columns:132px 1fr;gap:14px;padding:0 0 20px;margin-bottom:20px;border-bottom:1px solid #e9ecdf}.replay-entry p{font-size:12px;line-height:1.8;margin:9px 0 2px}.replay-entry .tag{font-size:10px;padding:4px 8px}.frame-link{border:0;background:#173d32;border-radius:8px;overflow:hidden;padding:0;color:#e9f0df;align-self:start}.frame-link img{width:100%;display:block}.frame-link span{display:block;font:11px Consolas,monospace;padding:6px}.query-context{font-size:12px;color:#657e69;background:#eef3e8;padding:8px 10px;border-radius:7px}@media(max-width:580px){.replay-entry{grid-template-columns:104px 1fr;gap:10px}}
-/* Fixed-camera calibration and evidence review. */
-.review-panel { margin: 16px; padding: 16px; border: 1px solid #cbd9d3; border-radius: 12px; background: #f8fbf9; }
-.review-panel summary { cursor: pointer; font-weight: 650; padding: 8px 0; }
-.review-panel p { line-height: 1.6; }
-.review-panel select,.review-panel textarea,.review-panel input[type=text] { width: 100%; min-width: 0; padding: 9px; border: 1px solid #bfcec7; border-radius: 7px; background: white; }
-.review-panel textarea { min-height: 80px; resize: vertical; }
-.review-panel label { display: block; margin: 10px 0 5px; }
-.review-panel button { border: 1px solid #b9cec3; border-radius: 7px; padding: 8px 11px; background: white; color: #244e3a; cursor: pointer; }
-.review-panel button:disabled { opacity: .5; cursor: default; }
-.review-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0; }
-.review-controls input,.review-controls select { flex: 1; min-width: 120px; max-width: 100%; }
-.region-canvas { position: relative; margin-top: 12px; line-height: 0; }
-.region-canvas img { display: block; width: 100%; }
-.region-canvas svg { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
-.region-canvas rect { fill: #2db68722; stroke: #00a46b; stroke-width: 3; }
-.region-canvas text { fill: #102e20; font-size: 27px; stroke: white; stroke-width: 2px; paint-order: stroke; }
-.region-list { list-style: none; padding-left: 0; }
-.region-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 5px 0; }
-.event-review { margin-top: 16px; border-top: 1px solid #d8e4de; padding-top: 10px; }
-.review-frames { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; max-height: 480px; overflow-y: auto; }
-.review-frames label { margin: 0; border: 1px solid #cad8d0; border-radius: 6px; overflow: hidden; background: white; font-size: 12px; }
-.review-frames input { margin: 6px; }
-.review-frame-image { position: relative; display: block; line-height: 0; }
-.review-frames img { width: 100%; display: block; }
-.bbox-overlay { position: absolute; border: 2px solid #f08b27; pointer-events: none; }
-.review-success { color: #216044; background: #e7f4ec; padding: 10px; border-radius: 7px; }
-.review-history { margin-top: 15px; font-size: 12px; overflow-wrap: anywhere; }
-@media (max-width: 650px) { .review-panel { margin: 10px; padding: 10px; } .review-frames { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 650px) { }

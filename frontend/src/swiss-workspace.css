@@ -203,7 +203,7 @@
 .av-workspace-shell .coverage-labels { color: var(--muted); font-size: 10px; }
 .av-workspace-shell progress { accent-color: #809c76; }
 
-/* Inspector tabs, events, question answering and human review. */
+/* Inspector tabs, events and question answering. */
 .av-workspace-shell .analysis-inspector { background: #fff; border-color: var(--line); border-radius: 12px; box-shadow: 0 3px 16px #253a3304; }
 .av-workspace-shell .workspace-inspector-tabs { background: #fbfcf9; border-color: var(--line); padding: 5px 10px 0; }
 .av-workspace-shell .workspace-inspector-tabs button { color: #687a69; padding: 13px 4px; font-size: 12px; min-height: 48px; background: transparent; }
@@ -297,16 +297,6 @@
 .av-workspace-shell .replay-entry.priority-event { background: #faf1ec; color: var(--ink); border-color: #bb8d76; }
 .av-workspace-shell .frame-link { background: #344631; color: #f2f6e9; border-radius: 6px; }
 .av-workspace-shell .query-context { background: #eef4e4; color: #5b7750; font-size: 12px; }
-.av-workspace-shell .review-panel { color: var(--ink); background: #f9fbf5; border-color: var(--line); border-radius: 9px; padding: 14px; font-size: 12px; }
-.av-workspace-shell .review-panel summary { color: #526f47; font-size: 13px; }
-.av-workspace-shell .review-panel h3 { color: var(--ink); font-size: 13px; }
-.av-workspace-shell .review-panel button { background: #f0f5e7; color: #58764a; border-color: #d6e3c8; font-size: 11px; min-height: 36px; padding: 7px 9px; }
-.av-workspace-shell .review-panel :is(input, select, textarea) { color: var(--ink); background: #fff; font-size: 12px; border-color: var(--line); }
-.av-workspace-shell .review-panel :is(input, select) { min-height: 38px; }
-.av-workspace-shell .review-panel textarea { min-height: 90px; padding: 10px; }
-.av-workspace-shell .review-panel p { color: var(--muted); font-size: 12px; line-height: 1.8; }
-.av-workspace-shell .review-success { background: #eaf3e0; color: #557347; font-size: 12px; }
-.av-workspace-shell .event-review { border-color: var(--line); }
 
 /* Camera diagnostics follow the same quiet hierarchy; actual pictures stay dark. */
 .av-workspace-shell .live-camera-panel { background: #fff; border-color: var(--line); border-radius: 12px; box-shadow: 0 3px 16px #253a3304; margin-top: 0; margin-bottom: 22px; }
@@ -428,8 +418,6 @@
   .av-workspace-shell .live-camera-controls { gap: 10px; }
   .av-workspace-shell .live-camera-controls > button { min-height: 44px; }
   .av-workspace-shell .live-camera-metrics > div { padding: 13px 12px; }
-  .av-workspace-shell .review-panel .review-controls { gap: 8px; }
-  .av-workspace-shell .review-panel .review-controls :is(input, select) { min-height: 42px; }
   .av-workspace-shell :is(.help-dialog, .delete-dialog) { padding: 23px; }
 }
 
@@ -452,7 +440,6 @@
   .av-workspace-shell .timebar-labels > span { font-size: 9px; }
   .av-workspace-shell .workspace-task-tray > summary { padding-inline: 13px; }
   .av-workspace-shell .workspace-task-tray > summary > span:last-child { font-size: 10px; }
-  .av-workspace-shell .review-panel { padding: 12px; }
   .av-workspace-shell .live-camera-placeholder strong { font-size: 20px; }
   .av-workspace-shell .live-camera-metrics dd { font-size: 22px; }
   .av-workspace-shell .live-camera-summary dd { font-size: 12px; }

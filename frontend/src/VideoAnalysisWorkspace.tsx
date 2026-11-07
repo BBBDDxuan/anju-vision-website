@@ -3,9 +3,9 @@ import { Icon } from './ui';
 import type { InspectorTab } from './navigation';
 
 const items = [
-  { id: 'events', title: '事件', icon: 'clock' },
+  { id: 'events', title: '事件提醒', icon: 'clock' },
   { id: 'qa', title: 'AI 问答', icon: 'chat' },
-  { id: 'tools', title: '追踪与复核', icon: 'search' },
+  { id: 'tools', title: '目标追踪', icon: 'search' },
 ] as const;
 
 export function InspectorTabs({ active, onChange }: { active: InspectorTab; onChange: (tab: InspectorTab) => void }) {
