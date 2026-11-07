@@ -13,6 +13,9 @@ new Function('require','module','exports',uiOutput)(require,uiModule,uiModule.ex
 const memberApiOutput = ts.transpileModule(readFileSync(new URL('../src/memberApi.ts',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
 const memberApiModule = {exports:{}};
 new Function('require','module','exports',memberApiOutput)(require,memberApiModule,memberApiModule.exports);
+const cameraRequestsModule = { exports: {} };
+const cameraRequestsOutput = ts.transpileModule(readFileSync(new URL('../src/cameraRequests.ts', import.meta.url), 'utf8'), {compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText;
+new Function('module','exports',cameraRequestsOutput)(cameraRequestsModule,cameraRequestsModule.exports);
 const source = readFileSync(new URL('../src/LiveCameraPanel.tsx',import.meta.url),'utf8');
 const { outputText } = ts.transpileModule(source,{ compilerOptions:{ module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022 } });
 const evaluate = new Function('require','module','exports','fetch','window','document','URL','Image','performance',outputText);
@@ -29,7 +32,7 @@ function harness(respond,decode = () => Promise.resolve()) {
   const fetch=async(path,init)=>{calls.push({path,init,at:now});return respond(path,init);};
   const module={exports:{}};
   let nextUrl=0;
-  evaluate(id=>id==='react'?hooks:id==='./ui'?uiModule.exports:id==='./memberApi'?memberApiModule.exports:id.endsWith('.css')?{}:require(id),module,module.exports,fetch,window,events,{createObjectURL:()=>`blob:fixture-${++nextUrl}`,revokeObjectURL:url=>revoked.push(url)},class{naturalWidth=640;naturalHeight=360;decode(){return decode();}},{now:()=>now});
+  evaluate(id=>id==='react'?hooks:id==='./ui'?uiModule.exports:id==='./cameraRequests'?cameraRequestsModule.exports:id==='./memberApi'?memberApiModule.exports:id.endsWith('.css')?{}:require(id),module,module.exports,fetch,window,events,{createObjectURL:()=>`blob:fixture-${++nextUrl}`,revokeObjectURL:url=>revoked.push(url)},class{naturalWidth=640;naturalHeight=360;decode(){return decode();}},{now:()=>now});
   function render(){stateIndex=0;refIndex=0;effects.length=0;return module.exports.LiveCameraPanel({});}
   const canvas = find(render(),node=>node.type==='canvas');
   const context = { drawImage: image=>draws.push(image.src), clearRect(){} };

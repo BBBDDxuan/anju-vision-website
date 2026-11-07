@@ -22,6 +22,25 @@ test('家庭账号头像和核心能力演示在合并后共同可用', async ({
   await expect(page.getByRole('button', { name: '个人信息', exact: true })).toBeFocused();
 });
 
+test('家庭管理用一个二维码完成手机连接和登录', async ({ page }) => {
+  await page.route('**/api/auth/login-code', async route => {
+    expect(route.request().method()).toBe('POST');
+    await route.fulfill({ json: {
+      kind: 'anju-login-v1', origin: 'https://192.168.1.9:8000', code: 'a'.repeat(43),
+      ca_sha256: 'b'.repeat(64), tls_sha256: 'c'.repeat(64),
+    } });
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: '个人信息', exact: true }).click();
+  await page.getByRole('button', { name: '家庭管理', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: '注册家庭成员' });
+  await expect(dialog.getByRole('button', { name: '生成家人邀请二维码' })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: '生成电脑连接二维码' })).toHaveCount(0);
+  await dialog.getByRole('button', { name: '生成手机连接并登录二维码' }).click();
+  await expect(dialog.getByText(/校验证书并登录当前账号/)).toBeVisible();
+  await expect(dialog.getByRole('img', { name: '安居视界家庭二维码' })).toHaveAttribute('src', /^data:image\/png;base64,/);
+});
+
 test('官网采用已批准文案并保持工作台入口去重', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('#hero-title')).toHaveText('让牵挂，有迹可循。');

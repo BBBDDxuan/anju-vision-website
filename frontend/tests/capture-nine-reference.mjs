@@ -39,7 +39,7 @@ try {
   await capture(page, '05_设备接入.png', page.locator('.av-devices'));
   await page.goto(`${base}/workspace?view=camera`, { waitUntil: 'networkidle' });
   await expect(page.locator('.camera-page-heading h1')).toHaveText('实时摄像头');
-  await expect(page.getByRole('button', { name: '开启摄像头', exact: true }).or(page.getByRole('button', { name: '停止预览', exact: true }))).toBeVisible();
+  await expect(page.getByRole('button', { name: '开启摄像头', exact: true }).or(page.getByRole('button', { name: '关闭摄像头', exact: true }))).toBeVisible();
   await capture(page, '06_工作台_实时摄像头.png');
   await page.close();
 

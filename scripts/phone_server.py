@@ -36,17 +36,48 @@ def main():
     parser.add_argument('--port', type=int, default=8000)
     parser.add_argument('--safety-port', type=int, default=8010)
     parser.add_argument('--check', action='store_true', help='Start, check health, then stop both child services.')
+    parser.add_argument('--tls-profile', type=Path, help='Windows local TLS profile directory.')
     parser.add_argument('--tls-cert')
     parser.add_argument('--tls-key')
     parser.add_argument('--tls-ca', help='CA PEM used to verify the local TLS readiness check.')
     parser.add_argument('--allow-insecure-lan', action='store_true', help='Demo credentials only on an isolated trusted LAN.')
     args = parser.parse_args()
+    if args.tls_profile and any((args.tls_cert, args.tls_key, args.tls_ca, args.allow_insecure_lan)):
+        parser.error('Use --tls-profile by itself, or supply individual TLS files.')
+    try:
+        address = private_address(args.address)
+        additional_addresses = {private_address(value) for value in args.additional_address} - {address}
+    except (ValueError, OSError):
+        parser.error('请使用这台电脑当前可用的局域网 IPv4 地址。')
+    if args.port == args.safety_port or not all(1 <= p <= 65535 for p in (args.port, args.safety_port)):
+        parser.error('Choose two distinct valid ports.')
+    # Refuse an already running service before changing any certificate files.
+    for port, host in ((args.port, '0.0.0.0'), (args.safety_port, '127.0.0.1')):
+        with socket.socket() as probe:
+            probe.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+            try:
+                probe.bind((host, port))
+            except OSError:
+                parser.error(f'端口 {port} 已被占用，请先停止旧服务，再启动手机网关。')
     local_data = os.getenv('LOCALAPPDATA')
-    local_tls = Path(local_data) / 'AnjuVision' / 'lan-tls' if local_data else None
-    if (not args.tls_cert and not args.tls_key and not args.allow_insecure_lan
-            and local_tls and (local_tls / 'address.txt').is_file()):
-        if args.address not in (local_tls / 'address.txt').read_text(encoding='ascii').split():
-            parser.error('The local TLS certificate does not cover this IP. Configure a certificate for the current Wi-Fi IP.')
+    local_tls = args.tls_profile or (Path(local_data) / 'AnjuVision' / 'lan-tls' if local_data else None)
+    if not any((args.tls_cert, args.tls_key, args.tls_ca, args.allow_insecure_lan)):
+        if local_tls is None:
+            parser.error('请使用 --tls-profile 指定本机 HTTPS 配置目录。')
+        try:
+            from scripts.lan_tls import ensure_profile
+        except ImportError:
+            parser.error('缺少证书生成组件，请运行 .venv\\Scripts\\python.exe -m pip install -r requirements.txt。')
+        try:
+            profile = ensure_profile(local_tls, {address} | additional_addresses)
+        except (OSError, ValueError) as exc:
+            parser.error(f'本机 HTTPS 证书自动配置失败：{exc}')
+        local_tls = profile.directory
+        action = {'created': '已自动创建', 'renewed': '已自动更新', 'reused': '已校验并复用'}[profile.action]
+        print(f'{action}本机 HTTPS 证书，当前地址：{address}', flush=True)
+        if profile.ca_changed:
+            print('已创建或更换本机 CA；手机请扫描电脑新生成的二维码下载公开证书。', flush=True)
+        print(f'HTTPS 配置目录：{local_tls}（私钥仅保存在电脑）', flush=True)
         args.tls_cert = str(local_tls / 'server.pem')
         args.tls_key = str(local_tls / 'server.key')
         args.tls_ca = str(local_tls / 'ca.pem')
@@ -54,13 +85,11 @@ def main():
         parser.error('Supply both TLS certificate and key; a CA is optional.')
     tls_args = ['--ssl-certfile', str(Path(args.tls_cert).resolve(strict=True)),
                 '--ssl-keyfile', str(Path(args.tls_key).resolve(strict=True))] if args.tls_cert else []
+    if not tls_args and not args.allow_insecure_lan:
+        parser.error('找不到手机网关的 HTTPS 证书。请配置本机 TLS 文件或传入 -TlsCert 和 -TlsKey。')
     scheme = 'https' if tls_args else 'http'
     if args.allow_insecure_lan and tls_args:
         parser.error('Choose either TLS or explicit HTTP demo mode.')
-    address = private_address(args.address)
-    additional_addresses = {private_address(value) for value in args.additional_address} - {address}
-    if args.port == args.safety_port or not all(1 <= p <= 65535 for p in (args.port, args.safety_port)):
-        parser.error('Choose two distinct valid ports.')
     os.chdir(ROOT)
     load_dotenv(ROOT / '.env', override=False)
     phone = dotenv_values(ROOT / '.env.phone')
@@ -72,6 +101,8 @@ def main():
     env['ANJU_ACCOUNTS'] = '1'
     env['ANJU_ACCOUNT_DEMO_HTTP'] = '1' if args.allow_insecure_lan else '0'
     env['ANJU_ACCOUNT_ORIGIN'] = f'{scheme}://{address}:{args.port}'
+    env['ANJU_ACCOUNT_CA_PEM'] = str(Path(args.tls_ca).resolve(strict=True)) if args.tls_ca else ''
+    env['ANJU_ACCOUNT_TLS_CERT'] = str(Path(args.tls_cert).resolve(strict=True)) if args.tls_cert else ''
     env['ANJU_PHONE_ADDRESS'] = address
     env['ANJU_PHONE_PORT'] = str(args.port)
     hosts = set(env.get('APP_ALLOWED_HOSTS', '127.0.0.1,localhost,[::1]').split(','))
@@ -86,17 +117,13 @@ def main():
     sys.path.insert(0, str(ROOT / 'elder-safety/backend'))
     from safety_backend.config import Settings as SafetySettings
     SafetySettings.from_env()
-    for port, host in ((args.port, '0.0.0.0'), (args.safety_port, '127.0.0.1')):
-        with socket.socket() as probe:
-            probe.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
-            probe.bind((host, port))
     runtime = ROOT / 'runtime/phone-server'
     runtime.mkdir(parents=True, exist_ok=True)
     details = ROOT / 'runtime/手机连接参数.txt'
     details.write_text(
         f'安居视界手机连接参数（仅本机保存，请勿提交或公开）\n\n'
         f'统一服务地址：{scheme}://{address}:{args.port}\n统一访问令牌：{token}\n\n'
-        + ''.join(f'其他已放行的本机地址：http://{item}:{args.port}\n' for item in sorted(additional_addresses)) + '\n'
+        + ''.join(f'其他已放行的本机地址：{scheme}://{item}:{args.port}\n' for item in sorted(additional_addresses)) + '\n'
         f'兼容旧 App：录像服务和安全后端均填上面的同一个地址、同一个令牌。\n'
         f'联系人角色：primary\n\n'
         f'新版 App 只需一个地址；旧版页面的两组配置填相同内容。手机与电脑须网络互通。\n'

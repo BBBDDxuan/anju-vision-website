@@ -50,9 +50,9 @@
   display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
   min-height: 0; padding: 10px 16px; gap: 8px 16px;
 }
-.live-camera-heading-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-left: auto; }
+.live-camera-heading-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-left: auto; min-width: 0; max-width: 100%; }
 .av-workspace-shell .live-camera-controls { width: auto; gap: 8px; }
-.live-camera-heading .lan-setup { padding: 0; margin: 0; flex-shrink: 0; }
+.live-camera-heading .lan-setup { padding: 0; margin: 0; flex-shrink: 1; min-width: 0; max-width: 100%; }
 .live-camera-heading .lan-setup-actions { gap: 8px; justify-content: flex-end; }
 .av-workspace-shell .live-camera-heading :is(.live-camera-controls > button, #lan-camera-button, #lan-pair-button) {
   display: inline-flex; align-items: center; justify-content: center; gap: 7px;

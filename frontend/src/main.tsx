@@ -432,7 +432,7 @@ function App() {
       {view === 'members' ? <MemberManagement cloud={health?.cloud_mode} ready={health !== null}/> : view === 'camera' ? <>
         {health?.cloud_mode ? <div className="configuration"><span>当前在线环境不支持连接本机摄像头。请在本机启动服务后使用实时摄像头，或导入视频进行分析。</span><button className="text-button" onClick={() => navigate('videos')}>导入视频</button></div> : <LiveCameraPanel ready={health !== null} configurationError={healthError} onRetry={() => { void refresh().catch(e => setError(e.message)); }} connectionActions={health && <LanSetup />} />}
         {!health?.cloud_mode && <p className="privacy">在 <a href="/workspace?view=members" onClick={event => { event.preventDefault(); navigate('members'); }}>家庭成员</a> 添加家人照片，安全提醒中可显示可能对应的家人。</p>}
-        <p className="privacy">切换导航不会停止摄像头。需要结束实时看护时，请点击“停止预览”。</p>
+        <p className="privacy">切换导航不会停止摄像头。需要结束实时看护时，请点击“关闭摄像头”。</p>
       </> : <>
       <div className="workspace-notices">
         {health?.cloud_mode && <p className="cloud-demo-note">在线体验：内置示例为已保存的真实模型分析，可直接回看和提问；上传新视频后可触发新的模型分析。上传录像仅对当前浏览器访客可见，请勿上传敏感画面。若内嵌页面无法保留会话，请通过平台提供的独立页面入口打开。</p>}

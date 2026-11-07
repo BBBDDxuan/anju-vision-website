@@ -9,6 +9,7 @@
 - **第一次运行或配置 `.env`：[首次运行、环境配置与手机联调](docs/GETTING_STARTED.md)**。按安装、生成令牌、编辑配置、自检、启动的顺序操作。
 - [完整环境变量表](docs/c-notifications/ENV_CONFIGURATION.md)：根 `.env`、`elder-safety/.env`、`.env.phone`、GPU 路径、RTSP、预算和 Firebase。
 - [手机连接与网络排错](docs/a-backend/PHONE_LOCAL_SETUP.md)；[统一 API 契约](docs/api-contract-abc.md)。
+- [自动 HTTPS 与扫码连接登录](docs/AUTO_LAN_HTTPS.md)：启动时自动创建、续期或更新证书，App 扫码下载并校验证书。
 
 网页与手机联调使用 `start-phone.ps1`，已构建的前端随服务一起提供；`start.ps1` 仅用于电脑单机模式。真实配置在每台运行后端的电脑本机填写，队友拉取仓库后需要各自配置。
 
@@ -18,7 +19,7 @@
 > 安装脚本会在缺少 `.env` 时生成本地配置。API Key、摄像头账号及通知令牌请通过团队安全渠道另行提供。
 > 新生成配置默认关闭云请求；填好密钥后将根 `.env` 的 `VLM_ENABLE_NETWORK` 改为 `true` 才能进行真实云复核。
 
-## 网页与 App 共用后端（2026-11-04）
+## 网页与 App 共用后端
 
 团队约定后端只在本 website 仓库维护，App 仓库维护手机端。原有 `backend/`、`elder-safety/` 和 `frontend/` 目录不移动；手机和网页共用这一个运行中的电脑后端。
 
@@ -27,12 +28,15 @@
 ```powershell
 .\.venv\Scripts\python.exe scripts/configure_phone.py
 # 按首次运行指南编辑 .env 和 elder-safety/.env，再启动。
-powershell -NoProfile -ExecutionPolicy Bypass -File .\start-phone.ps1 -Address '电脑当前局域网IPv4'
+.\start-phone.bat
+# 多个局域网地址时，可显式传入 -Address '电脑当前局域网IPv4'。
 ```
 
 **自定义 GPU 环境注意：** `configure_phone.py` 会重写 `SAFETY_PYTHON` 和 `SAFETY_MODEL_CONFIG`；执行后恢复自己的路径。已有配置日常启动无需重新初始化。
 
-电脑网页仍为 `http://127.0.0.1:8000/`；手机使用 `http://电脑局域网IP:8000` 和本机 `runtime/手机连接参数.txt` 的统一令牌。内部 8010 只监听电脑 loopback，手机不填第二个端口。旧 App 的两组服务字段填写同一地址和同一令牌。
+电脑网页和手机共用启动输出的 `https://电脑局域网IP:8000/`。启动器自动识别 IP，在当前 Windows 用户的 `%LOCALAPPDATA%\AnjuVision\lan-tls` 创建或更新证书，并保留可用 CA。电脑网页登录后，在右上角头像 → 家庭管理生成“手机连接并登录二维码”；App 扫码自动下载并校验公开 CA，再兑换一次性登录码。也可使用已有家庭账号密码登录。无需手填共享令牌，证书不封装到 APK。
+
+IP 或 CA 变化后重新生成并扫描二维码即可，账号无需重新注册。电脑浏览器首次使用自建 CA 时可能需要信任公开 CA；启动器不会静默导入系统根证书。内部 8010 只在电脑监听，不向手机开放；8000 被旧服务占用时先停止旧服务再启动。完整流程见 [自动 HTTPS 说明](docs/AUTO_LAN_HTTPS.md)。
 
 统一告警新增 `/api/alerts`、详情、证据、幂等确认和 changes 游标。实摄及上传录像只在现有视觉复核确认后进入正式中心。仓库已包含独立通知/推送模块，需配置 Firebase、启用插件并完成 App 接线后分别验收实际送达。新启动器关闭旧安全 worker，避免候选或模拟通知另行发送；原安全数据和接口保留。
 
@@ -209,9 +213,11 @@ website 后端已接入本地 YuNet + SFace：支持成员照片录入、身份�
 
 ## 七、手机告警与可选 Firebase 通知
 
-手机联调统一使用 `start-phone.ps1`，它同时管理 8000 共享入口和仅本机监听的 8010 内部安全服务，不需要额外手动启动旧安全后端。摄像头识别由电脑网页点击“开启摄像头”，测试时保持工作台打开。
+手机联调统一使用 `start-phone.bat` / `start-phone.ps1`，它同时管理 8000 共享入口和仅本机监听的 8010 内部安全服务，不需要额外手动启动旧安全后端。摄像头可在网页或 App 中搜索、连接并开启监护；离开预览页不会停止后端，结束时点击“关闭摄像头”。
 
-App 的地址和令牌见启动后生成的 `runtime/手机连接参数.txt`。正式通知插件位于 `backend/push_notifications/`，配置 `APP_ALERT_PUSH_HANDLER`、`APP_FCM_ENABLED`、`APP_FCM_CREDENTIALS`、`APP_FCM_ORIGIN` 前先阅读 [完整步骤](docs/GETTING_STARTED.md#7-可选真实-firebase-通知) 和 [推送接点](docs/c-notifications/A_INTEGRATION.md)。
+当前家庭账号版使用扫码或账号密码登录。Android 13+ App 首次登录后申请通知权限，在前台同步到新复核确认告警时发送系统通知，历史与重复记录不重复提醒。家庭账号版后台和锁屏即时推送尚未接通。
+
+可选的通知插件位于 `backend/push_notifications/`，配置 `APP_ALERT_PUSH_HANDLER`、`APP_FCM_ENABLED`、`APP_FCM_CREDENTIALS`、`APP_FCM_ORIGIN` 前先阅读 [完整步骤](docs/GETTING_STARTED.md#7-可选真实-firebase-通知) 和 [推送接点](docs/c-notifications/A_INTEGRATION.md)；历史令牌模式的配置不能直接代表当前家庭账号推送已启用。
 
 真实 Firebase 推送还需要 App 对应项目的客户端配置、设备登记、通知权限和业务接线；提供商接受不等于手机、后台或锁屏已经送达。真实凭据保留在本机，不提交到 Git。
 

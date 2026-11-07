@@ -176,13 +176,13 @@ for (const width of [1440,390]) test(`${width}px 摄像头搜索只发现设备�
   await expect(dialog.getByLabel('设备密码')).toHaveValue('synthetic-password');
   await dialog.getByRole('button',{name:'连接并开启摄像头',exact:true}).click();
   await expect(dialog).not.toBeVisible();
-  await expect(page.locator('.lan-setup > [role=status]')).toContainText('实时看护已开启');
+  await expect(page.locator('.lan-setup > [role=status]')).toContainText('取流校验通过，监护正在启动');
   expect(await page.locator('.lan-setup > [role=status]').evaluate(node => parseFloat(getComputedStyle(node).fontSize))).toBeGreaterThanOrEqual(16);
   expect(calls).toEqual(['discover','connect','connect']);
-  await expect(page.getByRole('button',{name:'停止预览',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'关闭摄像头',exact:true})).toBeVisible();
   await expect(page.locator('.camera-safety')).toContainText('关注中');
   await page.screenshot({path:path.join(run,`camera-round2-${width}.png`),fullPage:true});
-  await page.getByRole('button',{name:'停止预览',exact:true}).click();
+  await page.getByRole('button',{name:'关闭摄像头',exact:true}).click();
   await expect(page.getByRole('button',{name:'开启摄像头',exact:true})).toBeVisible();
   expect(calls.at(-1)).toBe('/api/camera/stop');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

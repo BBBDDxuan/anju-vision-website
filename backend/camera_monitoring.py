@@ -107,7 +107,7 @@ def require_alerting(controller):
     controller.safety.ready()
     values = dotenv_values(controller.root / "elder-safety/.env")
     if not all((values.get(key) or "").strip() for key in ("SAFETY_DEVICE_ID", "SAFETY_DEVICE_TOKEN")):
-        raise AppError("CAMERA_ALERT_RELAY_MISSING", "请先运行手机服务配置，设置摄像头告警设备身份。", 503)
+        raise AppError("CAMERA_ALERT_RELAY_MISSING", "电脑后端缺少摄像头告警设备身份，请检查告警转发配置。", 503)
 
 
 def monitoring_router(controller, ffprobe="ffprobe", *, desktop_only=False):
@@ -115,9 +115,14 @@ def monitoring_router(controller, ffprobe="ffprobe", *, desktop_only=False):
     profile_file = controller.root / "runtime/camera-connection.json"
 
     def allowed(request):
-        if desktop_only and (request.client is None or request.client.host not in {"127.0.0.1", "::1"}):
-            raise AppError("CAMERA_LOCAL_ONLY", "请在后端电脑的本机网页配置摄像头。", 403)
-        # Native clients have no Origin; browser mutations must be same-origin.
+        # Native clients have no Origin; browser requests must be same-origin.
+        if desktop_only:
+            try:
+                loopback = ipaddress.ip_address(request.client.host).is_loopback
+            except (AttributeError, ValueError):
+                loopback = False
+            if not loopback:
+                raise AppError("CAMERA_LOCAL_ONLY", "本机模式仅允许在后端电脑上操作摄像头。", 403)
         origin = request.headers.get("origin")
         if origin and origin.rstrip("/") != str(request.base_url).rstrip("/"):
             raise AppError("CAMERA_ORIGIN_REJECTED", "请从同源服务操作摄像头监护。", 403)
@@ -173,9 +178,6 @@ def monitoring_router(controller, ffprobe="ffprobe", *, desktop_only=False):
                 temporary.unlink(missing_ok=True)
             return response()
 
-    if desktop_only:
-        return router
-
     @router.get("")
     def status(request: Request):
         allowed(request)
@@ -185,7 +187,8 @@ def monitoring_router(controller, ffprobe="ffprobe", *, desktop_only=False):
     def start(request: Request):
         allowed(request)
         with controller.control_lock:
-            require_alerting(controller)
+            if not desktop_only:
+                require_alerting(controller)
             if (controller.process and controller.process.poll() is None
                     and controller.status().get("state") == "running"):
                 return response()

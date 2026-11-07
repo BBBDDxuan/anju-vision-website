@@ -93,20 +93,20 @@ def create_app(settings: Settings | None = None, provider: VisionProvider | None
         app.add_middleware(TrustedProxyHostMiddleware, cidrs=settings.trusted_proxy_cidrs, allowed_hosts=settings.allowed_hosts)
     app.add_middleware(CORSMiddleware, allow_origins=list(settings.allowed_origins), allow_methods=["GET", "POST", "PUT", "DELETE"], allow_headers=["Content-Type", "X-Video-Name"])
 
+    from .camera_monitoring import monitoring_router
     from .lan_setup import PAIR_EXCHANGE, lan_router
     accounts = Accounts(accounts_path) if account_enabled else None
     app.state.accounts = accounts
     if accounts:
         app.include_router(accounts.router())
-        if not phone_gateway:
-            from .camera_monitoring import monitoring_router
-            app.include_router(monitoring_router(camera, settings.ffprobe, desktop_only=True))
     else:
         @app.get('/api/auth/status')
         def account_status():
             return {'enabled': False, 'cloud': bool(cloud)}
     if not cloud:
         app.include_router(lan_router(settings.lan_token, pairing=phone_gateway and accounts is None))
+        if not phone_gateway:
+            app.include_router(monitoring_router(camera, settings.ffprobe, desktop_only=True))
 
     @app.middleware("http")
     async def local_origin(request, call_next):

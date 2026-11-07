@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { cameraNetworkError, cameraResponseError } from './cameraRequests';
 import { Icon } from './ui';
 import { faceIdentityLabel, type FaceIdentity } from './memberApi';
 import './live-camera.css';
@@ -164,9 +165,15 @@ export function LiveCameraPanel({ ready = true, configurationError = '', onRetry
     previewVersion.current++;
     setBusy(true); setError('');
     try {
-      const response = await fetch(`/api/camera/${action}`,{method:'POST'});
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error?.message || '摄像头操作失败');
+      let response: Response;
+      try {
+        response = await fetch('/api/camera/' + action,{method:'POST',signal:AbortSignal.timeout(18000)});
+      } catch (error) {
+        throw new Error(cameraNetworkError(action, error));
+      }
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(cameraResponseError(action, response.status, data));
+      if (!data) throw new Error('电脑后端返回无效响应，请检查服务地址与日志。');
       previewVersion.current++;
       latestStatus.current=data;
       setStatus(data);
@@ -195,7 +202,7 @@ export function LiveCameraPanel({ ready = true, configurationError = '', onRetry
     <section id="camera" className="live-camera-panel" aria-label="实时摄像头">
     <div className="live-camera-heading">
       <span className="live-camera-state" data-state={state} role="status"><i aria-hidden="true"/>{stateLabel}</span>
-      <div className="live-camera-heading-actions"><div className="live-camera-controls"><button disabled={busy || !status || !ready || !!configurationError} aria-busy={busy} onClick={() => void command(running ? 'stop' : 'start')}>{busy ? '处理中…' : running ? '停止预览' : '开启摄像头'}</button></div>{connectionActions}</div>
+      <div className="live-camera-heading-actions"><div className="live-camera-controls"><button disabled={busy || !status || !ready || !!configurationError} aria-busy={busy} onClick={() => void command(running ? 'stop' : 'start')}>{busy ? '处理中…' : running ? '关闭摄像头' : '开启摄像头'}</button></div>{connectionActions}</div>
     </div>
     {configurationError && <p className="error" role="alert">{configurationError}{onRetry && <button className="text-button" onClick={onRetry}>重新读取</button>}</p>}
     {error && <p className="error" role="alert">{error}</p>}

@@ -18,6 +18,9 @@ const apiOutput = ts.transpileModule(readFileSync(new URL('../src/memberApi.ts',
 }).outputText;
 const memberApiModule = { exports: {} };
 new Function('require', 'module', 'exports', apiOutput)(require, memberApiModule, memberApiModule.exports);
+const cameraRequestsModule = { exports: {} };
+const cameraRequestsOutput = ts.transpileModule(readFileSync(new URL('../src/cameraRequests.ts', import.meta.url), 'utf8'), {compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText;
+new Function('module','exports',cameraRequestsOutput)(cameraRequestsModule,cameraRequestsModule.exports);
 const source = readFileSync(new URL('../src/LiveCameraPanel.tsx', import.meta.url), 'utf8');
 const { outputText } = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 },
@@ -33,6 +36,7 @@ function render(status, props = {}) {
   loadPanel(id => {
     if (id === './live-camera.css') return {};
     if (id === './ui') return uiModule.exports;
+    if (id === './cameraRequests') return cameraRequestsModule.exports;
     if (id === './memberApi') return memberApiModule.exports;
     if (id === 'react') return {
       ...React,
@@ -165,7 +169,7 @@ test('Recording, performance, help/fall diagnostics and alert queue information 
     alerts: { enabled: true, pending: 2, worker_alive: true },
     recording_status: { enabled: true, state: 'recording', directory: 'G:/recordings-test', files: 3, bytes: 1024 ** 3, deleted_files: 2, retention_days: 3, max_gib: 10, min_free_gib: 5, segment_seconds: 300, error: 'recording-test-error' },
   });
-  for (const text of ['停止预览', '25 FPS', '8 ms', '4 FPS', '15 ms', '1920 × 1080', '960 × 540', 'GPU-test', '完整画面与局部细节', 'G:/recordings-test', '1.000 GiB', '正在录像', '正在录制</dt><dd>是', '3 天', '10 GiB', '5 GiB', '300 秒', '录像错误：recording-test-error', 'person-1：正在观察下降过程', '待传送 2 条']) {
+  for (const text of ['关闭摄像头', '25 FPS', '8 ms', '4 FPS', '15 ms', '1920 × 1080', '960 × 540', 'GPU-test', '完整画面与局部细节', 'G:/recordings-test', '1.000 GiB', '正在录像', '正在录制</dt><dd>是', '3 天', '10 GiB', '5 GiB', '300 秒', '录像错误：recording-test-error', 'person-1：正在观察下降过程', '待传送 2 条']) {
     assert.ok(html.includes(text), `Missing existing information: ${text}`);
   }
 });
@@ -193,6 +197,6 @@ test('An unknown camera state is explicit and does not assume the worker is runn
   const html = render({ ...baseStatus, state: 'future_state' });
   assert.match(html, /未知状态/);
   assert.match(html, /开启摄像头/);
-  assert.doesNotMatch(html, /停止预览|本地实时识别中/);
+  assert.doesNotMatch(html, /关闭摄像头|本地实时识别中/);
 });
 

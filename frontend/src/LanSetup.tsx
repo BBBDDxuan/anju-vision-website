@@ -1,18 +1,25 @@
 import { useContext, useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
+import { cameraNetworkError, cameraResponseError, type CameraAction } from './cameraRequests';
 import { AccountContext } from './AccountGate';
 import './lan-setup.css';
 
 type Camera = { host: string; port: number; username: string; path: string };
 type Panel = 'pair' | 'camera';
 
-async function lan(path: string, body?: object) {
-  const response = await fetch(path, {
-    method: body ? 'POST' : 'GET', cache: 'no-store', signal: AbortSignal.timeout(18000),
-    ...(body && { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error?.message || `操作失败（HTTP ${response.status}）。`);
+async function lan(action: CameraAction, path: string, body?: object) {
+  let response: Response;
+  try {
+    response = await fetch(path, {
+      method: body ? 'POST' : 'GET', cache: 'no-store', signal: AbortSignal.timeout(18000),
+      ...(body && { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
+    });
+  } catch (error) {
+    throw new Error(cameraNetworkError(action, error));
+  }
+  const data = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(cameraResponseError(action, response.status, data));
+  if (data == null) throw new Error('电脑后端返回无效响应，请检查服务地址与日志。');
   return data;
 }
 
@@ -54,7 +61,7 @@ export function LanSetup() {
   }
   const discover = () => run(async () => {
     setCameras([]);
-    const result = await lan('/api/lan/cameras');
+    const result = await lan('search', '/api/lan/cameras');
     setCameras(result.cameras);
     if (!result.cameras.length) setMessage('暂未发现摄像头。请确认设备与电脑在同一网络，或手动填写设备地址。');
   });
@@ -79,7 +86,15 @@ export function LanSetup() {
       <p>在安居视界 App 中扫码。二维码两分钟内有效，仅可使用一次，请勿分享。</p>
       <button type="button" disabled={busy} onClick={() => void run(async () => {
         setQr('');
-        setQr(await QRCode.toDataURL(JSON.stringify(await lan('/api/lan/pair', {})), { width: 240 }));
+        const response = await fetch('/api/lan/pair', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+          cache: 'no-store', signal: AbortSignal.timeout(12000),
+        });
+        const data = await response.json().catch(() => null);
+        if (!response.ok || !data) {
+          throw new Error(data?.error?.message || '当前电脑服务未提供配对，请检查手机网关设置。');
+        }
+        setQr(await QRCode.toDataURL(JSON.stringify(data), { width: 240 }));
       })}>{qr ? '重新生成二维码' : '生成配对二维码'}</button>
       {qr && <img className="lan-setup-qr" src={qr} width={240} height={240} alt="安居视界手机配对二维码"/>}
     </div>}
@@ -92,9 +107,9 @@ export function LanSetup() {
       <form onSubmit={event => {
         event.preventDefault();
         void run(async () => {
-          await lan('/api/monitoring/camera', { host: host.trim(), port: Number(port), username: username.trim(), password, path: path.trim() });
+          await lan('connect', '/api/monitoring/camera', { host: host.trim(), port: Number(port), username: username.trim(), password, path: path.trim() });
           setPassword('');
-          setMessage('摄像头已连接，实时看护已开启。');
+          setMessage('取流校验通过，监护正在启动。请以实际预览画面和监护状态为准。');
           setPanel(null);
         });
       }}>

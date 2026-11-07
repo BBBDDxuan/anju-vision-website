@@ -1,6 +1,10 @@
 param([string]$Address = '', [string[]]$AdditionalAddress = @(),
-      [string]$TlsCert = '', [string]$TlsKey = '', [string]$TlsCa = '', [switch]$AllowInsecureLan)
+      [string]$TlsCert = '', [string]$TlsKey = '', [string]$TlsCa = '', [switch]$AllowInsecureLan,
+      [string]$TlsProfile = '')
 $ErrorActionPreference = 'Stop'
+if ($TlsProfile -and ($TlsCert -or $TlsKey -or $TlsCa -or $AllowInsecureLan)) {
+    throw 'Use -TlsProfile by itself, or specify individual TLS files.'
+}
 $env:PYTHONUTF8 = '1'
 $python = Join-Path $PSScriptRoot '.venv\Scripts\python.exe'
 if (-not (Test-Path -LiteralPath $python)) { throw 'Run setup-team.ps1 first.' }
@@ -19,7 +23,16 @@ try {
     if ($TlsCert) { $serverArgs += @('--tls-cert', (Resolve-Path -LiteralPath $TlsCert).Path) }
     if ($TlsKey) { $serverArgs += @('--tls-key', (Resolve-Path -LiteralPath $TlsKey).Path) }
     if ($TlsCa) { $serverArgs += @('--tls-ca', (Resolve-Path -LiteralPath $TlsCa).Path) }
-    if ($AllowInsecureLan) { $serverArgs += '--allow-insecure-lan' }
+    if ($AllowInsecureLan) {
+        $serverArgs += '--allow-insecure-lan'
+    } elseif ($TlsProfile) {
+        $serverArgs += @('--tls-profile', $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($TlsProfile))
+    } elseif (-not ($TlsCert -or $TlsKey -or $TlsCa)) {
+        $localData = [Environment]::GetFolderPath('LocalApplicationData')
+        if ($localData) {
+            $serverArgs += @('--tls-profile', (Join-Path $localData 'AnjuVision\lan-tls'))
+        }
+    }
     & $python @serverArgs
     if ($LASTEXITCODE -ne 0) { throw 'Phone server stopped with an error. Inspect runtime/phone-server logs.' }
 } finally { Pop-Location }

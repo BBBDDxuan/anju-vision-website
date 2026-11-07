@@ -247,3 +247,14 @@ def test_probe_timeout_and_missing_tool_do_not_echo_url(monkeypatch):
         with pytest.raises(AppError) as caught:
             camera_monitoring.probe_stream('rtsp://secret', 'ffprobe')
         assert caught.value.code == code and 'secret' not in str(caught.value)
+
+def test_desktop_monitoring_route_is_local_and_not_cloud(settings):
+    app = video_main.create_app(replace(settings, lan_token=TOKEN), MockVisionProvider())
+    desktop = TestClient(app, base_url='http://localhost', client=('127.0.0.1', 5010))
+    remote = TestClient(app, base_url='http://localhost', client=('192.168.1.4', 5010))
+    assert desktop.get('/api/monitoring/camera').status_code == 200
+    blocked = remote.post('/api/monitoring/camera', headers=HEADERS, json=CONNECTION)
+    assert blocked.status_code == 403
+    assert blocked.json()['error']['code'] == 'CAMERA_LOCAL_ONLY'
+    origin = desktop.post('/api/monitoring/camera', headers={'Origin': 'http://evil.test'}, json=CONNECTION)
+    assert origin.status_code == 403

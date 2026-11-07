@@ -77,6 +77,9 @@ export function AccountGate({ children }: { children: ReactNode }) {
     const form = new FormData(event.currentTarget);
     setBusy(true); setMessage('');
     try {
+      if (setup && Array.from(String(form.get('password') ?? '')).length < 8) {
+        throw new Error('密码至少需要 8 个字符。');
+      }
       if (setup && form.get('password') !== form.get('confirm')) {
         throw new Error('两次输入的密码不一致。');
       }
@@ -116,11 +119,11 @@ export function AccountGate({ children }: { children: ReactNode }) {
         <form onSubmit={submit}>
           {setup && <>
             <label>家庭名称<input name="household_name" required maxLength={60} /></label>
-            <label>显示名称<input name="display_name" required maxLength={40} /></label>
+            <label>昵称<input name="display_name" required maxLength={40} /></label>
           </>}
           <label>用户名<input name="username" required pattern="[A-Za-z0-9_.\-]{3,32}" maxLength={32} autoComplete="username" /></label>
-          <label>密码<input name="password" type="password" required minLength={setup ? 12 : 1} maxLength={128} autoComplete={setup ? 'new-password' : 'current-password'} /></label>
-          {setup && <label>确认密码<input name="confirm" type="password" required minLength={12} maxLength={128} autoComplete="new-password" /></label>}
+          <label>密码<input name="password" type="password" required minLength={setup ? 8 : 1} maxLength={128} autoComplete={setup ? 'new-password' : 'current-password'} /></label>
+          {setup && <label>确认密码<input name="confirm" type="password" required minLength={8} maxLength={128} autoComplete="new-password" /></label>}
           <button type="submit" disabled={busy}>{busy ? '处理中…' : setup ? '创建家庭并登录' : '登录'}</button>
         </form>
         {!setup && <p>还没有账号？请让家庭管理员发邀请，在安居视界 App 扫码注册。</p>}
@@ -140,7 +143,7 @@ function FamilyAdmin({ admin, close }: { admin: boolean; close: () => void }) {
   }, []);
   const [users, setUsers] = useState<User[]>([]);
   const [qr, setQr] = useState('');
-  const [mode, setMode] = useState<'invite' | 'connection-code'>('invite');
+  const [mode, setMode] = useState<'invite' | 'login-code'>('invite');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const list = async () => setUsers(admin ? (await auth('users')).users : (await auth('family-members')).members);
@@ -151,21 +154,42 @@ function FamilyAdmin({ admin, close }: { admin: boolean; close: () => void }) {
     catch (error) { setMessage(error instanceof Error ? error.message : '操作失败。'); }
     finally { setBusy(false); }
   }
-  function create(kind: 'invite' | 'connection-code') {
+  function create(kind: typeof mode) {
     setQr(''); setMode(kind);
     void run(async () => {
-      const data = await auth(kind, kind === 'invite' ? {} : undefined);
-      setQr(await QRCode.toDataURL(JSON.stringify(data), { width: 224 }));
+      const [label, expectedKind] = {
+        'invite': ['家人邀请二维码', 'anju-invite-v1'],
+        'login-code': ['手机连接并登录二维码', 'anju-login-v1'],
+      }[kind];
+      try {
+        const data = await auth(kind, {});
+        if (data?.kind !== expectedKind || typeof data.origin !== 'string' || typeof data.code !== 'string') {
+          throw new Error('账号服务返回的二维码数据无效，请检查电脑网关。');
+        }
+        setQr(await QRCode.toDataURL(JSON.stringify(data), { width: 224 }));
+      } catch (error) {
+        const detail = error instanceof AuthError && error.status === 401
+          ? '登录已失效，请重新登录。'
+          : error instanceof DOMException && error.name === 'TimeoutError'
+            ? '电脑网关响应超时，请稍后重试。'
+            : error instanceof TypeError
+              ? '无法连接电脑网关，请确认服务已启动。'
+              : error instanceof Error ? error.message : '请稍后重试。';
+        throw new Error(`${label}生成失败。${detail}`);
+      }
     });
   }
   return <dialog ref={dialog} className="account-admin" aria-labelledby="account-admin-title" onCancel={event => { event.preventDefault(); close(); }}>
     <div className="account-toolbar"><h2 id="account-admin-title">注册家庭成员</h2><button type="button" onClick={close}>关闭</button></div>
     <p>这里显示已注册的家庭账号，不是被监护人员档案。所有有效账号都可查看家庭告警。</p>
-    {admin && <div className="account-toolbar">
-      <button type="button" disabled={busy} onClick={() => create('invite')}>生成家人邀请二维码</button>
-      <button type="button" disabled={busy} onClick={() => create('connection-code')}>生成电脑地址二维码</button>
-    </div>}
-    {qr && <><p>{mode === 'invite' ? '请用 App「扫码加入家庭」。邀请仅限使用一次，十分钟内有效。' : '请用 App「扫码填写地址」。此码只包含地址，不授予权限。'}</p><img src={qr} width={224} height={224} alt="安居视界家庭二维码" /></>}
+    <div className="account-toolbar">
+      {admin && <button type="button" disabled={busy} onClick={() => create('invite')}>生成家人邀请二维码</button>}
+      <button type="button" disabled={busy} onClick={() => create('login-code')}>生成手机连接并登录二维码</button>
+    </div>
+    {qr && <><p>{{
+      'invite': '请用 App「扫码加入家庭」。App 会连接电脑并打开注册页，邀请十分钟内可使用一次。',
+      'login-code': '请用自己的手机打开 App「扫码连接或登录」。扫一次即可连接这台电脑、校验证书并登录当前账号。二维码两分钟内可用一次，请勿分享。',
+    }[mode]}</p><img src={qr} width={224} height={224} alt="安居视界家庭二维码" /></>}
     {message && <p role="alert">{message}</p>}
     <ul>{users.map(item => <li key={item.id}>
       {item.display_name}{admin && item.username ? "（" + item.username + "）" : null} · {item.role === 'admin' ? '管理员' : '家庭成员'}{item.disabled ? ' · 已停用' : ''}
