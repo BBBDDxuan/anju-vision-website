@@ -22,6 +22,39 @@ CONNECTION = dict(host='192.168.137.39', port=554, username='local@user',
                   password='synthetic:# /?', path='stream1&channel=2')
 
 
+def test_desktop_form_connects_as_local_admin_without_phone_relay(settings, tmp_path, monkeypatch):
+    monkeypatch.setenv('ANJU_ACCOUNTS', '1')
+    monkeypatch.setattr(video_main, 'LiveCamera', lambda safety: LiveCamera(tmp_path, safety))
+    app = video_main.create_app(settings, MockVisionProvider())
+    camera = app.state.live_camera
+    calls = []
+    monkeypatch.setattr(camera_monitoring, 'probe_camera', lambda host, port: calls.append((host, port)))
+    monkeypatch.setattr(camera_monitoring, 'probe_stream', lambda url, ffprobe: calls.append((url, ffprobe)))
+    monkeypatch.setattr(camera, 'start', lambda: camera.info.update(state='starting'))
+    route = '/api/monitoring/camera'
+    origin = 'http://localhost'
+    with TestClient(app, base_url=origin, client=('127.0.0.1', 12000)) as client:
+        assert client.post(route, json=CONNECTION).status_code == 401
+        assert client.post('/api/auth/setup', json={
+            'username': 'owner', 'password': 'synthetic-admin-password',
+            'display_name': '管理员', 'household_name': '测试家庭',
+        }).status_code == 200
+        assert client.post(route, json=CONNECTION, headers={'Origin': 'https://untrusted.example'}).status_code == 403
+        remote = TestClient(app, base_url='https://localhost', client=('192.168.1.25', 12000), cookies=client.cookies)
+        blocked = remote.post(route, json=CONNECTION, headers={'Origin': 'https://localhost'})
+        assert blocked.status_code == 403
+        assert blocked.json()['error']['code'] == 'CAMERA_LOCAL_ONLY'
+        assert calls == []
+        response = client.post(route, json=CONNECTION, headers={'Origin': origin})
+        assert response.status_code == 200
+        assert response.json()['state'] == 'starting'
+        assert response.json()['camera'] == {'host': CONNECTION['host'], 'port': 554}
+        assert calls[0] == (CONNECTION['host'], 554)
+        profile = json.loads((tmp_path / 'runtime/camera-connection.json').read_text(encoding='utf-8'))
+        assert calls[1] == (profile['rtsp_url'], settings.ffprobe)
+        assert profile['rtsp_url'] not in response.text
+
+
 @pytest.fixture
 def phone(settings, safety, tmp_path, monkeypatch):
     monkeypatch.setattr(video_main, 'LiveCamera', lambda safety: LiveCamera(tmp_path, safety))

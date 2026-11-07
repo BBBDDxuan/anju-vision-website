@@ -20,7 +20,7 @@ ROOT=Path(__file__).resolve().parents[1]
 def child(recording_directory=None):
     sys.path.insert(0,str(ROOT/'ai-service'))
     import cv2
-    from ai_service import sources, preview_alerts, recording
+    from ai_service import sources, preview_alerts, recording, ffmpeg_capture
     from dataclasses import replace
     real_recorder = recording.CameraRecorder
     if recording_directory is None:
@@ -60,6 +60,7 @@ def child(recording_directory=None):
     import dotenv
     dotenv.dotenv_values=lambda *args,**kwargs: {'RTSP_URL':'rtsp://test:test@127.0.0.1/fixture'}
     sources.CaptureLink=FileLink
+    ffmpeg_capture.FFmpegCaptureLink=FileLink
     preview_alerts.PreviewAlerts=SilentAlerts
     runpy.run_path(str(ROOT/'scripts/web-camera-worker.py'),run_name='__main__')
 
@@ -89,6 +90,7 @@ def main():
     timer=threading.Timer(65,process.kill);timer.start()
     import struct
     packets=[];last=None;events=[];valid_jpegs=0;stop_sent=False
+    status={}
     def exact(n):
         data=bytearray()
         while len(data)<n:
@@ -100,19 +102,21 @@ def main():
         while True:
             length=struct.unpack('!I',exact(4))[0]
             assert 0<length<2_000_000
-            info=json.loads(exact(length));jpeg=exact(info['jpeg_size'])
-            if info['state']=='stopped': break
-            if info['state']=='error': raise RuntimeError('worker_error')
+            info=json.loads(exact(length));jpeg=exact(info.pop('jpeg_size'))
+            info.pop('kind', None)
+            status.update(info)
+            if status.get('state')=='stopped': break
+            if status.get('state')=='error': raise RuntimeError('worker_error')
             if jpeg:
                 image=cv2.imdecode(np.frombuffer(jpeg,dtype=np.uint8),cv2.IMREAD_COLOR)
                 assert image is not None and image.shape[:2]==(720,1280)
-                valid_jpegs+=1;packets.append(info);last=info
+                valid_jpegs+=1;last=dict(status);packets.append(last)
             if valid_jpegs>=90 and not stop_sent:
                 process.stdin.write(b'stop\n');process.stdin.flush();stop_sent=True
         process.wait(timeout=12)
         assert process.returncode==0
-        assert last and last['fire_state']=='running'
-        events=last['events']
+        assert last and status['fire_state']=='running'
+        events=status['events']
         assert any(e['event_type']=='suspected_fall' for e in events), 'fall_not_detected_in_worker'
         recording_check=None
         if args.recording_directory is not None:
@@ -129,7 +133,7 @@ def main():
         report={'passed':True,'source':'local prerecorded fall video upscaled to 2880x1620',
             'real_web_worker':True,'real_gpu_models':True,'camera_connected':False,'recording_check':recording_check,
             'alarm_delivery':False,'media_saved':recording_check is not None,'valid_jpeg_packets':valid_jpegs,
-            'status':last,'trace':[{'frames':p['frames'],'occurred_at':p['occurred_at'],'fall_diagnostics':p.get('fall_diagnostics',[]),'fps':p.get('fps')} for p in packets], 'event_types':sorted(set(e['event_type'] for e in events))}
+            'status':last,'trace':[{'frames':p.get('frames',0),'occurred_at':p['occurred_at'],'fall_diagnostics':p.get('fall_diagnostics',[]),'fps':p.get('fps')} for p in packets], 'event_types':sorted(set(e['event_type'] for e in events))}
     finally:
         bootstrap_log.close()
         stop.set();timer.cancel()
