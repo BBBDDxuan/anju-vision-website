@@ -13,6 +13,9 @@ const internalLanguage = /已有有效直接观察|位置边界|模型候选|人
 export function familyClaim(claim: DisplayClaim, index: ConfidenceIndex) {
   const sources = (claim.event_ids || []).flatMap(id => { const source = index.events.get(id); return source ? [source] : []; });
   if (!sources.length) return unknownAnswer;
+  // Server-validated answers and statistics describe the question, not just the
+  // action of a cited event. Replacing them can reverse a negative answer.
+  if (claim.record_summary) return claim.text;
   const wave = sources.some(e => e.action === 'help_gesture');
   let text = claim.text;
   if (internalLanguage.test(text) || wave && /求助|求救/.test(text)) {
@@ -25,11 +28,13 @@ export function familyClaim(claim: DisplayClaim, index: ConfidenceIndex) {
 }
 
 export function familyUnknown(text: string) {
+  if (/已分析记录中未找到/.test(text)) return text;
+  if (/没有人物记录.*无法确定人数/.test(text)) return '现有分析记录不足以确定人数，不能据此认为视频中没有人。';
   if (/尚未完整|未完成|部分完成/.test(text)) return '分析还未全部完成，回答只覆盖已分析的片段。';
   if (/静止时段|静止过滤|间隔检查|未覆盖|识别缺口|漏检|遗漏/.test(text)) return '部分时段的画面信息不足。';
   if (/音频|声音|说话/.test(text)) return '这段录像没有足够的声音信息，暂时无法判断相关情况。';
   if (/当前位置|容器|遮挡/.test(text)) return '只能参考录像中可见的位置，暂时无法确认现在的位置。';
-  if (/没有人物|未见人物|0人|0 人/.test(text)) return '目前没有识别到清晰的人物画面。';
+  if (/没有人物|未见人物|(?:^|\s)0\s*人/.test(text)) return '所引用的采样画面未见人物，不能据此确认整段视频都没有人。';
   if (/人数|匿名ID|独立人数/.test(text)) return '不同片段中可能是同一位家人，整段录像的人数暂时无法确认。';
   return unknownAnswer;
 }

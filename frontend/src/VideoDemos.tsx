@@ -75,7 +75,7 @@ export function CapabilityVideos() {
 
 const stages = [
   { icon: 'video', title: '原始视频留存', detail: '完整保留原始录像，锁定事件前后的完整画面。' },
-  { icon: 'chip', title: '智能安全分析', detail: '分析人物活动与环境情况，找到值得留意的片段。' },
+  { icon: 'chip', title: '智能安全分析', detail: '分析人物活动与环境情况，找到需要注意的片段。' },
   { icon: 'document', title: '事件自动摘要', detail: '按时间线梳理关键事件，清晰呈现异常的来龙去脉。' },
   { icon: 'play', title: '证据定位回看', detail: '一键跳转对应视频片段，查看事件前后的完整画面。' },
 ];
@@ -174,6 +174,6 @@ export function WorkflowDemo() {
         </>}
       </div>
     </div>
-    <div className="av-stage-footer"><span>一个真实案例 · 四个查看阶段</span><div><button disabled={stage === 0} onClick={() => changeStage(stage - 1, true)}>上一阶段</button><button disabled={stage === 3} onClick={() => changeStage(stage + 1, true)}>下一阶段<Arrow/></button></div></div>
+    <div className="av-stage-footer"><div><button disabled={stage === 0} onClick={() => changeStage(stage - 1, true)}>上一阶段</button><button disabled={stage === 3} onClick={() => changeStage(stage + 1, true)}>下一阶段<Arrow/></button></div></div>
   </div>;
 }

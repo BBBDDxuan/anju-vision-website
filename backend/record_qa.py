@@ -62,6 +62,16 @@ def attention_requested(question):
     return bool(re.search(r'值得关注|需要关注的(?:情况|事件)|重点关注的(?:情况|事件)', question))
 
 
+def safety_topics(question):
+    return {action: label for pattern, action, label in [
+        (r'跌倒|摔倒', 'fall', '跌倒'),
+        (r'明火|火焰', 'flame', '明火'),
+        (r'挥手|举手|求助|求救', 'help_gesture', '挥手/举手求助'),
+        (r'烟雾|冒烟', 'smoke', '烟雾'),
+        (r'火花|电弧', 'sparks', '火花'),
+    ] if re.search(pattern, question)}
+
+
 SUMMARY_INSTRUCTIONS = """本次用户要的是整体概括，禁止输出时间线或逐项事件清单。
 observations仅写1条连贯的中文短段落，通常60至150字，用2至3句提炼整体场景、主要活动与关键变化。
 不要按每个动作分条；不列时间戳、秒数或“在第几秒”，不罗列静止物品，不复述所有采样记录。
@@ -145,7 +155,18 @@ class RecordQuestionAnswerer:
         counting = bool(re.search(r'几个人|几人|多少人|人数|how many people|how many persons', question.lower()))
         if counting and not entity_id:
             return self.count_answer(document, job, question, cutoff, events)
-        fallback = query_memory(document, job, question, as_of_ms, entity_id)
+        topics = safety_topics(question) if style == 'question' else {}
+        if topics:
+            events = [e for e in events if e['action'] in topics
+                      and (not entity_id or entity_id in {e['subject_id'], e.get('target_id')})]
+            if not events:
+                result = self.base(document, job, question, cutoff)
+                result.update(answer_engine='record_rules', model_called=False, answer_style=style)
+                result['unknowns'] = [f"已分析记录中未找到可支持回答的{'、'.join(topics.values())}事件；"
+                                      '这不等于确认视频中没有发生，请回看原片。']
+                return self.finish(result, document, job, cutoff)
+        fallback = query_memory({**document, 'events': events} if topics else document,
+                                job, question, as_of_ms, entity_id)
         fallback.update(answer_engine='record_rules', model_called=False, cached=False)
         if style == 'summary' and (not entity_id or any(e['id'] == entity_id for e in document['entities'])):
             fallback = self.local_summary(document, job, question, cutoff, events, entity_id)
@@ -328,7 +349,8 @@ class RecordQuestionAnswerer:
                     f"（{clock(stats['peak_sample_ms'])}）。这不是整段录像准确的独立人数。")
             by_id = {e['id']: e for e in events}
             refs = list(dict.fromkeys(ref for eid in stats['event_ids'] for ref in by_id[eid]['evidence_ids']))
-            result['observations'] = [{'text': text, 'event_ids': stats['event_ids'], 'evidence_ids': refs}]
+            result['observations'] = [{'text': text, 'event_ids': stats['event_ids'], 'evidence_ids': refs,
+                                       'record_summary': True}]
         else:
             result['unknowns'].append('已有有效直接观察中没有人物记录，无法确定人数；不能据此断言录像中有0人。')
         result['unknowns'].append(stats['limitation'])

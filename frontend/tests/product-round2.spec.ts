@@ -145,7 +145,12 @@ for (const width of [1440,390]) test(`${width}px 摄像头搜索只发现设备�
     return route.fulfill({json:{state:running?'running':'stopped',frames:0,recording:false,review_enabled:true,fire_state:'running',events:[]}});
   });
   await page.route('**/api/lan/cameras',route => { calls.push('discover'); return route.fulfill({json:{cameras:[{host:'192.0.2.10',port:554,username:'admin',path:'stream1'}]}}); });
-  await page.route('**/api/monitoring/camera',route => { calls.push('connect'); running=true; return route.fulfill({json:{started:true}}); });
+  let connectAttempts = 0;
+  await page.route('**/api/monitoring/camera',route => {
+    calls.push('connect');
+    if (++connectAttempts === 1) return route.fulfill({status:503,json:{error:{message:'测试：连接失败，请检查设备密码。'}}});
+    running=true; return route.fulfill({json:{state:'running',monitoring:true}});
+  });
   await page.goto('/workspace?view=camera');
   await expect(page.getByRole('heading',{name:'实时摄像头',exact:true})).toHaveCount(0);
   await expect(page.locator('.topbar .breadcrumb strong')).toHaveText('实时摄像头');
@@ -165,10 +170,15 @@ for (const width of [1440,390]) test(`${width}px 摄像头搜索只发现设备�
   await dialog.getByRole('button',{name:'192.0.2.10',exact:true}).click();
   await dialog.getByLabel('设备密码').fill('synthetic-password');
   await dialog.getByRole('button',{name:'连接并开启摄像头',exact:true}).click();
-  await expect(dialog.getByRole('status')).toContainText('实时看护已开启');
-  expect(calls).toEqual(['discover','connect']);
-  await page.keyboard.press('Escape');
+  await expect(dialog.getByRole('alert')).toContainText('连接失败');
+  expect(await dialog.getByRole('alert').evaluate(node => parseFloat(getComputedStyle(node).fontSize))).toBeGreaterThanOrEqual(16);
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByLabel('设备密码')).toHaveValue('synthetic-password');
+  await dialog.getByRole('button',{name:'连接并开启摄像头',exact:true}).click();
   await expect(dialog).not.toBeVisible();
+  await expect(page.locator('.lan-setup > [role=status]')).toContainText('实时看护已开启');
+  expect(await page.locator('.lan-setup > [role=status]').evaluate(node => parseFloat(getComputedStyle(node).fontSize))).toBeGreaterThanOrEqual(16);
+  expect(calls).toEqual(['discover','connect','connect']);
   await expect(page.getByRole('button',{name:'停止预览',exact:true})).toBeVisible();
   await expect(page.locator('.camera-safety')).toContainText('关注中');
   await page.screenshot({path:path.join(run,`camera-round2-${width}.png`),fullPage:true});

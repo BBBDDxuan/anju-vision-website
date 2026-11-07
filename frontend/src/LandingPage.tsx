@@ -149,7 +149,7 @@ export function LandingPage({ onEnter, onCamera, demos = [], onOpenDemo }: Props
           <div className="av-hero-copy">
             <p className="av-eyebrow av-entrance"><span/>AI 视频理解 · 居家安全关怀</p>
             <h1 id="hero-title" className="av-entrance">让牵挂，<br/><em>有迹可循。</em></h1>
-            <p className="av-hero-description av-entrance">不用时刻守着监控，也不错过需要留意的瞬间。AI 自动分析居家录像，提供跌倒、挥手和明火安全提醒，标记需要关注的时刻，让每一份关心都清晰可查。</p>
+            <p className="av-hero-description av-entrance">不用守着监控，也不会错过需要注意的危险。AI 自动分析居家录像，提供跌倒、挥手和明火安全提醒，标记需要关注的时刻，让每一份关心都清晰可查。</p>
             <div className="av-actions av-entrance"><a className="av-button" href={workspaceHref('videos')} onClick={event => enter(event)}><Icon name="play" size={17}/>开始视频分析<Arrow/></a><a className="av-button av-button-outline" href="/#capabilities" onClick={event => scrollTo(event, 'capabilities')}>了解核心能力<Arrow down/></a></div>
             <div className="av-hero-footnote av-entrance"><Icon name="shield" size={15}/>为独居老人照护与家庭安全而设计</div>
           </div>
@@ -212,7 +212,7 @@ export function LandingPage({ onEnter, onCamera, demos = [], onOpenDemo }: Props
           <div className="av-device-copy av-reveal"><SectionLabel number="04 / CONNECTION">设备接入</SectionLabel><h2 id="devices-title">熟悉设备，<br/><em>轻松接入。</em></h2><p>无需更换现有设备，支持多种视频源接入。把画面交给 AI 值守，把时间留给家人陪伴。</p><small>接入与分析能力以实际部署、后端服务及模型配置为准。</small></div>
           <div className="av-camera-illustration av-reveal"><div className="av-camera-halo"/><img src="/assets/camera.svg" width="340" height="390" loading="lazy" alt="家用云台摄像头外观示意，不代表特定品牌兼容性"/><span>家用摄像头 · 外观示意</span></div>
           <div className="av-device-features av-reveal">
-            <a className="av-connection-card" href={workspaceHref('camera')} onClick={event => enter(event, true)}><span><Icon name="plug" size={27}/></span><div><h3>本机摄像头</h3><p>调用本地摄像头服务，即可查看实时画面、开启 AI 分析。</p><small>需本地服务与模型就绪</small></div><Arrow/></a>
+            <a className="av-connection-card" href={workspaceHref('camera')} onClick={event => enter(event, true)}><span><Icon name="plug" size={27}/></span><div><h3>本地摄像头</h3><p>调用本地摄像头服务，即可查看实时画面、开启 AI 分析。</p><small>需本地服务与模型就绪</small></div><Arrow/></a>
             <a className="av-connection-card" href={workspaceHref('videos')} onClick={event => enter(event)}><span><Icon name="video" size={27}/></span><div><h3>导入 MP4 录像</h3><p>上传已有监控录像文件，手动启动 AI 分析与证据整理。</p></div><Arrow/></a>
             <div className="av-connection-card" aria-label="摄像头协议接入，按部署配置，需后端支持"><span><Icon name="shield" size={27}/></span><div><h3>摄像头协议接入</h3><p>支持按实际部署对接网络摄像头，具体协议及云端分析能力以配置为准。</p><small>按部署配置 / 需后端支持</small></div></div>
           </div>

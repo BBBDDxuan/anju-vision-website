@@ -27,6 +27,7 @@ export function LanSetup() {
   const [path, setPath] = useState('stream1');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const [failed, setFailed] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
   const account = useContext(AccountContext);
   const loopback = !account && ['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname);
@@ -38,6 +39,7 @@ export function LanSetup() {
   function toggle(next: Panel) {
     setPanel(panel === next ? null : next);
     setMessage('');
+    setFailed(false);
     setQr('');
     setPassword('');
   }
@@ -45,8 +47,9 @@ export function LanSetup() {
   async function run(action: () => Promise<void>) {
     setBusy(true);
     setMessage('');
+    setFailed(false);
     try { await action(); }
-    catch (error) { setMessage(error instanceof Error ? error.message : '操作失败'); }
+    catch (error) { setFailed(true); setMessage(error instanceof Error ? error.message : '操作失败'); }
     finally { setBusy(false); }
   }
   const discover = () => run(async () => {
@@ -70,7 +73,8 @@ export function LanSetup() {
         搜索摄像头
       </button>
     </div>
-    <dialog ref={dialog} className="lan-dialog" aria-labelledby="lan-dialog-title" onClose={() => { setPanel(null); setPassword(''); }} onCancel={() => { setPanel(null); setPassword(''); }}><div className="lan-dialog-heading"><h2 id="lan-dialog-title">{panel === 'pair' ? '连接手机' : '添加摄像头'}</h2><button type="button" aria-label="关闭连接窗口" onClick={() => { setPanel(null); setPassword(''); }}>关闭</button></div>
+    {!panel && message && !busy && <p className={`lan-setup-status ${failed ? 'is-error' : 'is-success'}`} role={failed ? 'alert' : 'status'}>{message}</p>}
+    <dialog ref={dialog} className="lan-dialog" aria-labelledby="lan-dialog-title" onClose={() => { setPanel(null); setPassword(''); }} onCancel={event => { if (busy) { event.preventDefault(); return; } setPanel(null); setPassword(''); }}><div className="lan-dialog-heading"><h2 id="lan-dialog-title">{panel === 'pair' ? '连接手机' : '添加摄像头'}</h2><button type="button" disabled={busy} aria-label="关闭连接窗口" onClick={() => { setPanel(null); setPassword(''); }}>关闭</button></div>
     {loopback && <div id="lan-pair-panel" hidden={panel !== 'pair'} className="lan-setup-panel" aria-labelledby="lan-pair-button">
       <p>在安居视界 App 中扫码。二维码两分钟内有效，仅可使用一次，请勿分享。</p>
       <button type="button" disabled={busy} onClick={() => void run(async () => {
@@ -90,7 +94,8 @@ export function LanSetup() {
         void run(async () => {
           await lan('/api/monitoring/camera', { host: host.trim(), port: Number(port), username: username.trim(), password, path: path.trim() });
           setPassword('');
-          setMessage('摄像头已连接，实时看护已开启。关闭窗口即可查看画面。');
+          setMessage('摄像头已连接，实时看护已开启。');
+          setPanel(null);
         });
       }}>
         <fieldset disabled={busy}>
@@ -99,11 +104,11 @@ export function LanSetup() {
           <label>用户名 <input required value={username} onChange={e => setUsername(e.target.value)} /></label>
           <label>设备密码 <input required type="password" autoComplete="off" value={password} onChange={e => setPassword(e.target.value)} /></label>
           <label>视频路径 <input required value={path} onChange={e => setPath(e.target.value)} /></label>
-          <button type="submit">连接并开启摄像头</button>
+          <button type="submit">{busy ? '正在连接…' : '连接并开启摄像头'}</button>
         </fieldset>
       </form>
     </div>
-    <p className="lan-setup-status" role="status" hidden={!busy && !message}>{busy ? '处理中…' : message}</p>
+    <p className={`lan-setup-status ${failed ? 'is-error' : ''}`} role={failed ? 'alert' : 'status'} hidden={!busy && !message}>{busy ? '处理中…' : message}</p>
     </dialog>
   </section>;
 }

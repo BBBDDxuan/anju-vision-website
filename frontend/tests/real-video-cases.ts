@@ -29,7 +29,7 @@ test('官网采用已批准文案并保持工作台入口去重', async ({ page 
   await expect(homeImage).toHaveAttribute('src', '/assets/home-care-watering.webp');
   await expect(homeImage).toHaveAttribute('alt', '温暖客厅中，老人微笑着为花草浇水的居家生活画面');
   await expect.poll(() => homeImage.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth === 1448 && img.naturalHeight === 1086)).toBe(true);
-  await expect(page.locator('.av-hero-description')).toHaveText('不用时刻守着监控，也不错过需要留意的瞬间。AI 自动分析居家录像，提供跌倒、挥手和明火安全提醒，标记需要关注的时刻，让每一份关心都清晰可查。');
+  await expect(page.locator('.av-hero-description')).toHaveText('不用守着监控，也不会错过需要注意的危险。AI 自动分析居家录像，提供跌倒、挥手和明火安全提醒，标记需要关注的时刻，让每一份关心都清晰可查。');
   await expect(page.getByRole('link', { name: /开始视频分析/ })).toHaveCount(1);
   await expect(page.locator('.av-actions').getByRole('link', { name: /了解核心能力/ })).toHaveCount(1);
   await expect(page.locator('.av-hero-footnote')).toHaveText('为独居老人照护与家庭安全而设计');

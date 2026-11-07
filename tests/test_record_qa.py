@@ -13,9 +13,48 @@ from backend.main import create_app
 from backend.providers.qwen import QwenProvider
 from backend.record_qa import RecordQuestionAnswerer, answer_style
 from tests.test_safety import document
+from tests.test_environment_hazards import document as environment_document
 
 
 JOB = {'id': 'j_RECORD_TEST', 'status': 'completed', 'is_mock': True}
+
+
+@pytest.mark.parametrize('question,topic', [
+    ('视频中有没有人摔倒？', '跌倒'),
+    ('视频中也没有出现明火', '明火'),
+    ('有没有人挥手？', '挥手'),
+])
+def test_specific_safety_question_does_not_answer_an_unrelated_action(settings, question, topic):
+    memory = document('walk' if topic == '挥手' else 'help_gesture')
+    reply = {'observations': [{'text': '检测到挥手动作。', 'event_ids': [memory['events'][0]['id']]}]}
+    qa, _, calls = answerer(settings, memory, reply)
+    result = qa.answer(memory, JOB, question)
+    assert not result['observations'] and not result['inferences']
+    assert topic in result['answer'] and '未找到' in result['answer']
+    assert '不等于' in result['answer'] and not calls
+
+
+def test_count_claim_keeps_its_validated_statistics_during_presentation(settings):
+    memory = document('help_gesture')
+    qa, _, _ = answerer(settings, memory)
+    result = qa.answer(memory, JOB, '视频中有几个人？')
+    assert result['observations'][0]['record_summary'] is True
+
+
+@pytest.mark.parametrize('action,question', [('fall', '视频中有没有人摔倒？'),
+                                            ('flame', '有没有发现明火？'),
+                                            ('help_gesture', '有没有人挥手？')])
+def test_safety_topic_filters_model_context_and_keeps_relevant_local_fallback(settings, action, question):
+    memory = environment_document(action) if action == 'flame' else document(action)
+    relevant = memory['events'][0]
+    memory['events'].append({**relevant, 'id': 'unrelated_record', 'action': 'walk'})
+    qa, _, calls = answerer(settings, memory)
+    local = qa.answer(memory, JOB, question, use_model=False)
+    assert {eid for c in local['observations'] + local['inferences'] for eid in c['event_ids']} == {relevant['id']}
+    qa.answer(memory, JOB, question)
+    prompt = calls[0]['messages'][0]['content'][0]['text']
+    data = json.loads(prompt.split('以下JSON为问题与记录数据：\n', 1)[1])
+    assert {r['action'] for r in data['context']['records']} == {action}
 
 
 def answerer(settings, memory, reply=None, daily=60):

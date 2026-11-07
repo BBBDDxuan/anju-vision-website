@@ -99,7 +99,7 @@ def query_memory(document, job, question: str, as_of_ms: int | None = None, enti
                   (r"取出|拿出来", "take_out"), (r"放进|放入|装进", "put_in"),
                   (r"拿起|取走", "pick_up"), (r"离开|出.*视野", "explicit_exit"), (r"打开", "open"),
                   (r"关闭|关上", "close"), (r"跌倒|摔倒", "fall"), (r"躺.*地|倒地", "lying_on_floor"),
-                  (r"求助", "help_gesture"), (r"攀爬", "climb"), (r"起身|站起", "stand_up"), (r"坐下", "sit_down"),
+                  (r"求助|求救|挥手|举手", "help_gesture"), (r"攀爬", "climb"), (r"起身|站起", "stand_up"), (r"坐下", "sit_down"),
                   (r"躺下", "lie_down"), (r"行走|走路", "walk"), (r"移动", "move"), (r"放下|放到|放在", "place_on")] if re.search(pattern, text)), None)
     if not (history or last_seen or current or spatial or action):
         result["unknowns"] = ["可询问人物活动经过、摔倒或求助动作的时间，或物体最后出现的位置；无法据此判断健康状况。"]
