@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "ai-service"))
 
 PREVIEW_INTERVAL = .05
+FIRE_SCAN_INTERVAL = .1  # At most 10 fresh scans/s; camera input may be slower.
 POSE_OVERLAY_MAX_AGE = .25
 POSE_EDGES = [(5,6),(5,7),(7,9),(6,8),(8,10),(5,11),(6,12),(11,12),(11,13),(13,15),(12,14),(14,16)]
 
@@ -175,6 +176,8 @@ def main():
         info["stage"] = "warmup"
         send(info)
         models.infer(np.zeros((360, 640, 3), np.uint8))
+        if config.models.device != "cpu":
+            models.enable_realtime_pose_recovery()
         candidate_root = Path(os.environ.get("SAFETY_CANDIDATE_DIR") or
                               ROOT / "runtime/safety-candidates" / ("local_" + uuid4().hex))
         collector = SafetyCandidateCollector(config, candidate_root)
@@ -184,7 +187,7 @@ def main():
         from ai_service.recording import CameraRecorder
         recorder = CameraRecorder(config.recording, url)
         from ai_service.realtime import LatestFireWorker
-        fire_worker = LatestFireWorker(models.infer_flames)
+        fire_worker = LatestFireWorker(models.infer_flames, interval_seconds=FIRE_SCAN_INTERVAL)
         recent_frames = deque(maxlen=40)
         pose_sample_gaps = deque(maxlen=12)
         recent_fire = deque(maxlen=20)
@@ -382,6 +385,9 @@ def main():
                 pose_enabled=models.pose is not None,
                 pose_sample_gap_ms=round(max(pose_sample_gaps)*1000,1) if pose_sample_gaps else None,
                 flame_tiling_enabled=config.models.flame_tiling_enabled, inference_ms=round(inference_ms,1),
+                pose_recovery_enabled=getattr(models, "_live_recovery", False) or config.models.pose_fall_recovery_enabled,
+                pose_recovery_frames=models.pose_recovery_frames,
+                pose_recovery_ms=round(getattr(models, "pose_recovery_ms", 0.0), 1),
                 fps=frame_rate(recent_frames), fire_fps=frame_rate(recent_fire), fire_inference_ms=round(fire_ms,1) if fire_ms is not None else None,
                 pending_candidates=pending_candidates,
                 fire_state=("error" if fire_worker.failed else "starting" if flame_t is None else

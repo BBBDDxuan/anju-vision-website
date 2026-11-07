@@ -147,6 +147,8 @@ def recover_poses(
     image: np.ndarray,
     poses: Sequence[Pose],
     predict: Callable[[np.ndarray], list[Pose]],
+    *,
+    rotations: Sequence[int] | None = None,
 ) -> list[Pose]:
     """Merge base poses with reliable lying or inverted full-body poses.
 
@@ -156,6 +158,8 @@ def recover_poses(
     only if neither yields an accepted candidate and base has no reliable core
     (all shoulders/hips >= .55 with a defined torso direction). At most three
     extra passes run, and none run unless ``needs_recovery(poses)`` is true.
+    An explicit rotations sequence replaces the default passes (including the
+    fallback), allowing live callers to budget a single pass per sampled frame.
     Predictor exceptions propagate; no model is loaded or downloaded here.
 
     Invalid poses and boxes outside the image are discarded. Recovery candidates
@@ -184,14 +188,15 @@ def recover_poses(
     if needs_recovery(base):
         has_reliable_core = any(_reliable_core(pose) for pose in candidates)
         extras = []
-        for rotation in (cv2.ROTATE_90_CLOCKWISE, cv2.ROTATE_90_COUNTERCLOCKWISE):
+        for rotation in ((cv2.ROTATE_90_CLOCKWISE, cv2.ROTATE_90_COUNTERCLOCKWISE)
+                         if rotations is None else rotations):
             # OpenCV allocates independent storage, including for predictor writes.
             rotated = cv2.rotate(image, rotation)
             for pose in predict(rotated):
                 recovered = _recovery_candidate(pose, width, height, rotation)
                 if recovered is not None:
                     extras.append(recovered)
-        if not extras and not has_reliable_core:
+        if rotations is None and not extras and not has_reliable_core:
             for pose in predict(cv2.rotate(image, cv2.ROTATE_180)):
                 recovered = _recovery_candidate(pose, width, height, cv2.ROTATE_180)
                 if recovered is not None:

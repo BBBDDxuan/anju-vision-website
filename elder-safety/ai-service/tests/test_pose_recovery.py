@@ -473,3 +473,60 @@ def test_half_turn_is_not_sticky_across_frames(image):
     result = recover_poses(image, [standing], predict)
     assert len(result) == 1 and result[0] is standing
     assert predict.call_count == 3
+
+
+def test_live_single_rotation_recovers_without_fallback(image):
+    import cv2
+    original = make_pose(angle=90)
+    predict = Mock(return_value=[rotated_pose(original, True)])
+    result = recover_poses(image, [], predict, rotations=(cv2.ROTATE_90_CLOCKWISE,))
+    assert predict.call_count == 1
+    np.testing.assert_allclose(result[0].keypoints, original.keypoints)
+    predict = Mock(return_value=[])
+    assert recover_poses(image, [], predict, rotations=(cv2.ROTATE_90_CLOCKWISE,)) == []
+    assert predict.call_count == 1
+
+
+def test_live_recovery_budgets_slow_passes_and_never_replays_old_poses(image, monkeypatch):
+    from types import SimpleNamespace
+    from ai_service.models import LocalModels
+    clock = [10.0]
+    monkeypatch.setattr('ai_service.models.time.perf_counter', lambda: clock[0])
+    model = LocalModels.__new__(LocalModels)
+    model.config = SimpleNamespace(pose_fall_recovery_enabled=False)
+    model.pose = object()
+    model.pose_frames = model.pose_recovery_frames = 0
+    model.enable_realtime_pose_recovery()
+    original = make_pose(angle=90)
+    predictions = [[], [rotated_pose(original, True)], [], [], []]
+    calls = []
+
+    def predict(frame):
+        calls.append(frame.shape)
+        clock[0] += .06
+        return predictions.pop(0)
+
+    model._infer_pose = predict
+    assert len(model.infer_pose(image)) == 1
+    assert len(calls) == 2 and model.pose_recovery_frames == 1
+    # Recovery cost .06s requires .4s between recovery starts.
+    assert model.infer_pose(image) == []
+    assert len(calls) == 3
+    clock[0] = 10.5
+    assert model.infer_pose(image) == []
+    assert len(calls) == 5 and model.pose_recovery_frames == 2
+    assert abs(model.pose_recovery_ms - 60) < .001
+
+
+def test_live_recovery_skips_reliable_standing(image):
+    from types import SimpleNamespace
+    from ai_service.models import LocalModels
+    model = LocalModels.__new__(LocalModels)
+    model.config = SimpleNamespace(pose_fall_recovery_enabled=False)
+    model.pose = object()
+    model.pose_frames = model.pose_recovery_frames = 0
+    model.enable_realtime_pose_recovery()
+    model._infer_pose = Mock(return_value=[make_pose()])
+    model.infer_pose(image)
+    assert model._infer_pose.call_count == 1
+    assert model.pose_recovery_frames == 0

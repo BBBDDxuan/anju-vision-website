@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import time
 
 from .config import ModelConfig
 from .types import Flame, Pose
@@ -79,14 +80,36 @@ class LocalModels:
     def infer(self, image):
         return self.infer_pose(image), self.infer_flames(image)
 
+    def enable_realtime_pose_recovery(self):
+        """Budget live recovery separately from full offline multi-view recovery."""
+        self._live_recovery = True
+        self._recovery_next = 0.0
+        self._recovery_direction = 0
+        self.pose_recovery_ms = 0.0
+
     def infer_pose(self, image):
         self.pose_frames += 1
         poses = self._infer_pose(image)
-        if self.pose is not None and self.config.pose_fall_recovery_enabled:
+        live = getattr(self, "_live_recovery", False)
+        if self.pose is not None and (live or self.config.pose_fall_recovery_enabled):
             from .pose_recovery import needs_recovery, recover_poses
-            if needs_recovery(poses):
+            if needs_recovery(poses) and (not live or time.perf_counter() >= self._recovery_next):
                 self.pose_recovery_frames += 1
-                poses = recover_poses(image, poses, self._infer_pose)
+                if live:
+                    import cv2
+                    directions = (cv2.ROTATE_90_CLOCKWISE, cv2.ROTATE_90_COUNTERCLOCKWISE, cv2.ROTATE_180)
+                    rotation = directions[self._recovery_direction % len(directions)]
+                    self._recovery_direction += 1
+                    started = time.perf_counter()
+                    poses = recover_poses(image, poses, self._infer_pose, rotations=(rotation,))
+                    elapsed = time.perf_counter() - started
+                    self.pose_recovery_ms = elapsed * 1000
+                    # One pass, at most 5/s, with a target <=15% wall-time
+                    # budget. A slow pass extends the cooldown; no stale poses
+                    # are replayed into tracking or event confirmation.
+                    self._recovery_next = started + max(.2, elapsed / .15)
+                else:
+                    poses = recover_poses(image, poses, self._infer_pose)
         return poses
 
     def _infer_pose(self, image):
