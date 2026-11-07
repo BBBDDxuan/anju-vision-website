@@ -1,0 +1,58 @@
+name: ModelScope Docker
+on:
+  push:
+    branches: ['model/modelscope-deploy-*']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  cpu-container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify Docker context excludes local data
+        shell: bash
+        run: |
+          mkdir -p data runtime frontend/public
+          printf 'SYNTHETIC-CI-CANARY\n' > .env
+          printf 'SYNTHETIC-CI-CANARY\n' > data/private.sqlite3
+          printf 'SYNTHETIC-CI-CANARY\n' > runtime/private.json
+          printf 'SYNTHETIC-CI-CANARY\n' > frontend/public/.env
+          printf 'SYNTHETIC-CI-CANARY\n' > backend/private.json
+          printf 'SYNTHETIC-CI-CANARY\n' > backend/push_notifications/private.json
+          printf 'SYNTHETIC-CI-CANARY\n' > elder-safety/ai-service/ai_service/private.json
+          docker build --file - --output "type=local,dest=$RUNNER_TEMP/context-audit" . <<'DOCKERFILE'
+          FROM scratch
+          COPY . /
+          DOCKERFILE
+          test ! -e "$RUNNER_TEMP/context-audit/.env"
+          test ! -e "$RUNNER_TEMP/context-audit/data/private.sqlite3"
+          test ! -e "$RUNNER_TEMP/context-audit/runtime/private.json"
+          test ! -e "$RUNNER_TEMP/context-audit/frontend/public/.env"
+          test ! -e "$RUNNER_TEMP/context-audit/backend/private.json"
+          test ! -e "$RUNNER_TEMP/context-audit/backend/push_notifications/private.json"
+          test ! -e "$RUNNER_TEMP/context-audit/elder-safety/ai-service/ai_service/private.json"
+          test -f "$RUNNER_TEMP/context-audit/backend/main.py"
+          test -f "$RUNNER_TEMP/context-audit/backend/push_notifications/publisher.py"
+          test -f "$RUNNER_TEMP/context-audit/backend/providers/qwen.py"
+          test -f "$RUNNER_TEMP/context-audit/elder-safety/ai-service/ai_service/models.py"
+          test -f "$RUNNER_TEMP/context-audit/frontend/public/demo/videos/help.mp4"
+      - name: Build CPU image
+        run: docker build -t anju-modelscope-ci .
+      - name: Start cloud entrypoint
+        run: docker run -d --name anju-modelscope-ci -e CLOUD_COOKIE_SECURE=false anju-modelscope-ci
+      - name: Wait for HTTP and scan synthetic video
+        shell: bash
+        run: |
+          for attempt in $(seq 1 60); do
+            if docker exec anju-modelscope-ci python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:7860/api/health',timeout=2)"; then break; fi
+            sleep 2
+          done
+          docker exec -i anju-modelscope-ci python - < deployment/smoke_modelscope.py
+      - name: Container logs
+        if: always()
+        run: docker logs anju-modelscope-ci || true
+      - name: Remove test container
+        if: always()
+        run: docker rm -f anju-modelscope-ci || true

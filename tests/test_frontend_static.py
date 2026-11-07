@@ -23,7 +23,12 @@ def test_public_demo_manifest_and_evidence_images_are_available(client):
     assert response.status_code == 200
     assert response.json() == json.loads((demo / "demo-public-fixture.json").read_text(encoding="utf-8"))
     images = sorted([*demo.glob("posters/*.jpg"), *demo.glob("keyframes/*.jpg")])
-    assert len(images) == 8
+    referenced = {case['posterSrc'].split('?')[0] for case in response.json()['cases']}
+    for case in response.json()['cases']:
+        referenced.update(frame['image'].split('?')[0]
+                          for frame in (case.get('event') or {}).get('referencedFrames', []))
+    assert referenced
+    assert referenced <= {'/demo/' + image.relative_to(demo).as_posix() for image in images}
     for image in images:
         response = client.get("/demo/" + image.relative_to(demo).as_posix())
         assert response.status_code == 200, image.name

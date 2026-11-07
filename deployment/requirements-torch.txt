@@ -1,0 +1,3 @@
+# Match runtime-versions.json; select CPU or cu126 with Docker's TORCH_INDEX_URL.
+torch==2.13.0
+torchvision==0.28.0

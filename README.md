@@ -1,5 +1,11 @@
 # 安居视界 · 团队可复现运行包
 
+## 魔搭创空间部署
+
+独立分支 `model/modelscope-deploy-20261107` 提供 Docker 前后端构建、Linux 检测配置与云端入口。
+步骤见 [魔搭部署说明](docs/MODELSCOPE_DEPLOY.md)，变量见 [deployment/modelscope.env.example](deployment/modelscope.env.example)。
+云端保留上传录像的小模型检测与 Qwen 复核；本机启动方式保持原样。
+
 ## 使用说明入口
 
 - [网页家庭成员与人脸识别](docs/HOUSEHOLD_MEMBERS.md)：在网页建档、录入照片、试识别，并在监护告警中核对成员身份。
